@@ -374,9 +374,10 @@ def run() -> None:
         puzzle_11, puzzle_12, puzzle_13, puzzle_14, puzzle_15, 
         puzzle_16, puzzle_17, puzzle_18, puzzle_19, puzzle_20,
         ]
+    puzzles = [puzzle_17]
     for puzzle in puzzles:
         grid, features = puzzle()
-        result = [Sudoku().solve(grid, features=features, show=False)]
+        result = Sudoku().solve(grid, features=features, show=False)
         assert result, f'Puzzle {puzzle} failed'
 
 

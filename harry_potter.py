@@ -970,6 +970,6 @@ def puzzle_2021_05_24(*, show: bool = False) -> None:
 
 if __name__ == '__main__':
     start = datetime.datetime.now()
-    puzzle8()
+    puzzle_09_04()
     end = datetime.datetime.now()
     print(end - start)

@@ -3,15 +3,15 @@ from __future__ import annotations
 import abc
 import datetime
 import functools
-from itertools import permutations, combinations, product, tee, groupby, combinations_with_replacement
 from collections import deque, defaultdict
 from collections.abc import Iterable, Sequence, Mapping
+from itertools import permutations, combinations, product, tee, groupby, combinations_with_replacement
 from typing import Optional, ClassVar, Any, Union
 
 from cell import Cell, House
+from draw_context import DrawContext
 from feature import Feature, Square, MultiFeature
 from grid import Grid
-from draw_context import DrawContext
 
 
 class KnightsMoveFeature(Feature):
@@ -757,9 +757,16 @@ class SandwichXboxFeature(SimplePossibilitiesFeature):
         self.draw_outside(context, self.value, self.htype, self.row_column, is_right=self.is_right, **args)
 
 
-class PalindromeFeature(Feature):
+class SameValueFeature(SimplePossibilitiesFeature):
+    def __init__(self, square1: Square, square2: Square) -> None:
+        super().__init__([square1, square2])
+
+    def get_possibilities(self) -> list[tuple[int, ...]]:
+        return [(i, i) for i in range(1, 10)]
+
+
+class PalindromeFeature(MultiFeature):
     squares: Sequence[Square]
-    cells: Sequence[Cell]
     color: str
 
     def __init__(self, squares: Union[Sequence[Square], str], color: str):
@@ -767,27 +774,10 @@ class PalindromeFeature(Feature):
             squares = self.parse_line(squares)
         self.squares = squares
         self.color = color
-
-    def initialize(self, grid: Grid) -> None:
-        self.cells = [grid.matrix[square] for square in self.squares]
-
-    @Feature.check_only_if_changed
-    def check(self) -> bool:
-        changed = False
-        pairs = len(self.cells) // 2
-        for cell1, cell2 in zip(self.cells[:pairs], self.cells[::-1]):
-            if cell1.possible_values != cell2.possible_values:
-                changed = True
-                print(f'{cell1.index} and {cell2.index} must have the same values' 
-                      ' {cell1.possible_values} {cell2.possible_values}')
-                values = cell1.possible_values.intersection(cell2.possible_values)
-                for a, b in ((cell1, cell2), (cell2, cell1)):
-                    if a.possible_values != values:
-                        if b.is_known:
-                            a.set_value_to(b.known_value, show=True)
-                        else:
-                            Cell.keep_values_for_cell([a], values)
-        return changed
+        count = len(squares) // 2
+        features = [SameValueFeature(square1, square2)
+                    for square1, square2 in zip(squares[:count], squares[::-1])]
+        super().__init__(features)
 
     def draw(self, context: DrawContext) -> None:
         context.draw_line(self.squares, color=self.color)
@@ -862,9 +852,9 @@ class KropkeDotFeature(MultiFeature):
         features = []
         for chunk in chunks:
             if prev:
-                features.append(self._InternalFeature((prev, chunk[0]), black=self.is_black))
+                features.append(self._KropkeInBoxFeature((prev, chunk[0]), black=self.is_black))
             if len(chunk) > 1:
-                features.append(self._InternalFeature(chunk, black=self.is_black))
+                features.append(self._KropkeInBoxFeature(chunk, black=self.is_black))
             prev = chunk[-1]
         super().__init__(features)
 
@@ -875,7 +865,7 @@ class KropkeDotFeature(MultiFeature):
             context.draw_circle(((x1 + x2 + 1) / 2, (y1 + y2 + 1) / 2),
                                 radius=.2, fill=self.is_black, color='black')
 
-    class _InternalFeature(SimplePossibilitiesFeature):
+    class _KropkeInBoxFeature(SimplePossibilitiesFeature):
         is_black: bool
 
         def __init__(self, squares: [tuple[Square]], *, black) -> None:
@@ -940,14 +930,17 @@ class KillerCageFeature(SimplePossibilitiesFeature):
 class ArrowFeature(SimplePossibilitiesFeature):
     """The sum of the values in the arrow must equal the digit in the head of the array"""
     def __init__(self, squares: Union[Sequence[Square], str]):
-        super().__init__(squares)
+        super().__init__(squares, neighbors=True)
 
     def get_possibilities(self) -> Iterable[tuple[int, ...]]:
-        count = len(self.squares) - 1
-        for values in permutations(range(1, 10), count):
-            total = sum(values)
-            if total < 10:
-                yield total, *values
+        return self._get_possibilities(len(self.squares) - 1)
+
+    @staticmethod
+    @functools.cache
+    def _get_possibilities(count):
+        return [(total, *values) for values in product(range(1, 10), repeat=count)
+                for total in [sum(values)]
+                if total < 10]
 
     def draw(self, context: DrawContext) -> None:
         y, x = self.squares[0]
@@ -977,41 +970,6 @@ class BetweenLineFeature(PossibilitiesFeature):
         context.draw_circle((x0 + .5, y0+.5), radius=.5, fill=False, color='black')
         context.draw_circle((x1 + .5, y1+.5), radius=.5, fill=False, color='black')
         context.draw_line(self.squares)
-
-
-class ExtremesFeatureOld(MultiFeature):
-    """Reds must be larger than all of its neighbors.  Greens must be smaller than all of its neighbors"""
-    reds: Sequence[Square]
-    greens: Sequence[Square]
-
-    def __init__(self, *, reds: Union[str, Sequence[Square]] = (), greens: Union[str, Sequence[Square]] = ()) -> None:
-        self.reds = self.parse_line(reds) if isinstance(reds, str) else reds
-        self.greens = self.parse_line(greens) if isinstance(greens, str) else greens
-        super().__init__([
-            *[self._Comparer(neighbor, red)
-              for red in self.reds for neighbor in self._orthogonal_neighbors(red)],
-            *[self._Comparer(green, neighbor)
-              for green in self.greens for neighbor in self._orthogonal_neighbors(green)],
-        ])
-
-    def draw(self, context: DrawContext) -> None:
-        for color, squares in (('#FCA0A0', self.reds), ('#B0FEB0', self.greens)):
-            for y, x in squares:
-                context.draw_rectangle((x, y), width=1, height=1, color=color, fill=True)
-
-    class _Comparer(AdjacentRelationshipFeature):
-        def __init__(self, small: Square, large: Square):
-            super().__init__([small, large], color=None)
-
-        def match(self, digit1: int, digit2: int) -> bool:
-            return digit1 < digit2
-
-    @staticmethod
-    def _orthogonal_neighbors(square):
-        row, column = square
-        for r, c in ((row + 1, column), (row - 1, column), (row, column + 1), (row, column - 1)):
-            if 1 <= r <= 9 and 1 <= c <= 9:
-                yield r, c
 
 
 class ExtremesFeature(MultiFeature):
