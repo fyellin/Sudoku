@@ -17,10 +17,6 @@ from grid import Grid
 class KnightsMoveFeature(Feature):
     """No two squares within a knight's move of each other can have the same value."""
     OFFSETS = [(dr, dc) for dx in (-1, 1) for dy in (-2, 2) for (dr, dc) in ((dx, dy), (dy, dx))]
-    grid: Grid
-
-    def initialize(self, grid: Grid) -> None:
-        self.grid = grid
 
     def get_neighbors(self, cell: Cell) -> Iterable[Cell]:
         return self.neighbors_from_offsets(self.grid, cell, self.OFFSETS)
@@ -29,10 +25,6 @@ class KnightsMoveFeature(Feature):
 class KingsMoveFeature(Feature):
     """No two pieces within a king's move of each other can have the same value."""
     OFFSETS = [(dr, dc) for dr in (-1, 1) for dc in (-1, 1)]
-    grid: Grid
-
-    def initialize(self, grid: Grid) -> None:
-        self.grid = grid
 
     def get_neighbors(self, cell: Cell) -> Iterable[Cell]:
         return self.neighbors_from_offsets(self.grid, cell, self.OFFSETS)
@@ -40,14 +32,11 @@ class KingsMoveFeature(Feature):
 
 class QueensMoveFeature(Feature):
     OFFSETS = [(dr, dc) for delta in range(1, 9) for dr in (-delta, delta) for dc in (-delta, delta)]
-    grid: Grid
     values: set[int]
 
     def __init__(self, values: set[int] = frozenset({9})):
+        super().__init__()
         self.values = values
-
-    def initialize(self, grid: Grid) -> None:
-        self.grid = grid
 
     def get_neighbors_for_value(self, cell: Cell, value: int) -> Iterable[Cell]:
         if value in self.values:
@@ -58,14 +47,11 @@ class QueensMoveFeature(Feature):
 
 class TaxicabFeature(Feature):
     """Two squares with the same value cannot have "value" as the taxicab distance between them."""
-    grid: Grid
     taxis: set[int]
 
     def __init__(self, taxis: Sequence[int] = ()):
+        super().__init__()
         self.taxis = set(taxis)
-
-    def initialize(self, grid: Grid) -> None:
-        self.grid = grid
 
     def get_neighbors_for_value(self, cell: Cell, value: int) -> Iterable[Cell]:
         if value in self.taxis:
@@ -84,26 +70,24 @@ class TaxicabFeature(Feature):
 
 class PossibilitiesFeature(Feature, abc.ABC):
     """We are given a set of possible values for a set of cells"""
-    name: str
     squares: Sequence[Square]
     cells: Sequence[Cell]
     possibilities: list[tuple[set[int], ...]]
-    grid: Grid
     handle_neighbors: bool
     compressed: bool
 
     def __init__(self, squares: Union[Sequence[Square], str], *,
                  name: Optional[str] = None, neighbors: bool = False, compressed: bool = False) -> None:
+        super().__init__(name=name)
         if isinstance(squares, str):
             squares = self.parse_line(squares)
-        self.name = name or self.get_default_feature_name()
         self.squares = squares
         self.handle_neighbors = neighbors
         self.compressed = compressed
 
     def initialize(self, grid: Grid) -> None:
+        super().initialize(grid)
         self.cells = [grid.matrix[square] for square in self.squares]
-        self.grid = grid
 
     @abc.abstractmethod
     def get_possibilities(self) -> list[tuple[set[int], ...]]: ...
@@ -168,23 +152,21 @@ class PossibilitiesFeature(Feature, abc.ABC):
 
 class SimplePossibilitiesFeature(Feature, abc.ABC):
     """We are given a set of possible values for a set of cells"""
-    name: str
     squares: Sequence[Square]
     cells: Sequence[Cell]
     possibilities: list[tuple[int, ...]]
-    grid: Grid
     handle_neighbors: bool
     handle_duplicates: bool
 
     def __init__(self, squares: Union[Sequence[Square], str], *,
                  name: Optional[str] = None, neighbors: bool = False, duplicates: bool = False) -> None:
-        self.name = name or self.get_default_feature_name()
+        super().__init__(name=name)
         self.squares = self.parse_line(squares) if isinstance(squares, str) else squares
         self.handle_neighbors = neighbors
         self.handle_duplicates = duplicates
 
     def initialize(self, grid: Grid) -> None:
-        self.grid = grid
+        super().initialize(grid)
         self.cells = [grid.matrix[square] for square in self.squares]
 
     @abc.abstractmethod
@@ -270,7 +252,6 @@ class AdjacentRelationshipFeature(Feature, abc.ABC):
 
     The squares have an order, so this relationship does not need to be symmetric.  (I.e. a thermometer)
     """
-    name: str
     squares: Sequence[Square]
     cells: Sequence[Cell]
     cyclic: bool
@@ -281,12 +262,13 @@ class AdjacentRelationshipFeature(Feature, abc.ABC):
 
     def __init__(self, squares: Union[Sequence[Square], str], *,
                  name: Optional[str] = None, cyclic: bool = False, color: Optional[str] = 'gold'):
-        self.name = name or self.get_default_feature_name()
+        super().__init__(name=name)
         self.squares = self.parse_line(squares) if isinstance(squares, str) else squares
         self.cyclic = cyclic
         self.color = color
 
     def initialize(self, grid: Grid) -> None:
+        super().initialize(grid)
         self.cells = [grid.matrix[x] for x in self.squares]
         self.triples = [
             ((self.cells[-1] if self.cyclic else None), self.cells[0], self.cells[1]),
@@ -343,10 +325,12 @@ class AllValuesPresentFeature(Feature):
     cells: Sequence[Cell]
 
     def __init__(self, squares: Sequence[Square]):
+        super().__init__()
         assert len(squares) >= 9
         self.squares = squares
 
     def initialize(self, grid: Grid) -> None:
+        super().initialize(grid)
         self.cells = [grid.matrix[x] for x in self.squares]
 
     def check(self) -> bool:
@@ -455,6 +439,7 @@ class SnakeFeature(Feature):
     squares: Sequence[Square]
 
     def __init__(self, squares: Sequence[Square], *, show: bool = True, line: bool = True):
+        super().__init__()
         SnakeFeature.count += 1
         assert len(squares) == 9
         self.my_number = SnakeFeature.count
@@ -476,6 +461,7 @@ class SnakeFeature(Feature):
                 for r in (1, 2, 3) for c in (1, 2, 3)]
 
     def initialize(self, grid: Grid) -> None:
+        super().initialize(grid)
         cells = [grid.matrix[square] for square in self.squares]
         grid.houses.append(House(House.Type.EXTRA, 0, cells))
 
@@ -497,6 +483,7 @@ class LimitedValuesFeature(Feature):
 
     def __init__(self, squares: Sequence[Square], values: Sequence[int], *,
                  color: Optional[str] = None):
+        super().__init__()
         self.squares = squares
         self.values = values
         self.color = color
@@ -515,6 +502,7 @@ class OddsAndEvensFeature(Feature):
     evens: Sequence[Square]
 
     def __init__(self, odds: Sequence[Square], evens: Sequence[Square]):
+        super().__init__()
         self.odds = odds
         self.evens = evens
 
@@ -538,9 +526,11 @@ class AbstractMateFeature(Feature, abc.ABC):
     done: bool
 
     def __init__(self, square: Square):
+        super().__init__()
         self.this_square = square
 
     def initialize(self, grid: Grid) -> None:
+        super().initialize(grid)
         self.this_cell = grid.matrix[self.this_square]
         self.possible_mates = list(self.get_mates(self.this_cell, grid))
         self.done = False
@@ -624,11 +614,6 @@ class SameValueAsMateFeature(AbstractMateFeature):
 
 
 class LittlePrincessFeature(Feature):
-    grid: Grid
-
-    def initialize(self, grid: Grid) -> None:
-        self.grid = grid
-
     def get_neighbors_for_value(self, cell: Cell, value: int) -> Iterable[Cell]:
         offsets = self.__get_offsets_for_value(value)
         return self.neighbors_from_offsets(self.grid, cell, offsets)
@@ -644,6 +629,7 @@ class AlternativeBoxesFeature(Feature):
     squares: Sequence[list[Square]]
 
     def __init__(self, pattern: str) -> None:
+        super().__init__()
         assert len(pattern) == 81
         info: Sequence[list[Square]] = [list() for _ in range(10)]
         for (row, column), letter in zip(product(range(1, 10), repeat=2), pattern):
@@ -654,6 +640,7 @@ class AlternativeBoxesFeature(Feature):
         self.squares = info[1:]
 
     def initialize(self, grid: Grid) -> None:
+        super().initialize(grid)
         grid.delete_normal_boxes()
         boxes = [House(House.Type.BOX, i + 1,
                        [grid.matrix[square] for square in self.squares[i]])
@@ -671,7 +658,6 @@ class SandwichFeature(PossibilitiesFeature):
     htype: House.Type
     row_column: int
     total: int
-    grid: Grid
 
     @staticmethod
     def all(htype: House.Type, totals: Sequence[Optional[int]]) -> Sequence[SandwichFeature]:
@@ -684,10 +670,6 @@ class SandwichFeature(PossibilitiesFeature):
         self.row_column = row_column
         self.total = total
         super().__init__(squares, name=name, compressed=True)
-
-    def initialize(self, grid: Grid) -> None:
-        self.grid = grid
-        super().initialize(grid)
 
     def get_possibilities(self) -> Iterable[tuple[set[int], ...]]:
         return self._get_possibilities(self.total)
@@ -948,27 +930,35 @@ class ArrowFeature(SimplePossibilitiesFeature):
         context.draw_line(self.squares)
 
 
-class BetweenLineFeature(PossibilitiesFeature):
+class BetweenLineFeature(SimplePossibilitiesFeature):
     """The values in the middle of the arrow must be strictly in between the values of the two endpoints"""
     def __init__(self, squares: Union[Sequence[Square], str]):
-        super().__init__(squares)
+        super().__init__(squares, neighbors=True)
+
+    @staticmethod
+    def between(square1: Square, square2: Square) -> BetweenLineFeature:
+        (r1, c1), (r2, c2) = square1, square2
+        dr, dc = r2 - r1, c2 - c1
+        distance = max(abs(dr), abs(dc))
+        dr, dc = dr // distance, dc // distance
+        squares = [square1]
+        while squares[-1] != square2:
+            r1, c1 = r1 + dr, c1 + dc
+            squares.append((r1, c1))
+        return BetweenLineFeature(squares)
 
     def get_possibilities(self) -> Iterable[tuple[set[int], ...]]:
-        clumps = [list(squares)
-                  for box, squares in groupby(self.squares[1:-1], key=self.box_for_square)]
-        count = len(self.squares) - 2
-        max_clump_length = max(len(clump) for clump in clumps)
-        for low, high in combinations(range(1, 10), 2):
-            if high > low + max_clump_length:
-                middle = set(range(low + 1, high))
-                yield [{low}, *([middle] * count), {high}]
-                yield [{high}, *([middle] * count), {low}]
+        for low in range(1, 8):
+            for high in range(low + 2, 10):
+                for middle in product(range(low + 1, high), repeat=len(self.squares) - 2):
+                    yield (low, *middle, high)
+                    yield (high, *middle, low)
 
     def draw(self, context: DrawContext) -> None:
         y0, x0 = self.squares[0]
         y1, x1 = self.squares[-1]
-        context.draw_circle((x0 + .5, y0+.5), radius=.5, fill=False, color='black')
-        context.draw_circle((x1 + .5, y1+.5), radius=.5, fill=False, color='black')
+        context.draw_circle((x0 + .5, y0+.5), radius=.4, fill=True, color='lightgray')
+        context.draw_circle((x1 + .5, y1+.5), radius=.4, fill=True, color='lightgray')
         context.draw_line(self.squares)
 
 
@@ -1100,3 +1090,21 @@ class QuadrupleFeature(SimplePossibilitiesFeature):
     def __str__(self) -> str:
         row, column = self.squares[0]
         return f'<{"".join(str(value) for value in sorted(self.values))}@r{row}c{column}>'
+
+
+class HelperFeature(Feature):
+    round: int
+
+    def __init__(self, *, name: Optional[str] = None):
+        super().__init__(name=name)
+        self.round = 0
+
+    def check_special(self) -> bool:
+        self.round += 1
+        method = getattr(self, f'round_{self.round}', None)
+        if method:
+            print(f'Looking at {self.name} for Round=#{self.round}')
+            method()
+            return True
+        else:
+            return False

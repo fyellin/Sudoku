@@ -9,7 +9,8 @@ from features import KnightsMoveFeature, PossibilitiesFeature, MagicSquareFeatur
     AdjacentRelationshipFeature, AllValuesPresentFeature, ThermometerFeature, SnakeFeature, LimitedValuesFeature, \
     SameValueAsExactlyOneMateFeature, SameValueAsMateFeature, LittlePrincessFeature, \
     AlternativeBoxesFeature, SlowThermometerFeature, SandwichFeature, KingsMoveFeature, \
-    QueensMoveFeature, SandwichXboxFeature, PalindromeFeature, XVFeature, NonConsecutiveFeature
+    QueensMoveFeature, SandwichXboxFeature, PalindromeFeature, XVFeature, NonConsecutiveFeature, BetweenLineFeature, \
+    KillerCageFeature, HelperFeature
 from grid import Grid
 from human_sudoku import Sudoku
 from draw_context import DrawContext
@@ -31,9 +32,11 @@ class MalvoloRingFeature(Feature):
     special: Cell
 
     def __init__(self) -> None:
+        super().__init__()
         self.features = [self.Adjacency(self.SQUARES), AllValuesPresentFeature(self.SQUARES)]
 
     def initialize(self, grid: Grid) -> None:
+        super().initialize(grid)
         self.special = grid.matrix[2, 4]
         for feature in self.features:
             feature.initialize(grid)
@@ -129,12 +132,13 @@ class SnakesEggFeature(Feature):
         self.squares = info
 
     def initialize(self, grid: Grid) -> None:
+        super().initialize(grid)
         eggs = [self.Egg(i, [grid.matrix[square] for square in self.squares[i]]) for i in range(1, 9)]
         grid.houses.extend(eggs)
 
     def draw(self, context: DrawContext) -> None:
         # Find all squares that aren't in one of the eggs.
-        snake: Set[Square] = set(itertools.product(range(1, 10), range(1, 10)))
+        snake: Set[Square] = set(cast(Iterable[Square], itertools.product(range(1, 10), repeat=2)))
         snake.difference_update(cell for size in range(1, 10) for cell in self.squares[size])
         context.draw_rectangles(cast(Sequence[Square], snake), facecolor='lightblue')
 
@@ -164,6 +168,7 @@ class Pieces44(Feature):
         self.eggs = info[1:8]
 
     def initialize(self, grid: Grid) -> None:
+        super().initialize(grid)
         eggs = [self.Egg(i + 1, [grid.matrix[square] for square in self.eggs[i]]) for i in range(len(self.eggs))]
         grid.houses.extend(eggs)
 
@@ -178,6 +183,7 @@ class PlusFeature(Feature):
     puzzles: Sequence[str]
 
     def __init__(self, squares: Sequence[Square], puzzles: Sequence[str]) -> None:
+        super().__init__()
         self.squares = squares
         self.puzzles = puzzles
 
@@ -237,6 +243,7 @@ class DrawCircleFeature(Feature):
     squares: Sequence[Square]
 
     def __init__(self, squares: Sequence[Square]):
+        super().__init__()
         self.squares = squares
 
     def draw(self, context: DrawContext) -> None:
@@ -290,6 +297,7 @@ class DrawBoxFeature(Feature):
     squares: Sequence[Square]
 
     def __init__(self, squares: Sequence[Square]):
+        super().__init__()
         self.squares = squares
 
     def draw(self, context: DrawContext) -> None:
@@ -540,6 +548,7 @@ def double_sum_puzzle(*, show: bool = False) -> None:
         cells: Sequence[Cell]
 
         def initialize(self, grid: Grid) -> None:
+            super().initialize(grid)
             self.cells = [grid.matrix[1, 6], grid.matrix[2, 6]]
 
         def check_special(self) -> bool:
@@ -775,8 +784,9 @@ def puzzle_09_03(*, show: bool = False) -> None:
     columns = (11, 0, 17, 6, 22, 0, 10, 35, 9)
     rows = (27, 3, 0, 16, 16, 19, 5, 13, 0)
     primes = {2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79}
-    prime_squares = [square for value, square in enumerate(itertools.product(range(1, 10), range(1, 10)), start=1)
-                     if value in primes]
+
+    all_squares = cast(Iterable[Square], itertools.product(range(1, 10), range(1, 10)))
+    prime_squares = [square for value, square in enumerate(all_squares, start=1) if value in primes]
     features = [
         *[SandwichFeature(House.Type.ROW, row, total) for row, total in enumerate(rows, start=1)],
         *[SandwichFeature(House.Type.COLUMN, col, total) for col, total in enumerate(columns, start=1)],
@@ -869,7 +879,8 @@ def puzzle_09_06(*, show: bool = False) -> None:
             if self.done:
                 self.draw_outline(context, [self.this_square], linestyle="-")
 
-    features = [CamelJumpFeature(square) for square in itertools.product(range(1, 10), range(1, 10))]
+    all_squares = cast(Iterable[Square], itertools.product(range(1, 10), range(1, 10)))
+    features = [CamelJumpFeature(square) for square in all_squares]
     puzzle = "........9.....85..7...2.1..35...............6.96.....7...........1.7.9......452.."
     Sudoku().solve(puzzle, features=features, show=show)
 
@@ -937,8 +948,7 @@ def puzzle_09_21(*, show: bool = False) -> None:
 def puzzle_10_17(*, show: bool = False) -> None:
     # noinspection SpellCheckingInspection
     puzzle = "XXXXX3.9.4.1.6.9.4.5.3.8.7.6.5.4X".replace("X", "---").replace("-", "...")
-    features = NonConsecutiveFeature.setup()
-    Sudoku().solve(puzzle, features=features, show=show)
+    Sudoku().solve(puzzle, features=[NonConsecutiveFeature()], show=show)
 
 
 def puzzle_2021_01_21(*, show: bool = False) -> None:
@@ -968,8 +978,50 @@ def puzzle_2021_05_24(*, show: bool = False) -> None:
     Sudoku().solve(' ' * 81, features=thermometers, show=show)
 
 
-if __name__ == '__main__':
+def puzzle_2021_07_06() -> tuple[str, Sequence[Feature]]:
+    class Cheat (HelperFeature):
+        def round_1(self):
+            Cell.remove_value_from_cells([self.grid.matrix[7, 3]], 7)
+
+        def round_2(self):
+            self.grid.matrix[6, 4].set_value_to(4)
+
+    grid = "-.1.---.8.----.2.----------------".replace('-', '...')
+    a, b, c, d, e, f, g, h, i, j = (1, 1), (3, 3), (5, 1), (5, 5), (5, 9), (7, 3), (7, 7), (9, 1), (9, 5), (9, 9)
+    ends = [(a, b), (a, c), (b, c), (b, d), (c, d), (c, f), (c, h), (d, f), (d, i), (d, g), (e, g), (e, j),
+            (f, h), (f, i), (g, i), (g, j), (h, i), (i, j)]
+    features: list[Feature] = [BetweenLineFeature.between(x, y) for x, y in ends]
+    features.append(Cheat())
+    return grid, features
+
+
+def puzzle_2021_07_10() -> tuple[str, Sequence[Feature]]:
+    class MyHelperFeature(HelperFeature):
+        def round_1(self) -> None:
+            Cell.remove_values_from_cells([self.grid.matrix[(3, 7)]], {1, 2})
+            Cell.keep_values_for_cell([self.grid.matrix[6, 5], self.grid.matrix[6, 8]], {1, 2})
+
+    killers = [
+        (7, "2,2,S,S"),
+        (5, "2,6,E"),
+        (6, "3,7,E"),
+        (6, "4,6,E"),
+        (23, "6,3,E,S"),
+        (15, "6,9,S"),
+        (17, "7,3,S"),
+        (3, "9,6,E")]
+    features: list[Feature] = [KillerCageFeature(total, squares) for total, squares in killers]
+    features.append(MyHelperFeature())
+    return ' ' * 81, features
+
+
+def main():
     start = datetime.datetime.now()
-    puzzle_09_04()
+    grid, features = puzzle_2021_07_10()
+    Sudoku().solve(grid, features=features, show=False)
     end = datetime.datetime.now()
     print(end - start)
+
+
+if __name__ == '__main__':
+    main()

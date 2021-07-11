@@ -51,7 +51,6 @@ class Sudoku:
                              row_printer=self.draw_grid)
         links.solve(recursive=False)
 
-
     def draw_grid(self, results: Sequence[Tuple[int, int, int]]) -> None:
         if not all(feature.check_solution(results) for feature in self.features):
             return

@@ -2,7 +2,7 @@ import abc
 import atexit
 from collections import defaultdict
 from collections.abc import Iterable, Sequence, Callable
-from typing import Any, ClassVar, Union, cast
+from typing import Any, ClassVar, Union, cast, Optional
 
 import numpy as np
 
@@ -15,8 +15,14 @@ CheckFunction = Callable[['Feature'], bool]
 
 
 class Feature(abc.ABC):
-    def initialize(self, grid: Grid) -> None:
-        pass
+    name: str
+    grid: Grid
+
+    def __init__(self, *, name: Optional[str] = None) -> None:
+        self.name = name or self.get_default_feature_name()
+
+    def initialize(self, grid) -> None:
+        self.grid = grid
 
     def reset(self, grid: Grid) -> None:
         pass
@@ -38,6 +44,9 @@ class Feature(abc.ABC):
 
     def __str__(self) -> str:
         return f'<{self.__class__.__name__}>'
+
+    def __matmul__(self, square: Square) -> Cell:
+        return self.grid.matrix[square]
 
     @staticmethod
     def neighbors_from_offsets(grid: Grid, cell: Cell, offsets: Iterable[Square]) -> Iterable[Cell]:
@@ -186,9 +195,11 @@ class MultiFeature(Feature):
     features: Sequence[Feature]
 
     def __init__(self, features: Sequence[Feature]):
+        super().__init__()
         self.features = features
 
     def initialize(self, grid: Grid) -> None:
+        super().initialize(grid)
         for feature in self.features:
             feature.initialize(grid)
 

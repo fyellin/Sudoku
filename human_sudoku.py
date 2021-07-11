@@ -19,10 +19,13 @@ class Sudoku:
     grid: Grid
     features: Sequence[Feature]
     initial_grid: Mapping[tuple[int, int], int]
+    draw_verbose: bool
 
-    def solve(self, puzzle: str, *, features: Sequence[Feature] = (), show: bool = False) -> bool:
+    def solve(self, puzzle: str, *, features: Sequence[Feature] = (),
+              show: bool = False, draw_verbose: bool = False) -> bool:
         self.features = features
         self.grid = grid = Grid(features)
+        self.draw_verbose = draw_verbose
         grid.reset()
         self.initial_grid = {(row, column): int(letter)
                              for (row, column), letter in zip(product(range(1, 10), repeat=2), puzzle)
@@ -114,7 +117,7 @@ class Sudoku:
                                    for value in cell.possible_values]
         all_unknown_cell_values.sort(key=attrgetter("value"))
         result = False
-        for value, iterator in groupby(all_unknown_cell_values, attrgetter("value")):
+        for value, iterator in groupby(all_unknown_cell_values, lambda x: x.value):
             cell_values = tuple(iterator)
             if len(cell_values) == 1:
                 cell = cell_values[0].cell
@@ -408,7 +411,13 @@ class Sudoku:
                                             return True
         return False
 
-    def draw_grid(self) -> None:
+    def draw_grid(self):
+        if self.draw_verbose:
+            self.draw_grid_verbose()
+        else:
+            self.draw_grid_simple()
+
+    def draw_grid_verbose(self) -> None:
         figure, axes = plt.subplots(1, 1, figsize=(6, 6), dpi=100)
 
         # set (1,1) as the top-left corner, and (max_column, max_row) as the bottom right.
@@ -416,7 +425,6 @@ class Sudoku:
         axes.axis('equal')
         axes.axis('off')
         figure.tight_layout()
-        _plt = plt
 
         context = DrawContext(axes)
         for feature in self.features:
@@ -443,4 +451,66 @@ class Sudoku:
                     axes.text(column + .5 + (x - 1) * digit_width, row + .5 + (y - 1) * digit_width, str(value),
                               verticalalignment='center', horizontalalignment='center',
                               fontsize=8, color='blue', weight='light')
+        plt.show()
+
+    def draw_grid_simple(self) -> None:
+        figure, axes = plt.subplots(1, 1, figsize=(6, 6), dpi=100)
+
+        # set (1,1) as the top-left corner, and (max_column, max_row) as the bottom right.
+        axes.axis([1, 10, 10, 1])
+        axes.axis('equal')
+        axes.axis('off')
+        figure.tight_layout()
+
+        context = DrawContext(axes)
+        for feature in self.features:
+            feature.draw(context)
+
+        # Draw the bold outline
+        for x in range(1, 11):
+            width = 3 if x in (1, 4, 7, 10) else 1
+            axes.plot([x, x], [1, 10], linewidth=width, color='black')
+            axes.plot([1, 10], [x, x], linewidth=width, color='black')
+
+        given = dict(fontsize=25, color='black', weight='heavy')
+        found = dict(fontsize=25, color='blue', weight='bold')
+        corner_args = dict(fontsize=8, color='blue', weight='light')
+
+        for house in self.grid.houses:
+            if house.house_type != House.Type.BOX:
+                continue
+            filled = set()  # cells that have 4 or few possibilities
+            cells_to_corners = defaultdict(list)
+            for cell in house.cells:
+                row, column = cell.index
+                if cell.known_value:
+                    args = given if cell.index in self.initial_grid else found
+                    axes.text(column + .5, row + .5, cell.known_value,
+                              verticalalignment='center', horizontalalignment='center', **args)
+                elif len(cell.possible_values) <= 4:
+                    axes.text(column + .5, row + .5, ''.join(str(x) for x in sorted(cell.possible_values)),
+                              verticalalignment='center', horizontalalignment='center', **corner_args)
+                    filled.add(cell)
+            # Look at the all unknown values that can only fit into three or fewer cells.  We put
+            # these into the corner, unless all the cells have been handled above
+            for value in house.unknown_values:
+                cells = {cell for cell in house.unknown_cells if value in cell.possible_values}
+                if len(cells) <= 3 and not cells.issubset(filled):
+                    for cell in cells:
+                        cells_to_corners[cell].append(value)
+            for cell, values in cells_to_corners.items():
+                row, column = cell.index
+                for i, value in enumerate(sorted(values)):
+                    if i == 0:
+                        axes.text(column + .1, row + .1, str(value),
+                                  verticalalignment='top', horizontalalignment='left', **corner_args)
+                    elif i == 1:
+                        axes.text(column + .9, row + .1, str(value),
+                                  verticalalignment='top', horizontalalignment='right', **corner_args)
+                    elif i == 2:
+                        axes.text(column + .1, row + .9, str(value),
+                                  verticalalignment='bottom', horizontalalignment='left', **corner_args)
+                    else:
+                        axes.text(column + .9, row + .9, str(value),
+                                  verticalalignment='bottom', horizontalalignment='right', **corner_args)
         plt.show()

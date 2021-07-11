@@ -1,12 +1,11 @@
 import datetime
 import itertools
-from typing import Sequence, Tuple, Iterable, Set, Optional
+from typing import Sequence, Tuple, Iterable, Set, Optional, cast
 
 from cell import House
 from draw_context import DrawContext
-from feature import Feature
+from feature import Feature, Square
 from features import PossibilitiesFeature
-from grid import Grid
 from human_sudoku import Sudoku
 
 
@@ -89,21 +88,19 @@ class PainInTheButtFeatureX(PossibilitiesFeature):
 
 
 class DrawCircleFeature(Feature):
-    squares: Sequence[Tuple[int, int]]
-    grid: Grid
+    squares: Sequence[Square]
 
-    def __init__(self, squares: Sequence[Tuple[int, int]]):
+    def __init__(self, squares: Sequence[Square]):
+        super().__init__()
         self.squares = squares
-
-    def initialize(self, grid: Grid) -> None:
-        self.grid = grid
 
     def draw(self, context: DrawContext) -> None:
         for row, column in self.squares:
             context.draw_circle((column + .5, row + .5), radius=.5, fill=False, color='blue')
         if self.grid.is_solved():
             puzzle = ''.join(str(self.grid.matrix[square].known_value) if square in self.squares else '.'
-                             for square in itertools.product(range(1, 10), range(1, 10)))
+                             # Type system seems not to like itertools.product
+                             for square in cast(Iterable[Square], itertools.product(range(1, 10), repeat=2)))
             print(f'previous = "{puzzle}"')
 
 
@@ -129,10 +126,7 @@ def tour_puzzle_two(*, show: bool = False) -> None:
     previous = ".4.8.............7................9..85...76..7................4.............4.7."
     puzzle = "X,,6--XXXXX--6...5.--".replace('X', '---').replace('-', '...')
     puzzle = merge(previous, puzzle)
-    # foobar = "XX..1--XXXX.....1...X".replace('X', '---').replace('-', '...')
-    # print(len(foobar))
-    # puzzle = merge(foobar, puzzle)
-    features = [PainInTheButtFeature(i) for i in range(1, 4)]
+    features: list[Feature] = [PainInTheButtFeature(i) for i in range(1, 4)]
     features.append(PainInTheButtFeatureX())
     Sudoku().solve(puzzle, features=features, show=show)
 

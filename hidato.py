@@ -131,7 +131,7 @@ class Hidato:
                 else:
                     grid[Square(row, col)] = int(item)
         max_value = max(grid.values())
-        # assert max_value == len(grid)
+        assert max_value == len(grid)
         return grid
 
     def draw_grid(self, square_to_values: Mapping[Square, Set[int]]) -> None:
@@ -564,4 +564,3 @@ def hidato_run() -> None:
 
 if __name__ == '__main__':
     hidato_run()
-

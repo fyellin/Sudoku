@@ -7,18 +7,14 @@ from feature import Feature, Square
 from features import KnightsMoveFeature, ThermometerFeature, SnakeFeature, OddsAndEvensFeature, SandwichFeature, \
     KingsMoveFeature, PalindromeFeature, XVFeature, NonConsecutiveFeature, KillerCageFeature, \
     LittleKillerFeature, KropkeDotFeature, ArrowFeature, BetweenLineFeature, ExtremesFeature, QuadrupleFeature
-from grid import Grid
 from human_sudoku import Sudoku
 
 
 class DrawCircleFeature(Feature):
     squares: Sequence[tuple[int, int]]
-    grid: Grid
-
-    def initialize(self, grid: Grid) -> None:
-        self.grid = grid
 
     def __init__(self, squares: Sequence[tuple[int, int]]):
+        super().__init__()
         self.squares = squares
 
     def draw(self, context: DrawContext) -> None:
@@ -374,7 +370,6 @@ def run() -> None:
         puzzle_11, puzzle_12, puzzle_13, puzzle_14, puzzle_15, 
         puzzle_16, puzzle_17, puzzle_18, puzzle_19, puzzle_20,
         ]
-    puzzles = [puzzle_17]
     for puzzle in puzzles:
         grid, features = puzzle()
         result = Sudoku().solve(grid, features=features, show=False)
