@@ -466,7 +466,8 @@ class SameValueAsMateFeature(AbstractMateFeature):
         assert len(mates) >= 1
         if len(mates) == 1:
             print(f'Cell {self.this_cell} has only one possible mate')
-            mates[0].set_value_to(value, show=True)
+            mates[0].\
+                set_value_to(value, show=True)
             self.done = True
             return True
         return False

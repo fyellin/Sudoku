@@ -11,7 +11,7 @@ from features import KnightsMoveFeature, MagicSquareFeature, \
     AlternativeBoxesFeature, SlowThermometerFeature, SandwichFeature, KingsMoveFeature, \
     QueensMoveFeature, SandwichXboxFeature, XVFeature, NonConsecutiveFeature, BetweenLineFeature, \
     KillerCageFeature, HelperFeature, OddsAndEvensFeature, QuadrupleFeature, RenbanFeature
-from possibilities_feature import GroupedPossibilitiesFeature, CombinedPossibilitiesFeature
+from possibilities_feature import GroupedPossibilitiesFeature, CombinedPossibilitiesFeature, PossibilitiesFeature
 from grid import Grid
 from human_sudoku import Sudoku
 from skyscraper_feature import SkyscraperFeature
@@ -638,7 +638,7 @@ def puzzle_2021_07_10() -> tuple[str, Sequence[Feature]]:
         (15, "6,9,S"),
         (17, "7,3,S"),
         (3, "9,6,E")]
-    features: list[Feature] = [KillerCageFeature(total, squares) for total, squares in killers]
+    features: list[PossibilitiesFeature] = [KillerCageFeature(total, squares) for total, squares in killers]
     features[1:4] = [CombinedPossibilitiesFeature(features[1:4])]
     # features.append(MyHelperFeature())
     return ' ' * 81, features

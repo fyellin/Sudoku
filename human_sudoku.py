@@ -4,7 +4,6 @@ from itertools import product, combinations, permutations, groupby
 from collections import deque, defaultdict
 from collections.abc import Sequence, Mapping, Iterable
 from operator import attrgetter
-from typing import AbstractSet
 
 from matplotlib import pyplot as plt
 
