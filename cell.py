@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import functools
+import operator
 from enum import Enum, auto
 from collections.abc import Sequence, Iterable, Iterator
 from typing import Optional, Final, TYPE_CHECKING, NamedTuple
@@ -55,8 +57,8 @@ class House:
 class Cell:
     houses: Final[list[House]]
     index: Final[tuple[int, int]]
-    neighbors: set[Cell]
-    features: Final[Sequence['Feature']]
+    neighbors: frozenset[Cell]
+    features: Final[Sequence[Feature]]
 
     known_value: Optional[int]
     possible_values: set[int]
@@ -66,7 +68,7 @@ class Cell:
         self.features = features
         self.known_value = None
         self.possible_values = set(range(1, 10))
-        self.neighbors = set()  # Filled in later
+        self.neighbors = frozenset()  # Filled in later
         self.houses = []
 
     def reset(self) -> None:
@@ -78,8 +80,10 @@ class Cell:
             house.set_value_to(self, value)
         for neighbor in self.neighbors:
             neighbor.possible_values.discard(value)
+            assert neighbor.possible_values
         for neighbor in {cell for feature in self.features for cell in feature.get_neighbors_for_value(self, value)}:
             neighbor.possible_values.discard(value)
+            assert neighbor.possible_values
 
         assert value in self.possible_values
         self.known_value = value
@@ -94,13 +98,17 @@ class Cell:
     def is_known(self) -> bool:
         return self.known_value is not None
 
+    @property
+    def bitmap(self) -> int:
+        return functools.reduce(operator.__or__, (1 << i for i in self.possible_values))
+
     def initialize_neighbors(self, _grid: 'Grid') -> None:
         neighbors: set[Cell] = set()
         for house in self.all_houses():
             neighbors.update(house.cells)
         neighbors.update(cell for feature in self.features for cell in feature.get_neighbors(self))
         neighbors.remove(self)
-        self.neighbors = neighbors
+        self.neighbors = frozenset(neighbors)
 
     def all_houses(self) -> Iterable[House]:
         return self.houses
@@ -151,6 +159,7 @@ class Cell:
         for cell in cells:
             foo = ''.join((Cell.__deleted(i) if i == value else str(i)) for i in sorted(cell.possible_values))
             cell.possible_values.remove(value)
+            assert cell.possible_values
             if show:
                 print(f'  {cell} = {foo}')
 
@@ -161,6 +170,7 @@ class Cell:
                 foo = ''.join((Cell.__deleted(i) if i in values else str(i)) for i in sorted(cell.possible_values))
                 print(f'  {cell} = {foo}')
             cell.possible_values.difference_update(values)
+            assert cell.possible_values
 
     @staticmethod
     def keep_values_for_cell(cells: Iterable[Cell], values: set[int], *, show: bool = True) -> None:
@@ -169,6 +179,7 @@ class Cell:
                 foo = ''.join((Cell.__deleted(i) if i not in values else str(i)) for i in sorted(cell.possible_values))
                 print(f'  {cell} = {foo}')
             cell.possible_values.intersection_update(values)
+            assert cell.possible_values
 
 
 class CellValue(NamedTuple):
@@ -181,3 +192,4 @@ class CellValue(NamedTuple):
     def to_string(self, truth: bool) -> str:
         char = '=' if truth else '≠'
         return f'{self.cell}{char}{self.value}'
+

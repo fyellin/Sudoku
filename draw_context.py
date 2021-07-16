@@ -8,10 +8,14 @@ from matplotlib.patches import FancyBboxPatch, Circle, Rectangle
 
 class DrawContext(UserDict):
     _axis: Axes
+    done: bool
+    result: bool
 
-    def __init__(self, axis) -> None:
+    def __init__(self, axis, *, done: bool, result: bool) -> None:
         super().__init__()
         self._axis = axis
+        self.done = done
+        self.result = result
 
     def draw_circle(self, center: tuple[float, float], radius: float, **args: Any) -> None:
         self._axis.add_patch(Circle(center, radius=radius, **args))

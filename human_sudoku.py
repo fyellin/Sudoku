@@ -48,7 +48,7 @@ class Sudoku:
 
         while True:
             if self.is_solved():
-                self.draw_grid()
+                self.draw_grid(done=True, result=True)
                 return True
             if self.check_naked_singles() or self.check_hidden_singles():
                 continue
@@ -58,13 +58,11 @@ class Sudoku:
                 continue
             if self.check_tuples():
                 continue
-            # if self.check_intersection_removal_double():
-            #     continue
-            self.grid.print()
-            self.draw_grid()
-
             if any(feature.check_special() for feature in self.features):
                 continue
+
+            self.grid.print()
+            self.draw_grid()
 
             if self.check_fish() or self.check_xy_sword() or self.check_xyz_sword() or self.check_tower():
                 continue
@@ -76,7 +74,7 @@ class Sudoku:
             if HardMedusa.run(chains, self.features):
                 continue
 
-            self.draw_grid()
+            self.draw_grid(done=True, result=False)
             return False
 
     def is_solved(self) -> bool:
@@ -411,13 +409,7 @@ class Sudoku:
                                             return True
         return False
 
-    def draw_grid(self):
-        if self.draw_verbose:
-            self.draw_grid_verbose()
-        else:
-            self.draw_grid_simple()
-
-    def draw_grid_verbose(self) -> None:
+    def draw_grid(self, *, done: bool = False, result: bool = False):
         figure, axes = plt.subplots(1, 1, figsize=(6, 6), dpi=100)
 
         # set (1,1) as the top-left corner, and (max_column, max_row) as the bottom right.
@@ -426,7 +418,7 @@ class Sudoku:
         axes.axis('off')
         figure.tight_layout()
 
-        context = DrawContext(axes)
+        context = DrawContext(axes, done=done, result=result)
         for feature in self.features:
             feature.draw(context)
 
@@ -436,6 +428,14 @@ class Sudoku:
             axes.plot([x, x], [1, 10], linewidth=width, color='black')
             axes.plot([1, 10], [x, x], linewidth=width, color='black')
 
+        if self.draw_verbose:
+            self.__fill_in_grid_verbose(axes)
+        else:
+            self.__fill_in_grid_simple(axes)
+
+        plt.show()
+
+    def __fill_in_grid_verbose(self, axes) -> None:
         given = dict(fontsize=25, color='black', weight='heavy')
         found = dict(fontsize=25, color='blue', weight='bold')
         digit_width = (7/8) / 3
@@ -451,21 +451,8 @@ class Sudoku:
                     axes.text(column + .5 + (x - 1) * digit_width, row + .5 + (y - 1) * digit_width, str(value),
                               verticalalignment='center', horizontalalignment='center',
                               fontsize=8, color='blue', weight='light')
-        plt.show()
 
-    def draw_grid_simple(self) -> None:
-        figure, axes = plt.subplots(1, 1, figsize=(6, 6), dpi=100)
-
-        # set (1,1) as the top-left corner, and (max_column, max_row) as the bottom right.
-        axes.axis([1, 10, 10, 1])
-        axes.axis('equal')
-        axes.axis('off')
-        figure.tight_layout()
-
-        context = DrawContext(axes)
-        for feature in self.features:
-            feature.draw(context)
-
+    def __fill_in_grid_simple(self, axes) -> None:
         # Draw the bold outline
         for x in range(1, 11):
             width = 3 if x in (1, 4, 7, 10) else 1
@@ -513,4 +500,3 @@ class Sudoku:
                     else:
                         axes.text(column + .9, row + .9, str(value),
                                   verticalalignment='bottom', horizontalalignment='right', **corner_args)
-        plt.show()

@@ -1,6 +1,6 @@
 import abc
 import atexit
-from collections import defaultdict
+from collections import defaultdict, deque
 from collections.abc import Iterable, Sequence, Callable
 from typing import Any, ClassVar, Union, cast, Optional
 
@@ -24,7 +24,7 @@ class Feature(abc.ABC):
     def initialize(self, grid) -> None:
         self.grid = grid
 
-    def reset(self, grid: Grid) -> None:
+    def reset(self) -> None:
         pass
 
     def get_neighbors(self, cell: Cell) -> Iterable[Cell]:
@@ -43,7 +43,7 @@ class Feature(abc.ABC):
         pass
 
     def __str__(self) -> str:
-        return f'<{self.__class__.__name__}>'
+        return self.name
 
     def __matmul__(self, square: Square) -> Cell:
         return self.grid.matrix[square]
@@ -58,17 +58,34 @@ class Feature(abc.ABC):
     __DESCRIPTORS = dict(N=(-1, 0), S=(1, 0), E=(0, 1), W=(0, -1), NE=(-1, 1), NW=(-1, -1), SE=(1, 1), SW=(1, -1))
 
     @staticmethod
-    def parse_line(descriptor: str) -> Sequence[Square]:
+    def parse_squares(descriptor: Union[str, int, Sequence[Square]]) -> Sequence[Square]:
+        if isinstance(descriptor, int):
+            descriptor = str(descriptor)
+        if not isinstance(descriptor, str):
+            return descriptor
         descriptors = Feature.__DESCRIPTORS
-        pieces = descriptor.split(',')
-        last_piece_row, last_piece_column = int(pieces[0]), int(pieces[1])
-        squares = [(last_piece_row, last_piece_column)]
-        for direction in pieces[2:]:
-            dr, dc = descriptors[direction.upper().strip()]
-            last_piece_row += dr
-            last_piece_column += dc
-            squares.append((last_piece_row, last_piece_column))
+        pieces = deque(piece.strip() for piece in descriptor.split(','))
+
+        squares = []
+        while pieces:
+            if pieces[0][0] in "123456789":
+                value = int(pieces.popleft())
+                if value <= 9:
+                    row, column = value, int(pieces.popleft())
+                else:
+                    row, column = divmod(value, 10)
+                squares.append((row, column))
+            else:
+                dr, dc = descriptors[pieces.popleft().upper()]
+                row, column = squares[-1]
+                squares.append((row + dr, column + dc))
         return squares
+
+    @staticmethod
+    def parse_square(descriptor: Union[str, int, Square]) -> Square:
+        temp = Feature.parse_squares(descriptor)
+        assert len(temp) == 1
+        return temp[0]
 
     @staticmethod
     def box_for_square(square) -> tuple:
@@ -169,17 +186,16 @@ class Feature(abc.ABC):
 
     @staticmethod
     def check_only_if_changed(checker: CheckFunction) -> CheckFunction:
-        saved_info: dict[Feature, Sequence[Union[int, set[int]]]] = {}
+        saved_info: dict[Feature, Sequence[int]] = {}
 
         def called_function(self: Feature) -> bool:
             cells = cast(Sequence[Cell], getattr(self, 'cells'))
             if self in saved_info:
-                generator = (cell.known_value if cell.is_known else cell.possible_values for cell in cells)
+                generator = (-1 if cell.is_known else cell.bitmap for cell in cells)
                 if all(x == y for x, y in zip(saved_info[self], generator)):
                     Feature.check_elided += 1
                     return False
-            saved_info[self] = [cell.known_value if cell.is_known else cell.possible_values.copy()
-                                for cell in cells]
+            saved_info[self] = [-1 if cell.is_known else cell.bitmap for cell in cells]
             Feature.check_called += 1
             return checker(self)
 
@@ -188,7 +204,10 @@ class Feature(abc.ABC):
 
 @atexit.register
 def print_counters():
-    print(f'Method feature.check() called {Feature.check_called} times.  Elided {Feature.check_elided} times')
+    total = Feature.check_called + Feature.check_elided
+    if total > 0:
+        elision = 100.0 * Feature.check_elided / total
+        print(f'Method feature.check() called {total} times; {Feature.check_elided} ({elision:.2f}%) were elided')
 
 
 class MultiFeature(Feature):
@@ -203,9 +222,9 @@ class MultiFeature(Feature):
         for feature in self.features:
             feature.initialize(grid)
 
-    def reset(self, grid: Grid) -> None:
+    def reset(self) -> None:
         for feature in self.features:
-            feature.reset(grid)
+            feature.reset()
 
     def get_neighbors(self, cell: Cell) -> Iterable[Cell]:
         for feature in self.features:

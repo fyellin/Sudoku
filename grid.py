@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Dict, Tuple, Sequence, Iterable, TYPE_CHECKING, List
 
 from cell import Cell, House
@@ -8,9 +10,9 @@ if TYPE_CHECKING:
 class Grid:
     matrix: Dict[Tuple[int, int], Cell]
     houses: List[House]
-    features: Sequence['Feature']
+    features: Sequence[Feature]
 
-    def __init__(self, features: Sequence['Feature']) -> None:
+    def __init__(self, features: Sequence[Feature]) -> None:
         self.matrix = {(row, column): Cell(row, column, features) for row in range(1, 10) for column in range(1, 10)}
         self.features = features
 
@@ -44,7 +46,7 @@ class Grid:
         for house in self.houses:
             house.reset()
         for feature in self.features:
-            feature.reset(self)
+            feature.reset()
 
     def is_solved(self) -> bool:
         return all(cell.is_known for cell in self.cells)

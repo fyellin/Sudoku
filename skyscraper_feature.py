@@ -4,10 +4,10 @@ from typing import Optional, cast
 
 from cell import House
 from draw_context import DrawContext
-from features import PossibilitiesFeature
+from possibilities_feature import GroupedPossibilitiesFeature
 
 
-class SkyscraperFeature(PossibilitiesFeature):
+class SkyscraperFeature(GroupedPossibilitiesFeature):
     htype: House.Type
     row_column: int
     left: Optional[int]

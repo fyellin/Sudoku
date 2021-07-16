@@ -168,24 +168,24 @@ def puzzle_12() -> tuple[str, Sequence[Feature]]:
         KillerCageFeature(18, [(1, 6), (1, 7), (2, 7)]),
         KillerCageFeature(30, [(1, 8), (1, 9), (2, 8), (2, 9)]),
         KillerCageFeature(15, [(2, 5), (2, 6)]),
-        KillerCageFeature(16, Feature.parse_line("3,1,E,S")),
-        KillerCageFeature(15, Feature.parse_line("3,4,W,S")),
-        KillerCageFeature(14, Feature.parse_line("3,6,E,S")),
-        KillerCageFeature(14, Feature.parse_line("3,8,E,S")),
-        KillerCageFeature(13, Feature.parse_line("4,1,S")),
-        KillerCageFeature(9, Feature.parse_line("4,8,S")),
-        KillerCageFeature(12, Feature.parse_line("5,2,S")),
-        KillerCageFeature(9, Feature.parse_line("5,9,S")),
-        KillerCageFeature(22, Feature.parse_line("6,1,S,E")),
-        KillerCageFeature(10, Feature.parse_line("6,3,S,E")),
-        KillerCageFeature(17, Feature.parse_line("6,7,S,W")),
-        KillerCageFeature(7, Feature.parse_line("6,8,S,E")),
-        KillerCageFeature(17, Feature.parse_line("8,1,E,S,W")),
-        KillerCageFeature(17, Feature.parse_line("8,3,S,E")),
-        KillerCageFeature(8, Feature.parse_line("8,4,E")),
-        KillerCageFeature(14, Feature.parse_line("8,6,E,S")),
-        KillerCageFeature(21, Feature.parse_line("8,8,E,S,W")),
-        KillerCageFeature(13, Feature.parse_line("9,5,E"))
+        KillerCageFeature(16, Feature.parse_squares("3,1,E,S")),
+        KillerCageFeature(15, Feature.parse_squares("3,4,W,S")),
+        KillerCageFeature(14, Feature.parse_squares("3,6,E,S")),
+        KillerCageFeature(14, Feature.parse_squares("3,8,E,S")),
+        KillerCageFeature(13, Feature.parse_squares("4,1,S")),
+        KillerCageFeature(9, Feature.parse_squares("4,8,S")),
+        KillerCageFeature(12, Feature.parse_squares("5,2,S")),
+        KillerCageFeature(9, Feature.parse_squares("5,9,S")),
+        KillerCageFeature(22, Feature.parse_squares("6,1,S,E")),
+        KillerCageFeature(10, Feature.parse_squares("6,3,S,E")),
+        KillerCageFeature(17, Feature.parse_squares("6,7,S,W")),
+        KillerCageFeature(7, Feature.parse_squares("6,8,S,E")),
+        KillerCageFeature(17, Feature.parse_squares("8,1,E,S,W")),
+        KillerCageFeature(17, Feature.parse_squares("8,3,S,E")),
+        KillerCageFeature(8, Feature.parse_squares("8,4,E")),
+        KillerCageFeature(14, Feature.parse_squares("8,6,E,S")),
+        KillerCageFeature(21, Feature.parse_squares("8,8,E,S,W")),
+        KillerCageFeature(13, Feature.parse_squares("9,5,E"))
     ]
     return puzzle, features
 
@@ -245,7 +245,7 @@ def puzzle_15() -> tuple[str, Sequence[Feature]]:
 
     features = [
         DrawCircleFeature(circles),
-        *XVFeature.setup(across=all_across, down=all_down, all_listed=False)
+        XVFeature.setup(across=all_across, down=all_down, all_listed=False)
     ]
     return puzzle, features
 
@@ -365,9 +365,9 @@ def puzzle_20() -> tuple[str, Sequence[Feature]]:
 
 def run() -> None:
     puzzles = [
-        puzzle_1, puzzle_2, puzzle_3, puzzle_4, puzzle_5, 
-        puzzle_6, puzzle_7, puzzle_8, puzzle_9, puzzle_10,
-        puzzle_11, puzzle_12, puzzle_13, puzzle_14, puzzle_15, 
+        # puzzle_1, puzzle_2, puzzle_3, puzzle_4, puzzle_5,
+        # puzzle_6, puzzle_7, puzzle_8, puzzle_9, puzzle_10,
+        # puzzle_11, puzzle_12, puzzle_13, puzzle_14, puzzle_15,
         puzzle_16, puzzle_17, puzzle_18, puzzle_19, puzzle_20,
         ]
     for puzzle in puzzles:

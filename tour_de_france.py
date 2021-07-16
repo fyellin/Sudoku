@@ -5,11 +5,11 @@ from typing import Sequence, Tuple, Iterable, Set, Optional, cast
 from cell import House
 from draw_context import DrawContext
 from feature import Feature, Square
-from features import PossibilitiesFeature
+from possibilities_feature import GroupedPossibilitiesFeature
 from human_sudoku import Sudoku
 
 
-class LocateOneFeature(PossibilitiesFeature):
+class LocateOneFeature(GroupedPossibilitiesFeature):
     row_or_column: int
     htype: House.Type
     total: Optional[int]
@@ -33,7 +33,7 @@ class LocateOneFeature(PossibilitiesFeature):
         context.draw_rectangles([self.squares[0], self.squares[8]])
 
 
-class PainInTheButtFeature(PossibilitiesFeature):
+class PainInTheButtFeature(GroupedPossibilitiesFeature):
     value: int
 
     def __init__(self, value: int):
@@ -60,7 +60,7 @@ class PainInTheButtFeature(PossibilitiesFeature):
         return False
 
 
-class PainInTheButtFeatureX(PossibilitiesFeature):
+class PainInTheButtFeatureX(GroupedPossibilitiesFeature):
     def __init__(self) -> None:
         squares = [(row, column) for row in range(2, 6) for column in range(1, 10)]
         super().__init__(squares, name=f"PainX", neighbors=True)
