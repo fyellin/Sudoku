@@ -2,6 +2,7 @@ import abc
 import atexit
 from collections import defaultdict, deque
 from collections.abc import Iterable, Sequence, Callable
+from itertools import product
 from typing import Any, ClassVar, Union, cast, Optional
 
 import numpy as np
@@ -48,12 +49,11 @@ class Feature(abc.ABC):
     def __matmul__(self, square: Square) -> Cell:
         return self.grid.matrix[square]
 
-    @staticmethod
-    def neighbors_from_offsets(grid: Grid, cell: Cell, offsets: Iterable[Square]) -> Iterable[Cell]:
+    def neighbors_from_offsets(self, cell: Cell, offsets: Iterable[Square]) -> Iterable[Cell]:
         row, column = cell.index
         for dr, dc in offsets:
             if 1 <= row + dr <= 9 and 1 <= column + dc <= 9:
-                yield grid.matrix[row + dr, column + dc]
+                yield self.grid.matrix[row + dr, column + dc]
 
     __DESCRIPTORS = dict(N=(-1, 0), S=(1, 0), E=(0, 1), W=(0, -1), NE=(-1, 1), NW=(-1, -1), SE=(1, 1), SW=(1, -1))
 
@@ -66,7 +66,7 @@ class Feature(abc.ABC):
         descriptors = Feature.__DESCRIPTORS
         pieces = deque(piece.strip() for piece in descriptor.split(','))
 
-        squares = []
+        squares: list[Square] = []
         while pieces:
             if pieces[0][0] in "123456789":
                 value = int(pieces.popleft())
@@ -74,10 +74,12 @@ class Feature(abc.ABC):
                     row, column = value, int(pieces.popleft())
                 else:
                     row, column = divmod(value, 10)
+                assert 1 <= row <= 9 and 1 <= column <= 9
                 squares.append((row, column))
             else:
                 dr, dc = descriptors[pieces.popleft().upper()]
                 row, column = squares[-1]
+                assert 1 <= row + dr <= 9 and 1 <= column + dc <= 9
                 squares.append((row + dr, column + dc))
         return squares
 
@@ -86,11 +88,6 @@ class Feature(abc.ABC):
         temp = Feature.parse_squares(descriptor)
         assert len(temp) == 1
         return temp[0]
-
-    @staticmethod
-    def box_for_square(square) -> tuple:
-        row, column = square
-        return ((row - 1) // 3, (column - 1) // 3)
 
     class_count: ClassVar[dict[Any, int]] = defaultdict(int)
 
@@ -174,12 +171,28 @@ class Feature(abc.ABC):
             context.plot(pts[:, 1], pts[:, 0], **args)
 
     @staticmethod
-    def get_row_or_column(htype, row_column):
+    def get_house_squares(htype, index):
         if htype == House.Type.ROW:
-            squares = [(row_column, i) for i in range(1, 10)]
-        else:
-            squares = [(i, row_column) for i in range(1, 10)]
-        return squares
+            return [(index, i) for i in range(1, 10)]
+        if htype == House.Type.COLUMN:
+            return [(i, index) for i in range(1, 10)]
+        if htype == House.Type.BOX:
+            q, r = divmod(index - 1, 3)
+            start_row = 3 * q + 1
+            start_column = 3 * r + 1
+            return [(row, column)
+                    for row in range(start_row, start_row + 3)
+                    for column in range(start_column, start_column + 3)]
+        assert False, f'Bad argument {htype}'
+
+    @staticmethod
+    def box_for_square(square) -> int:
+        row, column = square
+        return 3 * ((row - 1) // 3) + ((column - 1) // 3) + 1
+
+    @staticmethod
+    def all_squares() -> Iterable[Square]:
+        return cast(Iterable[Square], product(range(1, 10), repeat=2))
 
     check_elided: ClassVar[int] = 0
     check_called: ClassVar[int] = 0
@@ -243,3 +256,7 @@ class MultiFeature(Feature):
     def draw(self, context: DrawContext) -> None:
         for feature in self.features:
             feature.draw(context)
+
+
+if __name__ == '__main__':
+    pass

@@ -6,7 +6,7 @@ from cell import Cell, House
 from draw_context import DrawContext
 from feature import Feature, Square
 from features import KnightsMoveFeature, MagicSquareFeature, \
-    AdjacentRelationshipFeature, ThermometerFeature, SnakeFeature, LimitedValuesFeature, \
+    AdjacentRelationshipFeature, ThermometerFeature, BoxOfNineFeature, LimitedValuesFeature, \
     SameValueAsMateFeature, LittlePrincessFeature, \
     AlternativeBoxesFeature, SlowThermometerFeature, SandwichFeature, KingsMoveFeature, \
     QueensMoveFeature, SandwichXboxFeature, XVFeature, NonConsecutiveFeature, BetweenLineFeature, \
@@ -72,7 +72,7 @@ class DoubleSumFeature(GroupedPossibilitiesFeature):
 
     def __init__(self, htype: House.Type, row_column: int, ptotal: int, total: Optional[int] = None):
         name = f'DoubleSum {htype.name.title()} #{row_column}'
-        squares = self.get_row_or_column(htype, row_column)
+        squares = self.get_house_squares(htype, row_column)
         self.row_column = row_column
         self.htype = htype
         self.total = total
@@ -236,7 +236,7 @@ def double_sum_puzzle(*, show: bool = False) -> None:
 
 def puzzle_hunt(*, show: bool = False) -> None:
     puzzle = "...48...7.8.5..6...9.....3.4...2.3..1...5...2..8..7......8.3.7...5...1.39...15.4."
-    features = [SnakeFeature.major_diagonal(), SnakeFeature.minor_diagonal()]
+    features = [BoxOfNineFeature.major_diagonal(), BoxOfNineFeature.minor_diagonal()]
     Sudoku().solve(puzzle, features=features, show=show)
 
 
@@ -337,8 +337,8 @@ def puzzle_08_06(*, show: bool = False) -> None:
     offsets = offsets1 + offsets2
 
     class MyFeature(SameValueAsMateFeature):
-        def get_mates(self, cell: Cell, grid: Grid) -> Iterable[Cell]:
-            return self.neighbors_from_offsets(grid, cell, offsets)
+        def get_mates(self, cell: Cell) -> Iterable[Cell]:
+            return self.neighbors_from_offsets(cell, offsets)
 
     features = [MyFeature((i, j)) for i, j in itertools.product(range(1, 10), repeat=2)]
     puzzle = "39.1...822.....5.....4.....6..2.....1....4.........3............6...3..551.....64"
@@ -356,8 +356,8 @@ def puzzle_08_07(*, show: bool = False) -> None:
         "9,4,E,E,E,E,E"
     ]
     features = [
-        SnakeFeature.major_diagonal(),
-        SnakeFeature.minor_diagonal(),
+        BoxOfNineFeature.major_diagonal(),
+        BoxOfNineFeature.minor_diagonal(),
         *[ThermometerFeature(line) for line in thermos],
         # FoobarFeature()
     ]
@@ -430,7 +430,7 @@ def puzzle_08_31(*, show: bool = False) -> None:
                     for i, line in enumerate(thermos, start=1)]
     snake_squares = [thermometer.squares[0] for thermometer in thermometers]
     snake_squares.extend(((2, 2), (4, 1), (7, 2)))
-    snake = SnakeFeature(snake_squares, line=False)
+    snake = BoxOfNineFeature(snake_squares, line=False)
     puzzle = ".....8....................9.................6.....4.................6.......7.9.."
     Sudoku().solve(puzzle, features=[*thermometers, snake], show=show)
 
@@ -500,8 +500,8 @@ def puzzle_09_06(*, show: bool = False) -> None:
     class CamelJumpFeature(SameValueAsMateFeature):
         OFFSETS = [(dr, dc) for dx in (-1, 1) for dy in (-3, 3) for (dr, dc) in ((dx, dy), (dy, dx))]
 
-        def get_mates(self, cell: Cell, grid: Grid) -> Iterable[Cell]:
-            return self.neighbors_from_offsets(grid, cell, self.OFFSETS)
+        def get_mates(self, cell: Cell) -> Iterable[Cell]:
+            return self.neighbors_from_offsets(cell, self.OFFSETS)
 
         def draw(self, context: DrawContext) -> None:
             if self.done:
@@ -529,7 +529,7 @@ def puzzle_09_15(*, show: bool = False) -> None:
 
 def puzzle_09_16(*, show: bool = False) -> None:
     puzzle = "529784361............2......4....2..361529784..2....3......2............784361529"
-    features = [SnakeFeature.major_diagonal(), SnakeFeature.minor_diagonal()]
+    features = [BoxOfNineFeature.major_diagonal(), BoxOfNineFeature.minor_diagonal()]
     Sudoku().solve(puzzle, features=features, show=show)
 
 
@@ -647,8 +647,8 @@ def puzzle_2021_07_10() -> tuple[str, Sequence[Feature]]:
 def puzzle_2021_07_11() -> tuple[str, Sequence[Feature]]:
     features = [
         OddsAndEvensFeature(evens=[(1, 4), (2, 2), (2, 9), (8, 1), (8, 1), (8, 8), (9, 6)]),
-        SnakeFeature("7,1,NE,E,NE,E,E,NE,E,NE"),
-        SnakeFeature("1,3,S,SE,SE,S,S,SE,SE,S"),
+        BoxOfNineFeature("7,1,NE,E,NE,E,E,NE,E,NE"),
+        BoxOfNineFeature("1,3,S,SE,SE,S,S,SE,SE,S"),
         QuadrupleFeature(top_left=(1, 1), values=(2, 3)),
         QuadrupleFeature(top_left=(1, 5), values=(5, 6)),
         QuadrupleFeature(top_left=(1, 8), values=(5, 6)),

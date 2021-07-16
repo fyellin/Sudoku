@@ -4,7 +4,7 @@ from typing import Sequence, cast
 from cell import House
 from draw_context import DrawContext
 from feature import Feature, Square
-from features import KnightsMoveFeature, ThermometerFeature, SnakeFeature, OddsAndEvensFeature, SandwichFeature, \
+from features import KnightsMoveFeature, ThermometerFeature, BoxOfNineFeature, OddsAndEvensFeature, SandwichFeature, \
     KingsMoveFeature, PalindromeFeature, XVFeature, NonConsecutiveFeature, KillerCageFeature, \
     LittleKillerFeature, KropkeDotFeature, ArrowFeature, BetweenLineFeature, ExtremesFeature, QuadrupleFeature
 from human_sudoku import Sudoku
@@ -69,7 +69,7 @@ def puzzle_5() -> tuple[str, Sequence[Feature]]:
     puzzle = '.6.-.5.1.72..3...3..8.--..8.3.---.4.9..--.1..4...1..25.3.5.-.7.'.replace('-', '...')
     features = [
         DrawCircleFeature([(2, 2), (2, 9), (3, 8), (4, 2), (5, 5), (6, 8), (7, 2), (8, 1), (8, 8)]),
-        *SnakeFeature.disjoint_groups()
+        *BoxOfNineFeature.disjoint_groups()
     ]
     return puzzle, features
 
@@ -79,10 +79,10 @@ def puzzle_6() -> tuple[str, Sequence[Feature]]:
     puzzle = '1..3..5.9.2.---..4..6.6.2..7..---..8..6.5.8..6..---.4.2.7..5..3'.replace('-', '...')
     features = [
         DrawCircleFeature([(1, 6), (2, 1), (3, 7), (4, 9), (5, 5), (6, 1), (7, 3), (8, 9), (9, 4)]),
-        SnakeFeature(((1, 3), (2, 3), (3, 1), (3, 2), (3, 3), (3, 4), (3, 5), (4, 3), (5, 3))),
-        SnakeFeature(((5, 2), (6, 2), (7, 2), (8, 1), (8, 2), (8, 3), (8, 4), (8, 5), (9, 2))),
-        SnakeFeature(((1, 8), (2, 5), (2, 6), (2, 7), (2, 8), (2, 9), (3, 8), (4, 8), (5, 8))),
-        SnakeFeature(((5, 7), (6, 7), (7, 5), (7, 6), (7, 7), (7, 8), (7, 9), (8, 7), (9, 7))),
+        BoxOfNineFeature(((1, 3), (2, 3), (3, 1), (3, 2), (3, 3), (3, 4), (3, 5), (4, 3), (5, 3))),
+        BoxOfNineFeature(((5, 2), (6, 2), (7, 2), (8, 1), (8, 2), (8, 3), (8, 4), (8, 5), (9, 2))),
+        BoxOfNineFeature(((1, 8), (2, 5), (2, 6), (2, 7), (2, 8), (2, 9), (3, 8), (4, 8), (5, 8))),
+        BoxOfNineFeature(((5, 7), (6, 7), (7, 5), (7, 6), (7, 7), (7, 8), (7, 9), (8, 7), (9, 7))),
     ]
     return puzzle, features
 
@@ -133,8 +133,8 @@ def puzzle_10() -> tuple[str, Sequence[Feature]]:
     circles = [(r, c) for (r, c), letter in zip(itertools.product(range(1, 10), repeat=2), grid) if letter == 'O']
     features = [
         DrawCircleFeature(circles),
-        SnakeFeature.major_diagonal(),
-        SnakeFeature.minor_diagonal(),
+        BoxOfNineFeature.major_diagonal(),
+        BoxOfNineFeature.minor_diagonal(),
     ]
     return puzzle, features
 

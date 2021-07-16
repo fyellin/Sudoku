@@ -16,7 +16,7 @@ class LocateOneFeature(GroupedPossibilitiesFeature):
 
     def __init__(self, htype: House.Type, row_column: int):
         name = f'Locate1 {htype.name.title()} #{row_column}'
-        squares = self.get_row_or_column(htype, row_column)
+        squares = self.get_house_squares(htype, row_column)
         self.row_column = row_column
         self.htype = htype
         super().__init__(squares, name=name, compressed=True)

@@ -192,4 +192,3 @@ class CellValue(NamedTuple):
     def to_string(self, truth: bool) -> str:
         char = '=' if truth else '≠'
         return f'{self.cell}{char}{self.value}'
-

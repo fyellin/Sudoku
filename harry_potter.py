@@ -6,7 +6,7 @@ from cell import Cell, House
 from draw_context import DrawContext
 from feature import Feature, Square
 from features import KnightsMoveFeature, AdjacentRelationshipFeature, AllValuesPresentFeature, \
-    ThermometerFeature, SnakeFeature, LimitedValuesFeature
+    ThermometerFeature, BoxOfNineFeature, LimitedValuesFeature
 from possibilities_feature import GroupedPossibilitiesFeature
 from grid import Grid
 from human_sudoku import Sudoku
@@ -242,7 +242,7 @@ def puzzle3() -> None:
     evens = evens + [(column, 10 - row) for row, column in evens]
     evens = evens + [(10 - row, 10 - column) for row, column in evens]
 
-    features = [SnakeFeature([(3, 6), (3, 5), (4, 4), (5, 4), (5, 5), (5, 6), (6, 6), (7, 5), (7, 4)]),
+    features = [BoxOfNineFeature([(3, 6), (3, 5), (4, 4), (5, 4), (5, 5), (5, 6), (6, 6), (7, 5), (7, 4)]),
                 LimitedValuesFeature(evens, (2, 4, 6, 8)),
                 ]
     sudoku = Sudoku()
@@ -265,7 +265,7 @@ def puzzle4() -> None:
 def puzzle5() -> None:
     previous = '..7......3.....5......................3..8............15.............9....9......'
     puzzle = '......3...1...............72.........................2..................8........'
-    diadem = SnakeFeature([(4, 2), (2, 1), (3, 3), (1, 4), (3, 5), (1, 6), (3, 7), (2, 9), (4, 8)])
+    diadem = BoxOfNineFeature([(4, 2), (2, 1), (3, 3), (1, 4), (3, 5), (1, 6), (3, 7), (2, 9), (4, 8)])
     thermometers = [ThermometerFeature([(row, column) for row in (9, 8, 7, 6, 5, 4)], name=name)
                     for column in (2, 4, 6, 8)
                     for name in [f'Thermometer #{column // 2}']]
@@ -311,7 +311,7 @@ def puzzle8() -> None:
     features = [
         # noinspection SpellCheckingInspection
         ColorFeature(grid, 'rpoybgG', puzzles),
-        SnakeFeature.major_diagonal(),
-        SnakeFeature.minor_diagonal(),
+        BoxOfNineFeature.major_diagonal(),
+        BoxOfNineFeature.minor_diagonal(),
     ]
     Sudoku().solve('.'*81, features=features)

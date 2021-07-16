@@ -18,7 +18,7 @@ class SkyscraperFeature(GroupedPossibilitiesFeature):
                  left: Optional[int] = None, right: Optional[int] = None,
                  *, basement: Sequence[tuple[int, int]] = ()):
         name = f'Skyscraper {htype.name.title()} #{row_column}'
-        squares = [square for square in self.get_row_or_column(htype, row_column) if square not in basement]
+        squares = [square for square in self.get_house_squares(htype, row_column) if square not in basement]
         super().__init__(squares, name=name)
         self.htype = htype
         self.row_column = row_column

@@ -4,6 +4,7 @@ from itertools import product, combinations, permutations, groupby
 from collections import deque, defaultdict
 from collections.abc import Sequence, Mapping, Iterable
 from operator import attrgetter
+from typing import AbstractSet
 
 from matplotlib import pyplot as plt
 
@@ -148,7 +149,7 @@ class Sudoku:
         cell0, *other_candidates = candidates
         # Find all cells that both have the specified value, and are neighbors of all the candidates.
 
-        def get_all_neighbors(cell: Cell) -> set[Cell]:
+        def get_all_neighbors(cell: Cell) -> frozenset[Cell]:
             immediate_neighbors = cell.neighbors
             other_neighbors = {x for feature in self.features
                                for x in feature.get_neighbors_for_value(cell, value)}
