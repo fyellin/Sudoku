@@ -7,7 +7,7 @@ from operator import attrgetter
 
 from matplotlib import pyplot as plt
 
-from cell import House, Cell, CellValue
+from cell import House, Cell, CellValue, SmallIntSet
 from chain import Chains
 from draw_context import DrawContext
 from feature import Feature
@@ -171,7 +171,7 @@ class Sudoku:
         that digit can only occur in one of those n cells.
         Returns true if it makes any change.
         """
-        return any(self.__check_tuples(house, set(values))
+        return any(self.__check_tuples(house, SmallIntSet(values))
                    # Specifically find all tuples of 2 before trying all tuples of 3, . . . .
                    for count in range(2, 9)
                    # Look at each house
@@ -180,7 +180,7 @@ class Sudoku:
                    for values in combinations(house.unknown_values, count))
 
     @staticmethod
-    def __check_tuples(house: House, values: set[int]) -> bool:
+    def __check_tuples(house: House, values: SmallIntSet) -> bool:
         """
         Looks to see if "values" is a tuple in this house.  Returns true if it makes any changes.
         """
@@ -364,7 +364,7 @@ class Sudoku:
                                  if len(cell.possible_values) == 2 and cell.possible_values <= triple.possible_values]
                 for pair1, pair2 in combinations(possibilities, 2):
                     if pair1.possible_values != pair2.possible_values:
-                        common = pair1.possible_values.intersection(pair2.possible_values).pop()
+                        common = (pair1.possible_values & pair2.possible_values).pop()
                         fixers = [cell for cell in pair1.joint_neighbors(pair2)
                                   if cell.is_neighbor(triple) and common in cell.possible_values]
                         if fixers:

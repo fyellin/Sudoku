@@ -8,7 +8,6 @@ from typing import Tuple, Sequence
 from matplotlib import pyplot as plt
 
 from color import Color
-from solver import DancingLinks
 
 
 class RowOrColumn(Enum):
@@ -26,6 +25,7 @@ class DancingDots:
     grid: Sequence[Sequence[str]]
 
     def solve(self, puzzle: str) -> None:
+        from solver import DancingLinks
         self.grid = self.get_initial_grid(puzzle)
         constraints = {}
         optional_constraints = set()
@@ -193,16 +193,16 @@ class DancingDots:
 
 PUZZLE =\
     """
-XOXOOX....
-OXXOXOXO..
-XOOXXO.X..
-OXOXOXXO..
+X..OXO..OX
+OX..XOOXXO
+XOOXOXXOOX
 OXXOOXOOXX
-XOXOXOOX..
-XOOX..X...
-OXXO.....X
-XOOXXO..XO
-XXOXOXO..O
+XOOXXOOXXO
+X.OX..X.O.
+OXXO......
+OXXOOX..XO
+XOOX....OX
+OOX....X.O
 """
 
 if __name__ == '__main__':

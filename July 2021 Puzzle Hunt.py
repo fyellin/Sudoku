@@ -365,13 +365,15 @@ def puzzle_20() -> tuple[str, Sequence[Feature]]:
 
 def run() -> None:
     puzzles = [
-        # puzzle_1, puzzle_2, puzzle_3, puzzle_4, puzzle_5,
-        # puzzle_6, puzzle_7, puzzle_8, puzzle_9, puzzle_10,
-        # puzzle_11, puzzle_12, puzzle_13, puzzle_14, puzzle_15,
+        puzzle_1, puzzle_2, puzzle_3, puzzle_4, puzzle_5,
+        puzzle_6, puzzle_7, puzzle_8, puzzle_9, puzzle_10,
+        puzzle_11, puzzle_12, puzzle_13, puzzle_14, puzzle_15,
         puzzle_16, puzzle_17, puzzle_18, puzzle_19, puzzle_20,
         ]
     for puzzle in puzzles:
         grid, features = puzzle()
+        print()
+        print(f'--------- { puzzle.__name__} -----------------')
         result = Sudoku().solve(grid, features=features, show=False)
         assert result, f'Puzzle {puzzle} failed'
 

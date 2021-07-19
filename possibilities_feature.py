@@ -3,7 +3,7 @@ from collections import defaultdict
 from itertools import combinations, product, chain
 from typing import Sequence, Mapping, Union, Optional, Iterable
 
-from cell import Cell, House
+from cell import Cell, House, SmallIntSet
 from draw_context import DrawContext
 from feature import Feature, Square
 from grid import Grid
@@ -18,7 +18,7 @@ class PossibilitiesFeature(Feature, abc.ABC):
     handle_duplicates: bool
     __house_to_indexes: Mapping[House, list[int]]
     _cells_as_set: set[Cell]
-    __value_only_in_feature: dict[House, set[int]]
+    __value_only_in_feature: dict[House, SmallIntSet]
 
     def __init__(self, squares: Union[Sequence[Square], str], *,
                  name: Optional[str] = None, neighbors: bool = False, duplicates: bool = False) -> None:
@@ -26,7 +26,7 @@ class PossibilitiesFeature(Feature, abc.ABC):
         self.squares = self.parse_squares(squares) if isinstance(squares, str) else squares
         self.handle_neighbors = neighbors
         self.handle_duplicates = duplicates
-        self.__value_only_in_feature = defaultdict(set)
+        self.__value_only_in_feature = defaultdict(SmallIntSet)
 
     def initialize(self, grid: Grid) -> None:
         super().initialize(grid)
@@ -78,7 +78,7 @@ class PossibilitiesFeature(Feature, abc.ABC):
         for index, cell in enumerate(self.cells):
             if cell.is_known:
                 continue
-            legal_values = {values[index] for values in self.possibilities}
+            legal_values = SmallIntSet(values[index] for values in self.possibilities)
             if not cell.possible_values <= legal_values:
                 updated = True
                 Cell.keep_values_for_cell([cell], legal_values, show=show)
@@ -94,7 +94,7 @@ class PossibilitiesFeature(Feature, abc.ABC):
         for house, indexes in self.__house_to_indexes.items():
             locked_values = house.unknown_values - self.__value_only_in_feature[house]
             for possibility in self.possibilities:
-                locked_values.intersection_update({possibility[i] for i in indexes})
+                locked_values -= SmallIntSet(possibility[i] for i in indexes)
                 if not locked_values:
                     break
 
@@ -170,7 +170,7 @@ class GroupedPossibilitiesFeature(Feature, abc.ABC):
     """We are given a set of possible values for a set of cells"""
     squares: Sequence[Square]
     cells: Sequence[Cell]
-    possibilities: list[tuple[set[int], ...]]
+    possibilities: list[tuple[SmallIntSet, ...]]
     handle_neighbors: bool
     compressed: bool
 
@@ -188,7 +188,7 @@ class GroupedPossibilitiesFeature(Feature, abc.ABC):
         self.cells = [grid.matrix[square] for square in self.squares]
 
     @abc.abstractmethod
-    def get_possibilities(self) -> list[tuple[set[int], ...]]: ...
+    def get_possibilities(self) -> list[tuple[SmallIntSet, ...]]: ...
 
     def reset(self) -> None:
         possibilities = list(self.get_possibilities())
@@ -205,7 +205,7 @@ class GroupedPossibilitiesFeature(Feature, abc.ABC):
             return False
 
         # Only keep those possibilities that are still available
-        def is_viable(possibility: tuple[set[int], ...]) -> bool:
+        def is_viable(possibility: tuple[SmallIntSet, ...]) -> bool:
             choices = [value.intersection(square.possible_values) for (value, square) in zip(possibility, self.cells)]
             if not all(choices):
                 return False
@@ -228,13 +228,13 @@ class GroupedPossibilitiesFeature(Feature, abc.ABC):
         for index, cell in enumerate(self.cells):
             if cell.is_known:
                 continue
-            legal_values = set.union(*[possibility[index] for possibility in self.possibilities])
+            legal_values = SmallIntSet.union(*[possibility[index] for possibility in self.possibilities])
             if not cell.possible_values <= legal_values:
                 updated = True
                 Cell.keep_values_for_cell([cell], legal_values, show=show)
         return updated
 
-    def __remove_bad_neighbors(self, possibilities: Sequence[tuple[set[int], ...]]
+    def __remove_bad_neighbors(self, possibilities: Sequence[tuple[SmallIntSet, ...]]
                                ) -> list[tuple[set[int], ...]]:
         for (index1, cell1), (index2, cell2) in combinations(enumerate(self.cells), 2):
             if cell1.is_neighbor(cell2):

@@ -2,7 +2,7 @@ import datetime
 import itertools
 from typing import Sequence, Tuple, List, Iterable, Set, Optional, cast
 
-from cell import Cell, House
+from cell import Cell, House, SmallIntSet
 from draw_context import DrawContext
 from feature import Feature, Square
 from features import KnightsMoveFeature, MagicSquareFeature, \
@@ -25,7 +25,7 @@ class Pieces44(Feature):
 
         def reset(self) -> None:
             super().reset()
-            self.unknown_values = set(range(2, 10))
+            self.unknown_values = SmallIntSet(range(2, 10))
             Cell.remove_values_from_cells(self.cells, {1}, show=False)
 
     eggs: Sequence[List[Square]]

@@ -2,7 +2,7 @@ import itertools
 import math
 from typing import Sequence, Tuple, List, Mapping, Iterable, Set, cast
 
-from cell import Cell, House
+from cell import Cell, House, SmallIntSet
 from draw_context import DrawContext
 from feature import Feature, Square
 from features import KnightsMoveFeature, AdjacentRelationshipFeature, AllValuesPresentFeature, \
@@ -98,7 +98,7 @@ class SnakesEggFeature(Feature):
 
         def reset(self) -> None:
             super().reset()
-            self.unknown_values = set(range(1, len(self.cells) + 1))
+            self.unknown_values = SmallIntSet(range(1, len(self.cells) + 1))
             Cell.remove_values_from_cells(self.cells, set(range(len(self.cells) + 1, 10)))
 
     squares: Sequence[List[Square]]

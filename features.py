@@ -8,7 +8,7 @@ from collections.abc import Iterable, Sequence, Mapping
 from itertools import permutations, combinations, product, tee, groupby, combinations_with_replacement
 from typing import Optional, ClassVar, Any, Union
 
-from cell import Cell, House
+from cell import Cell, House, SmallIntSet
 from draw_context import DrawContext
 from feature import Feature, Square, MultiFeature
 from grid import Grid
@@ -473,7 +473,7 @@ class SameValueAsMateFeature(AbstractMateFeature):
         return False
 
     def _check_value_not_known(self) -> bool:
-        legal_values = set.union(*(cell.possible_values for cell in self.possible_mates))
+        legal_values = SmallIntSet.union(*(cell.possible_values for cell in self.possible_mates))
         if not self.this_cell.possible_values <= legal_values:
             print(f'Cell {self.this_cell} must have a mate')
             Cell.keep_values_for_cell([self.this_cell], legal_values)
@@ -568,11 +568,13 @@ class SandwichFeature(GroupedPossibilitiesFeature):
                         yield tuple(temp)
                         temp.rotate(1)
 
+    ONE_AND_NINE = SmallIntSet((1, 9))
+
     def draw(self, context: DrawContext) -> None:
         self.draw_outside(context, self.total, self.htype, self.row_column, fontsize=20, weight='bold')
         if not context.get(self.__class__):
             context[self.__class__] = True
-            special = [cell.index for cell in self.grid.cells if cell.possible_values.isdisjoint({1, 9})]
+            special = [cell.index for cell in self.grid.cells if cell.possible_values.isdisjoint(self.ONE_AND_NINE)]
             context.draw_rectangles(special, color='lightgreen')
 
 
