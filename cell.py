@@ -101,7 +101,7 @@ class SmallIntSet:
 
     @staticmethod
     def __to_bits(items):
-        return functools.reduce(operator.__or__, (1 << i for i in items), initial=0)
+        return functools.reduce(operator.__or__, (1 << i for i in items), 0)
 
 
 class House:

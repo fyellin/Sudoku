@@ -96,7 +96,7 @@ class Sudoku:
             found_naked_single = True
             # Officially set the cell to its one possible value
             output = [cell.set_value_to(list(cell.possible_values)[0])
-                      for cell in naked_singles]
+                      for cell in sorted(naked_singles)]
             print("Naked Single: " + '; '.join(output))
         return found_naked_single
 
@@ -410,6 +410,7 @@ class Sudoku:
         return False
 
     def draw_grid(self, *, done: bool = False, result: bool = False):
+        return
         figure, axes = plt.subplots(1, 1, figsize=(6, 6), dpi=100)
 
         # set (1,1) as the top-left corner, and (max_column, max_row) as the bottom right.
