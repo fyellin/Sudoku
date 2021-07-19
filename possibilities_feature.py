@@ -94,7 +94,7 @@ class PossibilitiesFeature(Feature, abc.ABC):
         for house, indexes in self.__house_to_indexes.items():
             locked_values = house.unknown_values - self.__value_only_in_feature[house]
             for possibility in self.possibilities:
-                locked_values -= SmallIntSet(possibility[i] for i in indexes)
+                locked_values &= SmallIntSet(possibility[i] for i in indexes)
                 if not locked_values:
                     break
 
@@ -188,10 +188,21 @@ class GroupedPossibilitiesFeature(Feature, abc.ABC):
         self.cells = [grid.matrix[square] for square in self.squares]
 
     @abc.abstractmethod
-    def get_possibilities(self) -> list[tuple[SmallIntSet, ...]]: ...
+    def get_possibilities(self) -> list[tuple[Union[SmallIntSet, Iterable[int], int], ...]]: ...
 
     def reset(self) -> None:
-        possibilities = list(self.get_possibilities())
+        def fixit_one(x: Union[SmallIntSet, Iterable[int], int]) -> SmallIntSet:
+            if isinstance(x, int):
+                return SmallIntSet([x])
+            elif isinstance(x, SmallIntSet):
+                return x
+            else:
+                return SmallIntSet(x)
+
+        def fixit(items: tuple[Union[SmallIntSet, Iterable[int], int], ...]) -> tuple[SmallIntSet, ...]:
+            return tuple(fixit_one(item) for item in items)
+
+        possibilities = list(fixit(x) for x in self.get_possibilities())
         if self.handle_neighbors:
             possibilities = self.__remove_bad_neighbors(possibilities)
         print(f'{self} has {len(possibilities)} possibilities')
@@ -206,14 +217,14 @@ class GroupedPossibilitiesFeature(Feature, abc.ABC):
 
         # Only keep those possibilities that are still available
         def is_viable(possibility: tuple[SmallIntSet, ...]) -> bool:
-            choices = [value.intersection(square.possible_values) for (value, square) in zip(possibility, self.cells)]
+            choices = [value & square.possible_values for (value, square) in zip(possibility, self.cells)]
             if not all(choices):
                 return False
             if self.compressed:
                 open_choices = [choice for choice, cell in zip(choices, self.cells) if not cell.is_known]
                 for length in range(2, len(open_choices)):
                     for subset in combinations(open_choices, length):
-                        if len(set.union(*subset)) < length:
+                        if len(SmallIntSet.union(*subset)) < length:
                             return False
             return True
 

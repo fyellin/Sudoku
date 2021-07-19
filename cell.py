@@ -49,7 +49,7 @@ class SmallIntSet:
 
     @classmethod
     def union(cls, *other_sets: SmallIntSet):
-        values = functools.reduce(operator.__or__, (x.bits for x in other_sets), initial=0)
+        values = functools.reduce(operator.__or__, (x.bits for x in other_sets), 0)
         return SmallIntSet(values)
 
     def isdisjoint(self, other: SmallIntSet) -> bool:
@@ -98,6 +98,10 @@ class SmallIntSet:
 
     def __le__(self, other: SmallIntSet) -> bool:
         return self.bits & ~other.bits == 0
+
+    def __str__(self) -> str:
+        elements = [str(x) for x in self]
+        return "{" + ", ".join(elements) + "}"
 
     @staticmethod
     def __to_bits(items):
@@ -192,7 +196,7 @@ class Cell:
 
     @property
     def bitmap(self) -> int:
-        return functools.reduce(operator.__or__, (1 << i for i in self.possible_values))
+        return self.possible_values.bits
 
     def initialize_neighbors(self, _grid: 'Grid') -> None:
         neighbors: set[Cell] = set()

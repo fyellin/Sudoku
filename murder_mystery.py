@@ -237,7 +237,7 @@ def act_4_runner():
             return
 
 
-def act_4(box1: int, box2: int) -> tuple[str, Sequence[Feature]]:
+def act_4(box1: int = 1, box2: int = 9) -> tuple[str, Sequence[Feature]]:
     # KillerCageFeature(34, [(4, 4), (5, 4), (6, 4), (5, 5), (4, 6), (5, 6), (6, 6)]
     # Success occurs with boxes 1 and 9
 
@@ -423,11 +423,19 @@ def finale() -> tuple[str, Sequence[Feature]]:
 # noinspection SpellCheckingInspection
 def main():
     start = datetime.datetime.now()
-    grid, features = act_10()
-    Sudoku().solve(grid, features=features, show=False, draw_verbose=False)
+    puzzles = [
+        # act_1, act_2, act_3, act_4, act_5, act_6, act_7, act_8,
+        act_9,
+        # act_10, finale
+    ]
+    for puzzle in puzzles:
+        print('*************', puzzle, "*****************")
+        grid, features = puzzle()
+        result = Sudoku().solve(grid, features=features, show=False, draw_verbose=False)
+        assert result
     end = datetime.datetime.now()
     print(end - start)
-    #     # E=9, G=2, H=7, L=8, N=1, O=4, R=5, S=3, V=6
+    # E=9, G=2, H=7, L=8, N=1, O=4, R=5, S=3, V=6
     # 1=N, 2=G, 3=S, 4=O, 5=R, 6=V, 7=H, 8=L, 9=E
     # SHOVEL
     # REVENGE

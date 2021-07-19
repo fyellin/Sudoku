@@ -95,7 +95,7 @@ class Chain:
                         return True
                 elif cell1 == cell2:
                     # Two different possible values for the cell.  If there are any others, they can be tossed
-                    assert {value1, value2} <= cell1.possible_values
+                    assert value1 in cell1.possible_values and value2 in cell1.possible_values
                     if len(cell1.possible_values) >= 3:
                         print(f"From {self.__sub_chain_string(cell_value1, cell_value2)}, "
                               f"{cell1} is either ={value1} or {value2}")

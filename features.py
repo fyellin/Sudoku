@@ -677,7 +677,7 @@ class PalindromeFeature(MultiFeature):
 class CloneBoxFeature(MultiFeature):
     def __init__(self, index1: int, index2: int):
         squares1 = self.get_house_squares(House.Type.BOX, index1)
-        squares2 = self.get_house_squares(House.Type.Box, index2)
+        squares2 = self.get_house_squares(House.Type.BOX, index2)
         features = [SameValueFeature(*pair) for pair in zip(squares1, squares2)]
         super().__init__(features)
 
