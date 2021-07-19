@@ -3,6 +3,7 @@ from __future__ import annotations
 import abc
 import datetime
 import functools
+import operator
 from collections import deque, defaultdict
 from collections.abc import Iterable, Sequence, Mapping
 from itertools import permutations, combinations, product, tee, groupby, combinations_with_replacement
@@ -623,41 +624,6 @@ class SandwichXboxFeature(PossibilitiesFeature):
         self.draw_outside(context, self.value, self.htype, self.row_column, is_right=self.is_right, **args)
 
 
-class SameValueFeature(PossibilitiesFeature):
-    def __init__(self, *squares: Square, name: Optional[str] = None) -> None:
-        assert len(squares) > 1
-        super().__init__(squares, name=name)
-
-    def initialize(self, grid: Grid) -> None:
-        super().initialize(grid)
-        mapper: dict[Cell, frozenset[Cell]] = getattr(grid, "SameValueFeature", None)
-        if not mapper:
-            mapper = {cell: frozenset([cell]) for cell in grid.cells}
-            setattr(grid, "SameValueFeature", mapper)
-        clone_group = frozenset.union(*(mapper[cell] for cell in self.cells))
-        for cell in clone_group:
-            mapper[cell] = clone_group
-
-    def reset(self) -> None:
-        super().reset()
-        mapper: dict[Cell, frozenset[Cell]] = getattr(self.grid, "SameValueFeature", None)
-        if not mapper:
-            return
-        try:
-            clone_groups = set(group for group in mapper.values() if len(group) > 1)
-            for clone_group in clone_groups:
-                neighbors = frozenset.union(*(cell.neighbors for cell in clone_group))
-                for cell in clone_group:
-                    assert cell not in neighbors
-                    cell.neighbors = neighbors
-        finally:
-            delattr(self.grid, "SameValueFeature")
-
-    def get_possibilities(self) -> list[tuple[int, ...]]:
-        count = len(self.squares)
-        return [(i,) * count for i in range(1, 10)]
-
-
 class PalindromeFeature(MultiFeature):
     squares: Sequence[Square]
     color: Optional[str]
@@ -666,7 +632,7 @@ class PalindromeFeature(MultiFeature):
         self.squares = squares = self.parse_squares(squares)
         self.color = color
         count = len(squares) // 2
-        features = [SameValueFeature((r1, c1), (r2, c2), name=f'r{r1}c{c1}=r{r2}c{c2}')
+        features = [SameValueFeature((r1, c1), (r2, c2))
                     for (r1, c1), (r2, c2) in zip(squares[:count], squares[::-1])]
         super().__init__(features)
 
@@ -1053,6 +1019,66 @@ class MessageFeature(MultiFeature):
                                   weight='bold',
                                   fontsize=10,
                                   verticalalignment='top', horizontalalignment='left')
+
+
+class SameValueFeature(Feature):
+    squares: Sequence[Square]
+    cells: Sequence[Cell]
+
+    def __init__(self, *squares: Square, name: Optional[str] = None) -> None:
+        self.squares = self.parse_squares(squares)
+        assert len(self.squares) > 1
+        name = name or '='.join(f'r{r}c{c}' for r, c in self.squares)
+        super().__init__(name=name)
+
+    def initialize(self, grid: Grid) -> None:
+        super().initialize(grid)
+        self.cells = [self @ square for square in self.squares]
+        mapper: dict[Cell, frozenset[Cell]] = getattr(grid, "SameValueFeature", None)
+        if not mapper:
+            mapper = {cell: frozenset([cell]) for cell in grid.cells}
+            setattr(grid, "SameValueFeature", mapper)
+        clone_group = frozenset.union(*(mapper[cell] for cell in self.cells))
+        for cell in clone_group:
+            mapper[cell] = clone_group
+
+    def reset(self) -> None:
+        super().reset()
+        mapper: dict[Cell, frozenset[Cell]] = getattr(self.grid, "SameValueFeature", None)
+        if not mapper:
+            return
+        try:
+            clone_groups = set(group for group in mapper.values() if len(group) > 1)
+            for clone_group in clone_groups:
+                neighbors = frozenset.union(*(cell.neighbors for cell in clone_group))
+                for cell in clone_group:
+                    assert cell not in neighbors
+                    cell.neighbors = neighbors
+        finally:
+            delattr(self.grid, "SameValueFeature")
+
+    @Feature.check_only_if_changed
+    def check(self) -> bool:
+        result = functools.reduce(operator.__and__, (cell.possible_values for cell in self.cells))
+        cells_to_update = [cell for cell in self.cells if cell.possible_values != result]
+        if cells_to_update:
+            Cell.keep_values_for_cell(cells_to_update, result)
+            return True
+        return False
+
+    def check_special(self) -> bool:
+        neighbors = self.cells[0].neighbors  # From reset() above, all the cells have the same neighbors
+        for value in self.cells[0].possible_values:
+            for house in self.grid.houses:
+                if value not in house.unknown_values:
+                    continue
+                value_in_house = {cell for cell in house.unknown_cells if value in cell.possible_values}
+                if value_in_house <= neighbors:
+                    print(f'{self} ≠ {value} because it would eliminate all {value}s from {house}')
+                    Cell.remove_value_from_cells(self.cells, value, show=False)
+                    return True
+
+        return False
 
 
 class HelperFeature(Feature):

@@ -3,8 +3,8 @@ from __future__ import annotations
 import itertools
 from collections import deque
 from enum import Enum, auto
-from typing import Set, Iterable, Tuple, Iterator, Sequence, Mapping, Dict, NamedTuple, FrozenSet, List, Deque, \
-    TYPE_CHECKING
+from collections.abc import Iterable, Iterator, Sequence, Mapping
+from typing import NamedTuple, TYPE_CHECKING
 
 from cell import CellValue, Cell
 from color import Color
@@ -14,8 +14,8 @@ if TYPE_CHECKING:
 
 
 class Chain:
-    one: FrozenSet[CellValue]
-    two: FrozenSet[CellValue]
+    one: frozenset[CellValue]
+    two: frozenset[CellValue]
     is_medusa: bool
 
     def __init__(self, one: Iterable[CellValue], two: Iterable[CellValue], is_medusa: bool):
@@ -46,22 +46,19 @@ class Chain:
     def create(start: CellValue, medusa: bool) -> Chain:
         todo = deque([(start, 0)])
         seen = {start}
-        one: List[CellValue] = []
-        two: List[CellValue] = []
+        one: list[CellValue] = []
+        two: list[CellValue] = []
         while todo:
             cell_value, depth = todo.popleft()
             (one if depth % 2 == 0 else two).append(cell_value)
             (this_cell, this_value) = cell_value
-            for house in this_cell.all_houses():
-                next_cell = this_cell.strong_pair(house, this_value)
-                if next_cell is None:
-                    continue
+            for next_cell, _ in this_cell.strong_pair(this_value):
                 next_cell_value = CellValue(next_cell, this_value)
                 if next_cell_value not in seen:
                     seen.add(next_cell_value)
                     todo.append((next_cell_value, depth + 1))
             if medusa and len(this_cell.possible_values) == 2:
-                next_value = (this_cell.possible_values - {this_value}).pop()
+                next_value = (this_cell.possible_values - {this_value}).unique()
                 next_cell_value = CellValue(this_cell, next_value)
                 if next_cell_value not in seen:
                     seen.add(next_cell_value)
@@ -116,23 +113,20 @@ class Chain:
 
     def __sub_chain_string(self, start: CellValue, end: CellValue) -> str:
         """Given two cell-values in this chain, print out the piece of the chain from "start" to "end" """
-        todo: Deque[CellValue] = deque([end])
+        todo: deque[CellValue] = deque([end])
         seen = {end: end}
         while todo:
             cell_value: CellValue = todo.popleft()
             if cell_value == start:
                 break
             (this_cell, this_value) = cell_value
-            for house in this_cell.all_houses():
-                next_cell = this_cell.strong_pair(house, this_value)
-                if next_cell is None:
-                    continue
+            for next_cell, _ in this_cell.strong_pair(this_value):
                 next_cell_value = CellValue(next_cell, this_value)
                 if next_cell_value not in seen:
                     seen[next_cell_value] = cell_value
                     todo.append(next_cell_value)
             if self.is_medusa and len(this_cell.possible_values) == 2:
-                next_value = (this_cell.possible_values - {this_value}).pop()
+                next_value = (this_cell.possible_values - {this_value}).unique()
                 next_cell_value = CellValue(this_cell, next_value)
                 if next_cell_value not in seen:
                     seen[next_cell_value] = cell_value
@@ -157,13 +151,13 @@ class Chain:
             if value in cell.possible_values:
                 Cell.remove_value_from_cells([cell], value)
 
-    def items(self) -> Iterator[Tuple[CellValue, Chain.Group]]:
+    def items(self) -> Iterator[tuple[CellValue, Chain.Group]]:
         """An enumeration of (cell_value, group) for all the cell values in this chain"""
         yield from ((cell, Chain.Group.ONE) for cell in self.one)
         yield from ((cell, Chain.Group.TWO) for cell in self.two)
 
     def to_string(self, group: Chain.Group) -> str:
-        items: Set[Tuple[CellValue, str]] = set()
+        items: set[tuple[CellValue, str]] = set()
         items.update((cv, '=') for cv in group.pick_set(self))
         items.update((cv, '≠') for cv in group.pick_other_set(self))
         return ', '.join(f'{cell}{symbol}{value}' for (cell, value), symbol in sorted(items))
@@ -179,11 +173,11 @@ class Chain:
 
 class Chains (NamedTuple):
     chains: Sequence[Chain]
-    mapping: Mapping[CellValue, Tuple[Chain, Chain.Group]]
+    mapping: Mapping[CellValue, tuple[Chain, Chain.Group]]
 
     @staticmethod
     def create(all_cells: Iterable[Cell], medusa: bool) -> Chains:
-        mapping: Dict[CellValue, Tuple[Chain, Chain.Group]] = {}
+        mapping: dict[CellValue, tuple[Chain, Chain.Group]] = {}
         chains = []
         for cell in all_cells:
             if cell.is_known:

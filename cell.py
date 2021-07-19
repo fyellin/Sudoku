@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import functools
+import itertools
 import operator
 from collections.abc import Sequence, Iterable, Iterator
 from enum import Enum, auto
@@ -16,9 +17,16 @@ if TYPE_CHECKING:
 class SmallIntSet:
     bits: int
 
-    BIT_TO_VALUE = {(1 << i): i for i in range(1, 10)}
+    BITS_TO_TUPLE = {bits: items
+                     for count in range(10)
+                     for items in itertools.combinations(range(1, 10), count)
+                     for bits in [functools.reduce(operator.__or__, (1 << i for i in items), 0)]
+                     }
 
     def __init__(self, items: Union[int, Iterable[int]] = 0):
+        self.set_to(items)
+
+    def set_to(self, items: Union[int, Iterable[int]]):
         if isinstance(items, int):
             self.bits = items
         else:
@@ -40,38 +48,28 @@ class SmallIntSet:
             raise KeyError('item not in set')
         self.bits &= ~(1 << item)
 
-    def pop(self):
-        if self.bits == 0:
-            raise KeyError('pop from an empty set')
-        lsb = self.bits & -self.bits
-        self.bits -= lsb
-        return self.BIT_TO_VALUE[lsb]
+    def unique(self) -> int:
+        items = self.BITS_TO_TUPLE[self.bits]
+        assert len(items) == 1
+        return items[0]
 
     @classmethod
-    def union(cls, *other_sets: SmallIntSet):
+    def union(cls, *other_sets: SmallIntSet) -> SmallIntSet:
         values = functools.reduce(operator.__or__, (x.bits for x in other_sets), 0)
         return SmallIntSet(values)
 
     def isdisjoint(self, other: SmallIntSet) -> bool:
         return self.bits & other.bits == 0
 
-    def __contains__(self, item: int):
+    def __contains__(self, item: int) -> bool:
         return bool(self.bits & (1 << item))
 
     def __iter__(self) -> Iterable[int]:
-        bits = self.bits
-        while bits != 0:
-            lsb = bits & -bits
-            yield self.BIT_TO_VALUE[lsb]
-            bits -= lsb
+        items = self.BITS_TO_TUPLE[self.bits]
+        return iter(items)
 
     def __len__(self) -> int:
-        count = 0
-        bits = self.bits
-        while bits != 0:
-            count += 1
-            bits &= (bits - 1)
-        return count
+        return len(self.BITS_TO_TUPLE[self.bits])
 
     def __sub__(self, other: Union[SmallIntSet, Iterable[int]]) -> SmallIntSet:
         other_bits = other.bits if isinstance(other, SmallIntSet) else self.__to_bits(other)
@@ -102,6 +100,12 @@ class SmallIntSet:
     def __str__(self) -> str:
         elements = [str(x) for x in self]
         return "{" + ", ".join(elements) + "}"
+
+    def __eq__(self, other: SmallIntSet):
+        return self.bits == other.bits
+
+    def __hash__(self):
+        return hash(self.bits)
 
     @staticmethod
     def __to_bits(items):
@@ -183,8 +187,9 @@ class Cell:
 
         assert value in self.possible_values
         self.known_value = value
-        self.possible_values.clear()
-        self.possible_values.add(value)
+        self.possible_values.set_to([value])
+        # self.possible_values.clear()
+        # self.possible_values.add(value)
         output = f'{self} := {value}'  # Maybe use ⬅
         if show:
             print(f'  {output}')
@@ -215,14 +220,15 @@ class Cell:
     def house_of_type(self, house_type: House.Type) -> House:
         return next(house for house in self.houses if house.house_type == house_type)
 
-    def weak_pair(self, house: House, value: int) -> Sequence[Cell]:
-        temp = [cell for cell in house.unknown_cells
-                if cell != self and value in cell.possible_values]
-        return temp
+    def weak_pair(self, value: int) -> Iterable[tuple[Cell, House]]:
+        return ((cell, house) for house in self.houses
+                for cell in house.unknown_cells if cell != self and value in cell.possible_values)
 
-    def strong_pair(self, house: House, value: int) -> Optional[Cell]:
-        temp = self.weak_pair(house, value)
-        return temp[0] if len(temp) == 1 else None
+    def strong_pair(self, value: int) -> Iterable[tuple[Cell, House]]:
+        for house in self.houses:
+            temp = [cell for cell in house.unknown_cells if cell != self and value in cell.possible_values]
+            if len(temp) == 1:
+                yield temp[0], house
 
     def is_neighbor(self, other: Cell) -> bool:
         return other in self.neighbors
@@ -278,8 +284,9 @@ class Cell:
             values = SmallIntSet(values)
         for cell in cells:
             if show:
-                foo = ''.join((Cell.__deleted(i) if i not in values else str(i)) for i in sorted(cell.possible_values))
-                print(f'  {cell} = {foo}')
+                output = ''.join((Cell.__deleted(i) if i not in values else str(i))
+                                 for i in sorted(cell.possible_values))
+                print(f'  {cell} = {output}')
             cell.possible_values &= values
             assert cell.possible_values
 

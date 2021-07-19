@@ -322,7 +322,7 @@ class Sudoku:
         def run_queue() -> bool:
             while todo:
                 cell, value, depth = todo.popleft()
-                next_value = (cell.possible_values - {value}).pop()
+                next_value = (cell.possible_values - {value}).unique()
                 for next_cell in cell.neighbors:
                     if len(next_cell.possible_values) == 2 and next_value in next_cell.possible_values:
                         if not (next_cell, next_value) in links:
@@ -364,7 +364,9 @@ class Sudoku:
                                  if len(cell.possible_values) == 2 and cell.possible_values <= triple.possible_values]
                 for pair1, pair2 in combinations(possibilities, 2):
                     if pair1.possible_values != pair2.possible_values:
-                        common = (pair1.possible_values & pair2.possible_values).pop()
+                        # pair1 and pair2 have precisely one common value, by definition.
+                        common = (pair1.possible_values & pair2.possible_values).unique()
+                        # We can remove this common digit from anything that sees all three cells
                         fixers = [cell for cell in pair1.joint_neighbors(pair2)
                                   if cell.is_neighbor(triple) and common in cell.possible_values]
                         if fixers:
@@ -384,33 +386,26 @@ class Sudoku:
         return any(chain.check_colors(self.features) for chain in chains.chains)
 
     def check_tower(self) -> bool:
-        def strong_pair_iterator(cell: Cell, house: House, val: int) -> Iterable[Cell]:
-            paired_cell = cell.strong_pair(house, val)
-            if paired_cell:
-                yield paired_cell
-
         for cell1 in self.grid.cells:
             if cell1.is_known:
                 continue
             for value in cell1.possible_values:
-                for house1 in cell1.all_houses():
-                    for cell2 in strong_pair_iterator(cell1, house1, value):
-                        for house2 in cell2.all_houses_but(house1):
-                            for cell3 in cell2.weak_pair(house2, value):
-                                for house3 in cell3.all_houses_but(house2):
-                                    for cell4 in strong_pair_iterator(cell3, house3, value):
-                                        if cell4 in (cell1, cell2, cell3):
-                                            continue
-                                        fixers = {cell for cell in cell1.joint_neighbors(cell4)
-                                                  if value in cell.possible_values}
-                                        if fixers:
-                                            print(f'Tower on /{value}/ {cell1}={cell2}-{cell3}={cell4}')
-                                            Cell.remove_value_from_cells(fixers, value)
-                                            return True
+                for cell2, house2 in cell1.strong_pair(value):
+                    for cell3, house3 in cell2.weak_pair(value):
+                        if house3 == house2 or cell3 in (cell1, cell2):
+                            continue
+                        for cell4, house4 in cell3.strong_pair(value):
+                            if house4 == house3 or cell4 in (cell1, cell2, cell3):
+                                continue
+                            fixers = {cell for cell in cell1.joint_neighbors(cell4)
+                                      if value in cell.possible_values}
+                            if fixers:
+                                print(f'Tower on /{value}/ {cell1}={cell2}-{cell3}={cell4}')
+                                Cell.remove_value_from_cells(fixers, value)
+                                return True
         return False
 
     def draw_grid(self, *, done: bool = False, result: bool = False):
-        return
         figure, axes = plt.subplots(1, 1, figsize=(6, 6), dpi=100)
 
         # set (1,1) as the top-left corner, and (max_column, max_row) as the bottom right.

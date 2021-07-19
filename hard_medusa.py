@@ -93,6 +93,10 @@ class HardMedusa:
 
     todo: deque[CellValue]
 
+    def __init__(self, cell_value_to_chain: Mapping[CellValue, tuple[Chain, Chain.Group]], features: Sequence[Feature]):
+        self.chains_mapping = cell_value_to_chain
+        self.features = features
+
     @staticmethod
     def run(chains: Chains, features: Sequence[Feature]) -> bool:
         for chain in chains.chains:
@@ -125,15 +129,12 @@ class HardMedusa:
                         if value in cell.possible_values:  # It may have already been removed by a true
                             Cell.remove_value_from_cells({cell}, value)
                             all_values.add(cell_value)
-                    for group, medusa in ((Chain.Group.ONE, medusa1), (Chain.Group.TWO, medusa2)):
-                        Reason.print_explanations(medusa, all_values)
-                    print(f'{Chain.Group.TWO.marker()}. . . ')
+                    Reason.print_explanations(medusa1, all_values)
+                    print()
+                    Reason.print_explanations(medusa2, all_values)
+                    print("------")
                     return True
         return False
-
-    def __init__(self, cell_value_to_chain: Mapping[CellValue, tuple[Chain, Chain.Group]], features: Sequence[Feature]):
-        self.chains_mapping = cell_value_to_chain
-        self.features = features
 
     def __find_contradictions(self, chain: Chain, group: Chain.Group) -> Optional[Reason]:
         self.true_values = set()
