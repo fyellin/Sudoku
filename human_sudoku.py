@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-from itertools import product, combinations, permutations, groupby
 from collections import deque, defaultdict
-from collections.abc import Sequence, Mapping, Iterable
-from operator import attrgetter
+from collections.abc import Sequence, Mapping
+from itertools import product, combinations, permutations
 
 from matplotlib import pyplot as plt
 
-from cell import House, Cell, CellValue, SmallIntSet
+from cell import House, Cell, SmallIntSet
 from chain import Chains
 from draw_context import DrawContext
 from feature import Feature
@@ -95,8 +94,7 @@ class Sudoku:
                 break
             found_naked_single = True
             # Officially set the cell to its one possible value
-            output = [cell.set_value_to(list(cell.possible_values)[0])
-                      for cell in sorted(naked_singles)]
+            output = [cell.set_value_to(cell.possible_values.unique()) for cell in sorted(naked_singles)]
             print("Naked Single: " + '; '.join(output))
         return found_naked_single
 
@@ -105,24 +103,20 @@ class Sudoku:
         Finds a house for which there is only one place that one or more digits can go.
         Returns true if it finds such a house.
         """
-        return any(self.__check_hidden_singles(house) for house in self.grid.houses)
+        def check_house(house: House) -> bool:
+            changed = False
+            mapper = defaultdict(list)
+            for cell in house.unknown_cells:
+                for value in cell.possible_values:
+                    mapper[value].append(cell)
+            for value, cells in mapper.items():
+                if len(cells) == 1:
+                    print(f'Hidden Single: {house} = {value} must be {cells[0]}')
+                    cells[0].set_value_to(value)
+                    changed = True
+            return changed
 
-    @staticmethod
-    def __check_hidden_singles(house: House) -> bool:
-        # Make a sorted list of all cell/value combinations not yet known
-        all_unknown_cell_values = [CellValue(cell, value)
-                                   for cell in house.unknown_cells
-                                   for value in cell.possible_values]
-        all_unknown_cell_values.sort(key=attrgetter("value"))
-        result = False
-        for value, iterator in groupby(all_unknown_cell_values, lambda x: x.value):
-            cell_values = tuple(iterator)
-            if len(cell_values) == 1:
-                cell = cell_values[0].cell
-                cell.set_value_to(value)
-                print(f'Hidden Single: {house} = {value} must be {cell}')
-                result = True
-        return result
+        return any(check_house(house) for house in self.grid.houses)
 
     def check_intersection_removal(self) -> bool:
         """
@@ -242,50 +236,56 @@ class Sudoku:
 
     def check_fish(self) -> bool:
         """Looks for a fish of any size.  Returns true if a change is made to the grid."""
+        cell_to_house = {(cell, house.house_type): house
+                         for house in self.grid.houses for cell in house.unknown_cells}
+
         for value in range(1, 10):
             # Find all houses for which the value is missing
-            empty_houses = [house for house in self.grid.houses if value in house.unknown_values]
-            if not empty_houses:
+            houses = [house for house in self.grid.houses if value in house.unknown_values]
+            if not houses:
                 continue
             # For convenience, make a map from each "empty" house to the cells in that house that can contain the value
-            empty_house_to_cell = {house: [cell for cell in house.unknown_cells if value in cell.possible_values]
-                                   for house in empty_houses}
+            house_to_cells = {house: [cell for cell in house.unknown_cells if value in cell.possible_values]
+                              for house in houses}
             # Look for a fish between any two House types on the specified value
             # noinspection PyTypeChecker
             house_types = (House.Type.COLUMN, House.Type.ROW, House.Type.BOX)
             for this_house_type, that_house_type in permutations(house_types, 2):
-                if self.__check_fish(value, empty_houses, empty_house_to_cell, this_house_type, that_house_type):
+                if self.__check_fish(value, houses, house_to_cells, cell_to_house,
+                                     this_house_type, that_house_type):
                     return True
         return False
 
     @staticmethod
     def __check_fish(value: int,
-                     empty_houses: Sequence[House],
-                     empty_house_to_cell: Mapping[House, Sequence[Cell]],
+                     houses: Sequence[House],
+                     house_to_cells: Mapping[House, Sequence[Cell]],
+                     cell_to_house: Mapping[tuple[Cell, House.Type], House],
                      this_house_type: House.Type,
                      that_house_type: House.Type) -> bool:
-        these_unknown_houses = [house for house in empty_houses if house.house_type == this_house_type]
-        those_unknown_houses = [house for house in empty_houses if house.house_type == that_house_type]
+        these_unknown_houses = [house for house in houses if house.house_type == this_house_type]
+        those_unknown_houses = [house for house in houses if house.house_type == that_house_type]
         assert len(these_unknown_houses) == len(those_unknown_houses) >= 2
         unknown_size = len(these_unknown_houses)
         # We arbitrarily pretend that this_house_type is ROW and that_house_type is COLUMN in the naming of our
         # variables below.  But that's just to simplify the algorithm.  Either House can be any type.
         max_rows_to_choose = unknown_size - 1
+
         # if this_house_type == House.Type.BOX or that_house_type == House.Type.BOX:
         #     max_rows_to_choose = min(2, max_rows_to_choose)
         # Look at all subsets of the rows, but do small subsets before doing large subsets
         for number_rows_to_choose in range(2, max_rows_to_choose + 1):
             for rows in combinations(these_unknown_houses, number_rows_to_choose):
                 # Find all the possible cells in those rows
-                row_cells = {cell for house in rows for cell in empty_house_to_cell[house]}
+                row_cells = {cell for house in rows for cell in house_to_cells[house]}
                 # Find the columns that those cells belong to
-                columns = {cell.house_of_type(that_house_type) for cell in row_cells}
+                columns = {cell_to_house[cell, that_house_type] for cell in row_cells}
                 assert len(columns) >= number_rows_to_choose
                 if len(columns) > number_rows_to_choose:
                     continue
                 # If len(columns) == number_rows_to_choose, we have a fish.  Let's see if there is something to delete.
                 # Find all the cells in those columns
-                column_cells = {cell for house in columns for cell in empty_house_to_cell[house]}
+                column_cells = {cell for house in columns for cell in house_to_cells[house]}
                 assert row_cells <= column_cells
                 if len(row_cells) < len(column_cells):
                     # There are some column cells that aren't in our rows.  The value can be deleted.
@@ -435,10 +435,10 @@ class Sudoku:
         given = dict(fontsize=25, color='black', weight='heavy')
         found = dict(fontsize=25, color='blue', weight='bold')
         digit_width = (7/8) / 3
-        for cell in self.grid.cells:
-            row, column = cell.index
+        for row, column in product(range(1, 10), repeat=2):
+            cell = self.grid.matrix[row, column]
             if cell.known_value:
-                args = given if cell.index in self.initial_grid else found
+                args = given if (row, column) in self.initial_grid else found
                 axes.text(column + .5, row + .5, cell.known_value,
                           verticalalignment='center', horizontalalignment='center', **args)
             else:
@@ -464,13 +464,13 @@ class Sudoku:
                 continue
             filled = set()  # cells that have 4 or few possibilities
             cells_to_corners = defaultdict(list)
-            for cell in house.cells:
-                row, column = cell.index
+            for row, column in product(range(1, 10), repeat=2):
+                cell = self.grid.matrix[row, column]
                 if cell.known_value:
-                    args = given if cell.index in self.initial_grid else found
+                    args = given if (row, column) in self.initial_grid else found
                     axes.text(column + .5, row + .5, cell.known_value,
                               verticalalignment='center', horizontalalignment='center', **args)
-                elif len(cell.possible_values) <= 4:
+                elif len(cell.possible_values) <= 8:
                     axes.text(column + .5, row + .5, ''.join(str(x) for x in sorted(cell.possible_values)),
                               verticalalignment='center', horizontalalignment='center', **corner_args)
                     filled.add(cell)

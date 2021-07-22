@@ -5,7 +5,7 @@ from typing import Sequence, Tuple, Iterable, Set, Optional, cast
 from cell import House
 from draw_context import DrawContext
 from feature import Feature, Square
-from possibilities_feature import GroupedPossibilitiesFeature
+from features.possibilities_feature import GroupedPossibilitiesFeature
 from human_sudoku import Sudoku
 
 
@@ -133,6 +133,6 @@ def tour_puzzle_two(*, show: bool = False) -> None:
 
 if __name__ == '__main__':
     start = datetime.datetime.now()
-    tour_puzzle_two(show=False)
+    tour_puzzle_one(show=False)
     end = datetime.datetime.now()
     print(end - start)

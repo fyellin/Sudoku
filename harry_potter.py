@@ -4,53 +4,39 @@ from typing import Sequence, Tuple, List, Mapping, Iterable, Set, cast
 
 from cell import Cell, House, SmallIntSet
 from draw_context import DrawContext
-from feature import Feature, Square
-from features import KnightsMoveFeature, AdjacentRelationshipFeature, AllValuesPresentFeature, \
-    ThermometerFeature, BoxOfNineFeature, LimitedValuesFeature
-from possibilities_feature import GroupedPossibilitiesFeature
+from feature import Feature, Square, MultiFeature
+from features.chess_move import KnightsMoveFeature
+from features.features import AllValuesPresentFeature, AdjacentRelationshipFeature, BoxOfNineFeature, \
+    LimitedValuesFeature
+from features.possibilities_feature import GroupedPossibilitiesFeature
+from features.thermometer import ThermometerFeature
 from grid import Grid
 from human_sudoku import Sudoku
 
 
-class MalvoloRingFeature(Feature):
+class MalvoloRingFeature(MultiFeature):
     SQUARES = ((2, 4), (2, 5), (2, 6), (3, 7), (4, 8), (5, 8), (6, 8), (7, 7),
                (8, 6), (8, 5), (8, 4), (7, 3), (6, 2), (5, 2), (4, 2), (3, 3))
 
-    class Adjacency(AdjacentRelationshipFeature):
-        def __init__(self, squares: Sequence[Square]) -> None:
-            super().__init__(squares, name="Malvolo Ring", cyclic=True)
+    def __init__(self) -> None:
+        super().__init__([self.SumToSquareCubeFeature(), AllValuesPresentFeature(self.SQUARES)])
+
+    class SumToSquareCubeFeature(AdjacentRelationshipFeature):
+        def __init__(self,) -> None:
+            super().__init__(MalvoloRingFeature.SQUARES, name="Malvolo Ring", cyclic=True)
 
         def match(self, digit1: int, digit2: int) -> bool:
             return digit1 + digit2 in (4, 8, 9, 16)
 
-    features: Sequence[Feature]
-    special: Cell
-
-    def __init__(self) -> None:
-        super().__init__()
-        self.features = [self.Adjacency(self.SQUARES), AllValuesPresentFeature(self.SQUARES)]
-
-    def initialize(self, grid: Grid) -> None:
-        super().initialize(grid)
-        self.special = grid.matrix[2, 4]
-        for feature in self.features:
-            feature.initialize(grid)
-
-    def reset(self) -> None:
-        for feature in self.features:
-            feature.reset()
-
-    def check(self) -> bool:
-        return any(feature.check() for feature in self.features)
-
-    def check_special(self) -> bool:
-        """A temporary hack that it's not worth writing the full logic for.  If we set this value to 4,
-           then it will start a cascade such that no variable on the ring can have a value of 2. """
-        if len(self.special.possible_values) == 2:
-            print("Danger, danger")
-            self.special.set_value_to(2)
-            return True
-        return False
+        def check_special(self) -> bool:
+            special = self @ (2, 4)
+            """A temporary hack that it's not worth writing the full logic for.  If we set this value to 4,
+               then it will start a cascade such that no variable on the ring can have a value of 2. """
+            if len(special.possible_values) == 2:
+                print("Danger, danger")
+                special.set_value_to(2)
+                return True
+            return False
 
     def draw(self, context: DrawContext) -> None:
         radius = math.hypot(2.5, 1.5)
@@ -136,9 +122,10 @@ class PlusFeature(Feature):
         self.puzzles = puzzles
 
     def reset(self) -> None:
+        super().reset()
         for row, column in self.squares:
             value = self.__get_value(row, column)
-            self.grid.matrix[row, column].set_value_to(value)
+            (self @ (row, column)).set_value_to(value)
 
     def __get_value(self, row: int, column: int) -> int:
         index = (row - 1) * 9 + (column - 1)
@@ -156,21 +143,16 @@ class PlusFeature(Feature):
 class ColorFeature(Feature):
     setup: Mapping[Square, str]
     color_map: Mapping[str, str]
-    plus_feature: PlusFeature
 
     def __init__(self, grid: str, color_map: str, puzzles: Sequence[str]) -> None:
         super().__init__()
         self.setup = {(row, column): letter
-                      for (row, column), letter in zip(itertools.product(range(1, 10), repeat=2), grid)
+                      for (row, column), letter in zip(self.all_squares(), grid)
                       if letter != '.' and letter != '+'}
-        pluses = [(row, column)
-                  for (row, column), letter in zip(itertools.product(range(1, 10), repeat=2), grid)
-                  if letter == '+']
         self.color_map = dict(zip(color_map, puzzles))
-        self.plus_feature = PlusFeature(pluses, puzzles)
 
     def reset(self) -> None:
-        self.plus_feature.reset()
+        super().reset()
         for (row, column), letter in self.setup.items():
             puzzle = self.color_map[letter]
             index = (row - 1) * 9 + (column - 1)
@@ -180,7 +162,6 @@ class ColorFeature(Feature):
     CIRCLES = dict(r="lightcoral", p="violet", o="bisque", g="lightgreen", G="lightgray", y="yellow", b="skyblue")
 
     def draw(self, context: DrawContext) -> None:
-        self.plus_feature.draw(context)
         for (row, column), letter in self.setup.items():
             context.draw_circle((column + .5, row + .5), radius=.4, fill=True, color=self.CIRCLES[letter])
         # noinspection PyTypeChecker
@@ -308,10 +289,17 @@ def puzzle8() -> None:
     ]
 
     grid = '+.y..o+.+...Gb.......p...r.+..+b.b+...........+g.g+..+.o...........ry...+.+g..g.+'
+    pluses = [square for square, letter in zip(Feature.all_squares(), grid) if letter == '+']
+
     features = [
         # noinspection SpellCheckingInspection
         ColorFeature(grid, 'rpoybgG', puzzles),
+        PlusFeature(pluses, puzzles),
         BoxOfNineFeature.major_diagonal(),
         BoxOfNineFeature.minor_diagonal(),
     ]
     Sudoku().solve('.'*81, features=features)
+
+
+if __name__ == '__main__':
+    puzzle8()

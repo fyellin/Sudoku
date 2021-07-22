@@ -25,7 +25,8 @@ class DancingDots:
     grid: Sequence[Sequence[str]]
 
     def solve(self, puzzle: str) -> None:
-        from solver import DancingLinks
+        from tools.dancing_links import DancingLinks
+
         self.grid = self.get_initial_grid(puzzle)
         constraints = {}
         optional_constraints = set()
@@ -52,7 +53,7 @@ class DancingDots:
         initial_grid = {(row, column): value for row in range(10) for column in range(10)
                         if (value := self.grid[row][column]) != '.'}
         all_possible_solutions = self.get_possible_solutions()
-        info = {(row_or_column, index):  all_possible_solutions
+        info = {(row_or_column, index): all_possible_solutions
                 for row_or_column in RowOrColumn for index in range(10)}
         queue = deque(info.keys())
         while True:
@@ -78,7 +79,7 @@ class DancingDots:
                         # print(f'{row_or_column.name}#{index}  {row},{column}={value}')
                         self.grid[row][column] = value
                         other = (RowOrColumn.COLUMN, column) if row_or_column == RowOrColumn.ROW else (
-                                 RowOrColumn.ROW, row)
+                            RowOrColumn.ROW, row)
                         if other not in queue:
                             queue.append(other)
                 new_line = ''.join(self.grid[row][column] for row, column in slots)
@@ -191,7 +192,7 @@ class DancingDots:
         plt.show()
 
 
-PUZZLE =\
+PUZZLE = \
     """
 X..OXO..OX
 OX..XOOXXO

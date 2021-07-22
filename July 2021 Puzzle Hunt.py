@@ -4,9 +4,13 @@ from typing import Sequence, cast
 from cell import House
 from draw_context import DrawContext
 from feature import Feature, Square
-from features import KnightsMoveFeature, ThermometerFeature, BoxOfNineFeature, OddsAndEvensFeature, SandwichFeature, \
-    KingsMoveFeature, PalindromeFeature, XVFeature, NonConsecutiveFeature, KillerCageFeature, \
-    LittleKillerFeature, KropkeDotFeature, ArrowFeature, BetweenLineFeature, ExtremesFeature, QuadrupleFeature
+from features.features import BoxOfNineFeature, OddsAndEvensFeature, PalindromeFeature, XVFeature, \
+    AdjacentNotConsecutiveFeature, KillerCageFeature, \
+    LittleKillerFeature, KropkeDotFeature, ArrowSumFeature, ExtremeEndpointsFeature, \
+    LocalMinOrMaxFeature, ValuesAroundIntersectionFeature
+from features.sandwich_feature import SandwichFeature
+from features.chess_move import KnightsMoveFeature, KingsMoveFeature
+from features.thermometer import ThermometerFeature
 from human_sudoku import Sudoku
 
 
@@ -38,7 +42,7 @@ def puzzle_2() -> tuple[str, Sequence[Feature]]:
     puzzle = "9...2...1.1.....2...2...3.......5...2.......5...3.......6...7...7.....8.5...7...6"
     features = [
         DrawCircleFeature([(1, 3), (2, 4), (3, 9), (4, 8), (5, 5), (6, 2), (7, 1), (8, 6), (9, 7)]),
-        NonConsecutiveFeature()
+        AdjacentNotConsecutiveFeature()
     ]
     return puzzle, features
 
@@ -278,15 +282,15 @@ def puzzle_17() -> tuple[str, Sequence[Feature]]:
 
     features = [
         DrawCircleFeature(circles),
-        ArrowFeature("1,2,E,E"),
-        ArrowFeature("3,7,SW,SW,SW"),
-        ArrowFeature("4,4,NW,NW"),
-        ArrowFeature("4,5,NW,NE,SE"),
-        ArrowFeature("5,4,NW,SW,SE"),
-        ArrowFeature("5,6,SE,NE,NW"),
-        ArrowFeature("6,5,SE,SW,NW"),
-        ArrowFeature("6,6,SE,SE"),
-        ArrowFeature("8,9,N,N"),
+        ArrowSumFeature("1,2,E,E"),
+        ArrowSumFeature("3,7,SW,SW,SW"),
+        ArrowSumFeature("4,4,NW,NW"),
+        ArrowSumFeature("4,5,NW,NE,SE"),
+        ArrowSumFeature("5,4,NW,SW,SE"),
+        ArrowSumFeature("5,6,SE,NE,NW"),
+        ArrowSumFeature("6,5,SE,SW,NW"),
+        ArrowSumFeature("6,6,SE,SE"),
+        ArrowSumFeature("8,9,N,N"),
     ]
     return puzzle, features
 
@@ -303,7 +307,7 @@ def puzzle_18() -> tuple[str, Sequence[Feature]]:
         while row <= 9 and column <= 9:
             squares.append((row, column))
             row, column = row + 1, column + 1
-        return BetweenLineFeature(squares)
+        return ExtremeEndpointsFeature(squares)
 
     features = [
         DrawCircleFeature(circles),
@@ -329,7 +333,7 @@ def puzzle_19() -> tuple[str, Sequence[Feature]]:
     circles.sort()
 
     features = [
-        ExtremesFeature(reds=reds, greens=greens),
+        LocalMinOrMaxFeature(reds=reds, greens=greens),
         DrawCircleFeature(circles),
     ]
     return puzzle, features
@@ -343,22 +347,22 @@ def puzzle_20() -> tuple[str, Sequence[Feature]]:
 
     features = [
         DrawCircleFeature(circles),
-        QuadrupleFeature(top_left=(1, 1), values=(5, 7, 9)),
-        QuadrupleFeature(top_left=(1, 8), values=(1, 2, 3, 4)),
-        QuadrupleFeature(top_left=(2, 2), values=(1, 3, 4)),
-        QuadrupleFeature(top_left=(2, 4), values=(4, 5)),
-        QuadrupleFeature(top_left=(3, 3), values=(7, 8, 9)),
-        QuadrupleFeature(top_left=(3, 6), values=(1, 2, 3)),
-        QuadrupleFeature(top_left=(4, 5), values=(4, 5, 6)),
-        QuadrupleFeature(top_left=(4, 8), values=(1, 4)),
-        QuadrupleFeature(top_left=(5, 1), values=(4, 5)),
-        QuadrupleFeature(top_left=(5, 4), values=(7, 8, 9)),
-        QuadrupleFeature(top_left=(6, 3), values=(1, 2, 3)),
-        QuadrupleFeature(top_left=(6, 6), values=(4, 5, 7)),
-        QuadrupleFeature(top_left=(7, 5), values=(3, 7)),
-        QuadrupleFeature(top_left=(7, 7), values=(1, 8, 9)),
-        QuadrupleFeature(top_left=(8, 1), values=(4, 7, 8, 9)),
-        QuadrupleFeature(top_left=(8, 8), values=(2, 5, 6)),
+        ValuesAroundIntersectionFeature(top_left=(1, 1), values=(5, 7, 9)),
+        ValuesAroundIntersectionFeature(top_left=(1, 8), values=(1, 2, 3, 4)),
+        ValuesAroundIntersectionFeature(top_left=(2, 2), values=(1, 3, 4)),
+        ValuesAroundIntersectionFeature(top_left=(2, 4), values=(4, 5)),
+        ValuesAroundIntersectionFeature(top_left=(3, 3), values=(7, 8, 9)),
+        ValuesAroundIntersectionFeature(top_left=(3, 6), values=(1, 2, 3)),
+        ValuesAroundIntersectionFeature(top_left=(4, 5), values=(4, 5, 6)),
+        ValuesAroundIntersectionFeature(top_left=(4, 8), values=(1, 4)),
+        ValuesAroundIntersectionFeature(top_left=(5, 1), values=(4, 5)),
+        ValuesAroundIntersectionFeature(top_left=(5, 4), values=(7, 8, 9)),
+        ValuesAroundIntersectionFeature(top_left=(6, 3), values=(1, 2, 3)),
+        ValuesAroundIntersectionFeature(top_left=(6, 6), values=(4, 5, 7)),
+        ValuesAroundIntersectionFeature(top_left=(7, 5), values=(3, 7)),
+        ValuesAroundIntersectionFeature(top_left=(7, 7), values=(1, 8, 9)),
+        ValuesAroundIntersectionFeature(top_left=(8, 1), values=(4, 7, 8, 9)),
+        ValuesAroundIntersectionFeature(top_left=(8, 8), values=(2, 5, 6)),
     ]
     return ' ' * 81, features
 

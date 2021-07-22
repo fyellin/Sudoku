@@ -8,7 +8,7 @@ from typing import Tuple, Sequence, Dict, List, Set, ClassVar, Any, Mapping
 from matplotlib import pyplot as plt
 from matplotlib.patches import FancyBboxPatch
 
-from solver import DancingLinks
+from tools.dancing_links import DancingLinks
 
 
 class Sudoku:

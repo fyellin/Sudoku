@@ -214,9 +214,7 @@ class Cell:
     def all_houses(self) -> Iterable[House]:
         return self.houses
 
-    def all_houses_but(self, house: House) -> Iterable[House]:
-        return (x for x in self.houses if x != house)
-
+    @functools.cache
     def house_of_type(self, house_type: House.Type) -> House:
         return next(house for house in self.houses if house.house_type == house_type)
 

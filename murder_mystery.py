@@ -5,13 +5,13 @@ from typing import Sequence, cast, Union, Iterable, Optional
 from cell import House, Cell
 from draw_context import DrawContext
 from feature import Feature, Square
-from features import KnightsMoveFeature, BoxOfNineFeature, AlternativeBoxesFeature, SandwichFeature, \
-    KingsMoveFeature, \
-    QueensMoveFeature, XVFeature, KillerCageFeature, Thermometer2Feature, \
-    CloneBoxFeature, TaxicabFeature, MessageFeature, PalindromeFeature, NonConsecutiveFeature, \
-    ThermometerAsLessThanFeature
+from features.features import BoxOfNineFeature, AlternativeBoxesFeature, \
+    XVFeature, KillerCageFeature, CloneBoxFeature, MessageFeature, PalindromeFeature, AdjacentNotConsecutiveFeature
+from features.sandwich_feature import SandwichFeature
+from features.chess_move import KnightsMoveFeature, KingsMoveFeature, QueensMoveFeature, TaxicabFeature
+from features.thermometer import Thermometer2Feature, ThermometerAsLessThanFeature
 from human_sudoku import Sudoku
-from possibilities_feature import CombinedPossibilitiesFeature, PossibilitiesFeature
+from features.possibilities_feature import CombinedPossibilitiesFeature, PossibilitiesFeature
 
 
 class FakeKillerCageFeature(Feature):
@@ -330,6 +330,8 @@ def act_9() -> tuple[str, Sequence[Feature]]:
         PalindromeFeature("43,NW,S,S,S,S,NE,E,SE,NE,E,SE,N,N,N,N,SW,W,NW,SW,S"),
         FakeKillerCageFeature("35,E,S,W"),
         DumpResultFeature(),
+        # SameValueFeature("62,55"),
+        # SameValueFeature("63,56"),
     ]
     old_grid = "231489765894567231675231489758923146149678523326145978582314697413796852967852314"
     grid = from_grid(old_grid, [13, 25, 39, 41, 45, 57, 81, 86, 97])
@@ -403,7 +405,7 @@ def act_10() -> tuple[str, Sequence[Feature]]:
 def finale() -> tuple[str, Sequence[Feature]]:
     features = [
         KnightsMoveFeature(),
-        NonConsecutiveFeature(),
+        AdjacentNotConsecutiveFeature(),
         AlternativeBoxesFeature(["11,S,S,S,SE,N,N,N,SE", "12,E,E,E,SE,W,W,W,SE", "16,E,E,E,SW,W,SW,E,E",
                                  "35,SW,E,SW,E,E,SW,E,SW", "29,S,S,S,NW,W,W,SE,S", "43,S,SE,W,W,NW,S,S,S",
                                  "91,E,E,E,NW,W,N,E,E", "76,SE,W,W,W,SE,E,E,E", "58,S,E,S,W,W,SE,E,S"]),

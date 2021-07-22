@@ -1,20 +1,22 @@
-import datetime
+﻿import datetime
 import itertools
 from typing import Sequence, Tuple, List, Iterable, Set, Optional, cast
 
 from cell import Cell, House, SmallIntSet
 from draw_context import DrawContext
 from feature import Feature, Square
-from features import KnightsMoveFeature, MagicSquareFeature, \
-    AdjacentRelationshipFeature, ThermometerFeature, BoxOfNineFeature, LimitedValuesFeature, \
-    SameValueAsMateFeature, LittlePrincessFeature, \
-    AlternativeBoxesFeature, SlowThermometerFeature, SandwichFeature, KingsMoveFeature, \
-    QueensMoveFeature, SandwichXboxFeature, XVFeature, NonConsecutiveFeature, BetweenLineFeature, \
-    KillerCageFeature, HelperFeature, OddsAndEvensFeature, QuadrupleFeature, RenbanFeature
-from possibilities_feature import GroupedPossibilitiesFeature, CombinedPossibilitiesFeature, PossibilitiesFeature
+from features.chess_move import LittlePrincessFeature, KnightsMoveFeature, KingsMoveFeature, QueensMoveFeature
+from features.features import MagicSquareFeature, AlternativeBoxesFeature, BoxOfNineFeature, \
+    AdjacentRelationshipFeature, LimitedValuesFeature, XVFeature, AdjacentNotConsecutiveFeature, SimonSaysFeature, \
+    OddsAndEvensFeature, ValuesAroundIntersectionFeature, RenbanFeature, KillerCageFeature, ExtremeEndpointsFeature
+from features.possibilities_feature import GroupedPossibilitiesFeature, CombinedPossibilitiesFeature, \
+    PossibilitiesFeature
+from features.same_value_as_mate_feature import SameValueAsMateFeature
+from features.sandwich_feature import SandwichFeature, SandwichXboxFeature
+from features.thermometer import ThermometerFeature, SlowThermometerFeature
 from grid import Grid
 from human_sudoku import Sudoku
-from skyscraper_feature import SkyscraperFeature
+from features.skyscraper_feature import SkyscraperFeature
 
 
 class Pieces44(Feature):
@@ -576,7 +578,7 @@ def puzzle_09_21(*, show: bool = False) -> None:
 def puzzle_10_17(*, show: bool = False) -> None:
     # noinspection SpellCheckingInspection
     puzzle = "XXXXX3.9.4.1.6.9.4.5.3.8.7.6.5.4X".replace("X", "---").replace("-", "...")
-    Sudoku().solve(puzzle, features=[NonConsecutiveFeature()], show=show)
+    Sudoku().solve(puzzle, features=[AdjacentNotConsecutiveFeature()], show=show)
 
 
 def puzzle_2021_01_21(*, show: bool = False) -> None:
@@ -607,7 +609,7 @@ def puzzle_2021_05_24(*, show: bool = False) -> None:
 
 
 def puzzle_2021_07_06() -> tuple[str, Sequence[Feature]]:
-    class Cheat (HelperFeature):
+    class Cheat (SimonSaysFeature):
         def round_1(self):
             Cell.remove_value_from_cells([self @ (7, 3)], 7)
 
@@ -618,13 +620,13 @@ def puzzle_2021_07_06() -> tuple[str, Sequence[Feature]]:
     a, b, c, d, e, f, g, h, i, j = (1, 1), (3, 3), (5, 1), (5, 5), (5, 9), (7, 3), (7, 7), (9, 1), (9, 5), (9, 9)
     ends = [(a, b), (a, c), (b, c), (b, d), (c, d), (c, f), (c, h), (d, f), (d, i), (d, g), (e, g), (e, j),
             (f, h), (f, i), (g, i), (g, j), (h, i), (i, j)]
-    features: list[Feature] = [BetweenLineFeature.between(x, y) for x, y in ends]
+    features: list[Feature] = [ExtremeEndpointsFeature.between(x, y) for x, y in ends]
     features.append(Cheat())
     return grid, features
 
 
 def puzzle_2021_07_10() -> tuple[str, Sequence[Feature]]:
-    class MyHelperFeature(HelperFeature):
+    class MyHelperFeature(SimonSaysFeature):
         def round_1(self) -> None:
             Cell.remove_values_from_cells([self @ (3, 7)], {1, 2})
             Cell.keep_values_for_cell([self @ (6, 5), self @ (6, 8)], {1, 2})
@@ -640,7 +642,7 @@ def puzzle_2021_07_10() -> tuple[str, Sequence[Feature]]:
         (3, "9,6,E")]
     features: list[PossibilitiesFeature] = [KillerCageFeature(total, squares) for total, squares in killers]
     features[1:4] = [CombinedPossibilitiesFeature(features[1:4])]
-    # features.append(MyHelperFeature())
+    features.append(MyHelperFeature())
     return ' ' * 81, features
 
 
@@ -649,14 +651,14 @@ def puzzle_2021_07_11() -> tuple[str, Sequence[Feature]]:
         OddsAndEvensFeature(evens=[(1, 4), (2, 2), (2, 9), (8, 1), (8, 1), (8, 8), (9, 6)]),
         BoxOfNineFeature("7,1,NE,E,NE,E,E,NE,E,NE"),
         BoxOfNineFeature("1,3,S,SE,SE,S,S,SE,SE,S"),
-        QuadrupleFeature(top_left=(1, 1), values=(2, 3)),
-        QuadrupleFeature(top_left=(1, 5), values=(5, 6)),
-        QuadrupleFeature(top_left=(1, 8), values=(5, 6)),
-        QuadrupleFeature(top_left=(4, 1), values=(2, 3)),
-        QuadrupleFeature(top_left=(5, 8), values=(7, 8)),
-        QuadrupleFeature(top_left=(8, 1), values=(4, 5)),
-        QuadrupleFeature(top_left=(8, 4), values=(4, 5)),
-        QuadrupleFeature(top_left=(8, 8), values=(7, 8)),
+        ValuesAroundIntersectionFeature(top_left=(1, 1), values=(2, 3)),
+        ValuesAroundIntersectionFeature(top_left=(1, 5), values=(5, 6)),
+        ValuesAroundIntersectionFeature(top_left=(1, 8), values=(5, 6)),
+        ValuesAroundIntersectionFeature(top_left=(4, 1), values=(2, 3)),
+        ValuesAroundIntersectionFeature(top_left=(5, 8), values=(7, 8)),
+        ValuesAroundIntersectionFeature(top_left=(8, 1), values=(4, 5)),
+        ValuesAroundIntersectionFeature(top_left=(8, 4), values=(4, 5)),
+        ValuesAroundIntersectionFeature(top_left=(8, 8), values=(7, 8)),
         RenbanFeature("1,5,E,E,S,S"),
         RenbanFeature("3,3,W,W,S,S"),
         RenbanFeature("7,3,S,S,E,E"),

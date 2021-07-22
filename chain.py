@@ -27,13 +27,13 @@ class Chain:
         ONE = auto()
         TWO = auto()
 
-        def pick_set(self, chain: 'Chain') -> Iterable[CellValue]:
+        def pick_set(self, chain: Chain) -> Iterable[CellValue]:
             return chain.one if self == Chain.Group.ONE else chain.two
 
-        def pick_other_set(self, chain: 'Chain') -> Iterable[CellValue]:
+        def pick_other_set(self, chain: Chain) -> Iterable[CellValue]:
             return chain.two if self == Chain.Group.ONE else chain.one
 
-        def other(self) -> 'Chain.Group':
+        def other(self) -> Chain.Group:
             return Chain.Group.ONE if self == Chain.Group.TWO else Chain.Group.TWO
 
         def color(self) -> str:
@@ -65,7 +65,7 @@ class Chain:
                     todo.append((next_cell_value, depth + 1))
         return Chain(one, two, medusa)
 
-    def check_colors(self, features: Sequence['Feature']) -> bool:
+    def check_colors(self, features: Sequence[Feature]) -> bool:
         """Pairwise look at each two elements on this chain and see if they lead to insight or a contradiction"""
         for (cell_value1, group1), (cell_value2, group2) in itertools.combinations(self.items(), 2):
             (cell1, value1), (cell2, value2) = cell_value1, cell_value2
