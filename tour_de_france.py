@@ -111,7 +111,7 @@ def merge(p1: str, p2: str) -> str:
     return ''.join(result)
 
 
-def tour_puzzle_one(*, show: bool = False) -> None:
+def tour_puzzle_one() -> None:
     features = [
         *(LocateOneFeature(House.Type.ROW, i) for i in range(2, 9)),
         *(LocateOneFeature(House.Type.COLUMN, i) for i in range(2, 9)),
@@ -119,20 +119,20 @@ def tour_puzzle_one(*, show: bool = False) -> None:
                            (6, 2), (8, 1), (9, 6,), (9, 8)))
     ]
     puzzle = '.......................9.......5.3.....4.37....3.8.......36...........5..........'
-    Sudoku().solve(puzzle, features=features, show=show)
+    Sudoku().solve(puzzle, features=features)
 
 
-def tour_puzzle_two(*, show: bool = False) -> None:
+def tour_puzzle_two() -> None:
     previous = ".4.8.............7................9..85...76..7................4.............4.7."
     puzzle = "X,,6--XXXXX--6...5.--".replace('X', '---').replace('-', '...')
     puzzle = merge(previous, puzzle)
     features: list[Feature] = [PainInTheButtFeature(i) for i in range(1, 4)]
     features.append(PainInTheButtFeatureX())
-    Sudoku().solve(puzzle, features=features, show=show)
+    Sudoku().solve(puzzle, features=features)
 
 
 if __name__ == '__main__':
     start = datetime.datetime.now()
-    tour_puzzle_one(show=False)
+    tour_puzzle_one()
     end = datetime.datetime.now()
     print(end - start)

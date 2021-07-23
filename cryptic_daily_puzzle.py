@@ -19,6 +19,8 @@ from grid import Grid
 from human_sudoku import Sudoku
 from features.skyscraper_feature import SkyscraperFeature
 
+BLANK_GRID = '.' * 81
+
 
 class Pieces44(Feature):
     """Eggs that contain the numbers 2-9, but no 1"""
@@ -109,7 +111,7 @@ class DoubleSumFeature(GroupedPossibilitiesFeature):
         self.draw_outside(context, f'{self.ptotal}', self.htype, self.row_column, **args)
 
 
-def thermometer_magic() -> None:
+def thermometer_magic() -> tuple[str, Sequence[Feature]]:
     thermometers = [
         [(6 - r, 1) for r in range(1, 6)],
         [(6 - r, r) for r in range(1, 6)],
@@ -122,21 +124,21 @@ def thermometer_magic() -> None:
         *[ThermometerFeature(squares) for squares in thermometers]
     ]
     puzzle = ("." * 18) + '.....2...' + ('.' * 27) + '...8.....' + ('.' * 18)
-    Sudoku().solve(puzzle, features=features)
+    return puzzle, features
 
 
-def little_princess() -> None:
+def little_princess() -> tuple[str, Sequence[Feature]]:
     puzzle = '.......6...8..........27......6.8.1....4..........9..............7...............'
-    Sudoku().solve(puzzle, features=[LittlePrincessFeature()])
+    return puzzle, [LittlePrincessFeature()]
 
 
-def puzzle44() -> None:
+def puzzle44() -> tuple[str, Sequence[Feature]]:
     puzzle = "........8...........7............2................9....................5....36..."
     pieces = '1112.333.1.2223.33122.2233.111....44.5.64444..566.44..55.6677775556..77..566...77'
-    Sudoku().solve(puzzle, features=[KnightsMoveFeature(), Pieces44(pieces)])
+    return puzzle, [KnightsMoveFeature(), Pieces44(pieces)]
 
 
-def puzzle_alice(*, show: bool = False) -> None:
+def puzzle_alice() -> tuple[str, Sequence[Feature]]:
     # puzzle = "......... 3......8. ..4...... ......... 2...9...7 ......... ......5.. .1......6 ........."
     puzzle = "......... 3....6.8. ..4...... ......... 2...9...7 ......... ......5.. .1......6 ........."  # 18:30
 
@@ -145,11 +147,11 @@ def puzzle_alice(*, show: bool = False) -> None:
                 *(SameValueAsMateFeature((r, c)) for r in range(1, 10) for c in range(1, 10))
                 ]
     puzzle = puzzle.replace(' ', '')
-    Sudoku().solve(puzzle, features=features, show=show)
+    return puzzle, features
 
 
-def slow_thermometer_puzzle1() -> None:
-    puzzle = '.' * 81
+def slow_thermometer_puzzle1() -> tuple[str, Sequence[Feature]]:
+    puzzle = BLANK_GRID
     thermometers = [
         [(4, 5), (5, 5), (6, 6), (5, 6), (4, 6), (3, 7), (2, 7), (1, 6), (1, 5), (1, 4), (2, 3), (3, 3), (4, 4)],
         [(4, 5), (5, 5), (6, 6), (5, 7), (4, 7), (3, 8), (2, 8)],
@@ -162,10 +164,10 @@ def slow_thermometer_puzzle1() -> None:
         [(7, 6), (7, 7), (7, 8), (7, 9), (8, 8), (9, 8), (9, 7), (8, 6), (7, 5)]
     ]
     thermometers = [SlowThermometerFeature(thermometer) for thermometer in thermometers]
-    Sudoku().solve(puzzle, features=thermometers)
+    return puzzle, thermometers
 
 
-def slow_thermometer_puzzle2() -> None:
+def slow_thermometer_puzzle2() -> tuple[str, Sequence[Feature]]:
     puzzle = '.' * 72 + ".....1..."
     thermos = [
         "2,4,N,W,S,S,E,SE",
@@ -185,10 +187,10 @@ def slow_thermometer_puzzle2() -> None:
         "8,8,W,SE,W"
     ]
     thermometers = [SlowThermometerFeature(line, color='lightblue') for line in thermos]
-    Sudoku().solve(puzzle, features=thermometers)
+    return puzzle, thermometers
 
 
-def thermometer_07_23() -> None:
+def thermometer_07_23() -> tuple[str, Sequence[Feature]]:
     puzzle = ".....................9.............5...............3.................8.......9..."
     thermos = [
         "1,1,SE,SE,SE,SW,SW",
@@ -197,11 +199,10 @@ def thermometer_07_23() -> None:
         "9,9,NW,NW,NW,NE,NE"
     ]
     thermometers = [ThermometerFeature(line, color='lightgray') for line in thermos]
-    Sudoku().solve(puzzle, features=thermometers)
+    return puzzle, thermometers
 
 
-def double_sum_puzzle(*, show: bool = False) -> None:
-
+def double_sum_puzzle() -> tuple[str, Sequence[Feature]]:
     class CheckSpecialFeature(Feature):
         cells: Sequence[Cell]
 
@@ -234,16 +235,16 @@ def double_sum_puzzle(*, show: bool = False) -> None:
 
         CheckSpecialFeature(),
     ]
-    Sudoku().solve('.' * 81, features=features, show=show)
+    return BLANK_GRID, features
 
 
-def puzzle_hunt(*, show: bool = False) -> None:
+def puzzle_hunt() -> tuple[str, Sequence[Feature]]:
     puzzle = "...48...7.8.5..6...9.....3.4...2.3..1...5...2..8..7......8.3.7...5...1.39...15.4."
     features = [BoxOfNineFeature.major_diagonal(), BoxOfNineFeature.minor_diagonal()]
-    Sudoku().solve(puzzle, features=features, show=show)
+    return puzzle, features
 
 
-def sandwich_07_28(*, show: bool = False) -> None:
+def sandwich_07_28() -> tuple[str, Sequence[Feature]]:
     class LiarsSandwichFeature(SandwichFeature):
         def get_possibilities(self) -> Iterable[tuple[set[int], ...]]:
             yield from self._get_possibilities(self.total - 1)
@@ -257,10 +258,10 @@ def sandwich_07_28(*, show: bool = False) -> None:
         LiarsSandwichFeature(House.Type.COLUMN, 5, 4),
         LiarsSandwichFeature(House.Type.COLUMN, 9, 5),
     ]
-    Sudoku().solve(puzzle, features=features, show=show)
+    return puzzle, features
 
 
-def skyscraper_07_29(*, show: bool = False) -> None:
+def skyscraper_07_29() -> tuple[str, Sequence[Feature]]:
     basement = [(1, 1), (1, 2), (1, 3), (2, 1), (2, 2), (3, 1)]
     basement = basement + [(row, 10 - column) for row, column in basement]
     basement = basement + [(10 - row, column) for row, column in basement]
@@ -281,11 +282,10 @@ def skyscraper_07_29(*, show: bool = False) -> None:
         SkyscraperFeature(House.Type.COLUMN, 8, 5, None, basement=basement),
         SkyscraperFeature(House.Type.COLUMN, 9, 2, 2, basement=basement),
     ]
+    return BLANK_GRID, features
 
-    Sudoku().solve('.' * 81, features=features, show=show)
 
-
-def puzzle_07_30(*, show: bool = False) -> None:
+def puzzle_07_30() -> tuple[str, Sequence[Feature]]:
     features = [
         SandwichXboxFeature(House.Type.ROW, 3, 16),
         SandwichXboxFeature(House.Type.ROW, 4, 10, right=True),
@@ -296,10 +296,10 @@ def puzzle_07_30(*, show: bool = False) -> None:
         QueensMoveFeature(),
     ]
     puzzle = "." * 63 + '.5.......' + '.' * 9
-    Sudoku().solve(puzzle, features=features, show=show)
+    return puzzle, features
 
 
-def puzzle_07_30_simon(*, show: bool = False) -> None:
+def puzzle_07_30_simon() -> tuple[str, Sequence[Feature]]:
     thermos = [
         "2,1,NE,S,NE,S,NE",
         "2,4,NE,S,NE,S,NE",
@@ -313,10 +313,10 @@ def puzzle_07_30_simon(*, show: bool = False) -> None:
     thermometers = [ThermometerFeature(line, color='lightblue') for line in thermos]
     nada = "........."
     puzzle = nada + "......3.." + nada * 6 + ".......3."
-    Sudoku().solve(puzzle, features=thermometers, show=show)
+    return puzzle, thermometers
 
 
-def puzzle_08_02(*, show: bool = False) -> None:
+def puzzle_08_02() -> tuple[str, Sequence[Feature]]:
     thermos = [
         "2,1,SE,SE,NE,N,NE",
         "2,9,SW,SW,NW,N,NW",
@@ -331,10 +331,10 @@ def puzzle_08_02(*, show: bool = False) -> None:
         KingsMoveFeature(),
         *[ThermometerFeature(line) for line in thermos],
     ]
-    Sudoku().solve('.' * 81, features=features, show=show)
+    return BLANK_GRID, features
 
 
-def puzzle_08_06(*, show: bool = False) -> None:
+def puzzle_08_06() -> tuple[str, Sequence[Feature]]:
     offsets1 = [(dr, dc) for dx in (-1, 1) for dy in (-2, 2) for (dr, dc) in ((dx, dy), (dy, dx))]
     offsets2 = [(dr, dc) for delta in range(1, 9) for dr in (-delta, delta) for dc in (-delta, delta)]
     offsets = offsets1 + offsets2
@@ -345,10 +345,10 @@ def puzzle_08_06(*, show: bool = False) -> None:
 
     features = [MyFeature((i, j)) for i, j in itertools.product(range(1, 10), repeat=2)]
     puzzle = "39.1...822.....5.....4.....6..2.....1....4.........3............6...3..551.....64"
-    Sudoku().solve(puzzle, features=features, show=show)
+    return puzzle, features
 
 
-def puzzle_08_07(*, show: bool = False) -> None:
+def puzzle_08_07() -> tuple[str, Sequence[Feature]]:
     thermos = [
         "1,1,S,S,S",
         "9,1,N,N,N",
@@ -364,10 +364,10 @@ def puzzle_08_07(*, show: bool = False) -> None:
         *[ThermometerFeature(line) for line in thermos],
         # FoobarFeature()
     ]
-    Sudoku().solve('.'*81, features=features, show=show)
+    return BLANK_GRID, features
 
 
-def puzzle_08_12(*, show: bool = False) -> None:
+def puzzle_08_12() -> tuple[str, Sequence[Feature]]:
     thermos = [
         "5,5,nw,nw,n,ne",
         "5,5,nw,nw,sw,sw,s",
@@ -386,10 +386,10 @@ def puzzle_08_12(*, show: bool = False) -> None:
     ]
     thermometers = [ThermometerFeature(line) for line in thermos]
     puzzle = "." * 63 + "....8...." + "." * 9
-    Sudoku().solve(puzzle, features=thermometers, show=show)
+    return puzzle, thermometers
 
 
-def puzzle_08_15(*, show: bool = False) -> None:
+def puzzle_08_15() -> tuple[str, Sequence[Feature]]:
     puzzle = "....1...4........5.............................1.....8........75.3....6.....3...."
     odds = [(3, 2), (3, 4), (3, 6), (3, 7), (3, 8),
             (4, 1), (4, 2), (4, 4), (4, 8),
@@ -399,10 +399,10 @@ def puzzle_08_15(*, show: bool = False) -> None:
     features = [KingsMoveFeature(),
                 LimitedValuesFeature(odds, (1, 3, 5, 7, 9), color='lightgray')
                 ]
-    Sudoku().solve(puzzle, features=features, show=show)
+    return puzzle, features
 
 
-def puzzle_08_26(*, show: bool = False) -> None:
+def puzzle_08_26() -> tuple[str, Sequence[Feature]]:
     class PrimeRing(AdjacentRelationshipFeature):
         def __init__(self, squares):
             super().__init__(squares, name="Prime", cyclic=True, color='red')
@@ -418,10 +418,10 @@ def puzzle_08_26(*, show: bool = False) -> None:
         *[SandwichFeature(House.Type.ROW, row, total) for row, total in enumerate(rows, start=1)],
         *[SandwichFeature(House.Type.COLUMN, col, total) for col, total in enumerate(columns, start=1)],
     ]
-    Sudoku().solve(' ' * 81, features=features, show=show)
+    return BLANK_GRID, features
 
 
-def puzzle_08_31(*, show: bool = False) -> None:
+def puzzle_08_31() -> tuple[str, Sequence[Feature]]:
     thermos = ["1,5,SW,SW,E,S",
                "1,8,W,W",
                "3,8,SW,S,SE,E",
@@ -435,10 +435,10 @@ def puzzle_08_31(*, show: bool = False) -> None:
     snake_squares.extend(((2, 2), (4, 1), (7, 2)))
     snake = BoxOfNineFeature(snake_squares, line=False)
     puzzle = ".....8....................9.................6.....4.................6.......7.9.."
-    Sudoku().solve(puzzle, features=[*thermometers, snake], show=show)
+    return puzzle, [*thermometers, snake]
 
 
-def puzzle_09_03(*, show: bool = False) -> None:
+def puzzle_09_03() -> tuple[str, Sequence[Feature]]:
     columns = (11, 0, 17, 6, 22, 0, 10, 35, 9)
     rows = (27, 3, 0, 16, 16, 19, 5, 13, 0)
     primes = {2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79}
@@ -451,10 +451,10 @@ def puzzle_09_03(*, show: bool = False) -> None:
         LimitedValuesFeature(prime_squares, (2, 3, 5, 7)),
         DrawCircleFeature(prime_squares)
     ]
-    Sudoku().solve('1' + ' ' * 80, features=features, show=show)
+    return '1' + ' ' * 80, features
 
 
-def puzzle_09_05(*, show: bool = False) -> None:
+def puzzle_09_05() -> tuple[str, Sequence[Feature]]:
     class DeltaFeature(AdjacentRelationshipFeature):
         delta: int
 
@@ -496,10 +496,10 @@ def puzzle_09_05(*, show: bool = False) -> None:
     ]
     # noinspection SpellCheckingInspection
     puzzle = "XXXXXX.921.738.-3.9-X".replace("X", "---").replace("-", "...")
-    Sudoku().solve(puzzle, features=features, show=show)
+    return puzzle, features
 
 
-def puzzle_09_06(*, show: bool = False) -> None:
+def puzzle_09_06() -> tuple[str, Sequence[Feature]]:
     class CamelJumpFeature(SameValueAsMateFeature):
         OFFSETS = [(dr, dc) for dx in (-1, 1) for dy in (-3, 3) for (dr, dc) in ((dx, dy), (dy, dx))]
 
@@ -513,35 +513,35 @@ def puzzle_09_06(*, show: bool = False) -> None:
     all_squares = cast(Iterable[Square], itertools.product(range(1, 10), range(1, 10)))
     features = [CamelJumpFeature(square) for square in all_squares]
     puzzle = "........9.....85..7...2.1..35...............6.96.....7...........1.7.9......452.."
-    Sudoku().solve(puzzle, features=features, show=show)
+    return puzzle, features
 
 
-def puzzle_09_10(*, show: bool = False) -> None:
+def puzzle_09_10() -> tuple[str, Sequence[Feature]]:
     puzzle = "....9.....14..5..8......3.4.2.3..74...6.......81.24....6.9..........69.28.9..1..3"
-    Sudoku().solve(puzzle, features=(), show=show)
+    return puzzle, ()
 
 
-def puzzle_09_15(*, show: bool = False) -> None:
+def puzzle_09_15() -> tuple[str, Sequence[Feature]]:
     puzzle = "-----.5.3.8.2.2.5.3.6.9.9.4.6.1.-".replace('-', '.........')
     feature = XVFeature.setup(
         down={5: [(1, 3), (1, 5), (1, 7), (2, 2), (2, 4), (2, 6), (2, 8), (3, 3), (3, 5), (3, 7)]},
         across={}
     )
-    Sudoku().solve(puzzle, features=[feature], show=show)
+    return puzzle, [feature]
 
 
-def puzzle_09_16(*, show: bool = False) -> None:
+def puzzle_09_16() -> tuple[str, Sequence[Feature]]:
     puzzle = "529784361............2......4....2..361529784..2....3......2............784361529"
     features = [BoxOfNineFeature.major_diagonal(), BoxOfNineFeature.minor_diagonal()]
-    Sudoku().solve(puzzle, features=features, show=show)
+    return puzzle, features
 
 
-def puzzle_09_17_2(*, show: bool = False) -> None:
+def puzzle_09_17_2() -> tuple[str, Sequence[Feature]]:
     puzzle = "..8..964.9..1.6........7....3.....5.7.2...4.3.6.....8...18..9.....4....5.832..1.."
-    Sudoku().solve(puzzle, features=(), show=show)
+    return puzzle, ()
 
 
-def puzzle_09_20(*, show: bool = False) -> None:
+def puzzle_09_20() -> tuple[str, Sequence[Feature]]:
     # noinspection SpellCheckingInspection
     puzzle = "XXXXX-1..-XXX".replace("X", "---").replace("-", "...")
     features = [
@@ -549,10 +549,10 @@ def puzzle_09_20(*, show: bool = False) -> None:
         *SandwichFeature.all(House.Type.COLUMN, [18, 8, 21, 18, 13, 27, 25, 13, 3]),
         KnightsMoveFeature()
     ]
-    Sudoku().solve(puzzle, features=features, show=show)
+    return puzzle, features
 
 
-def puzzle_09_21(*, show: bool = False) -> None:
+def puzzle_09_21() -> tuple[str, Sequence[Feature]]:
     class Multiplication(GroupedPossibilitiesFeature):
         def __init__(self, row, column) -> None:
             squares = [(row, column), (row, column + 1), (row + 1, column), (row + 1, column + 1)]
@@ -573,40 +573,40 @@ def puzzle_09_21(*, show: bool = False) -> None:
         Multiplication(1, 1), Multiplication(1, 8), Multiplication(3, 3), Multiplication(6, 6),
         Multiplication(8, 1), Multiplication(8, 8)
     ]
-    Sudoku().solve(puzzle, features=features, show=show)
+    return puzzle, features
 
 
-def puzzle_10_17(*, show: bool = False) -> None:
+def puzzle_10_17() -> tuple[str, Sequence[Feature]]:
     # noinspection SpellCheckingInspection
     puzzle = "XXXXX3.9.4.1.6.9.4.5.3.8.7.6.5.4X".replace("X", "---").replace("-", "...")
-    Sudoku().solve(puzzle, features=[AdjacentNotConsecutiveFeature()], show=show)
+    return puzzle, [AdjacentNotConsecutiveFeature()]
 
 
-def puzzle_2021_01_21(*, show: bool = False) -> None:
+def puzzle_2021_01_21() -> tuple[str, Sequence[Feature]]:
     puzzle = "1..4..6...2..5..9...3..6..87..1..9...9..2..4...4..3..55..8..2...8..7..3...7..9..1"
     features = ()
-    Sudoku().solve(puzzle, features=features, show=show)
+    return puzzle, features
 
 
-def puzzle_2021_03_15(*, show: bool = False) -> None:
+def puzzle_2021_03_15() -> tuple[str, Sequence[Feature]]:
     puzzle = "...........3.1.4..1..5.9.......2.65.35.....89.79.3.......2.3..8..4.6.2..........."
     features = ()
-    Sudoku().solve(puzzle, features=features, show=show)
+    return puzzle, features
 
 
-def puzzle_2021_05_12(*, show: bool = False) -> None:
+def puzzle_2021_05_12() -> tuple[str, Sequence[Feature]]:
     puzzle = "4.......2..5.829...2.....3...8.1....56..9..78....6.5...1.....6...615.7..3.......4"
     features = ()
-    Sudoku().solve(puzzle, features=features, show=show)
+    return puzzle, features
 
 
-def puzzle_2021_05_24(*, show: bool = False) -> None:
+def puzzle_2021_05_24() -> tuple[str, Sequence[Feature]]:
     lines = ["1,1,E", "1,3,SW", "1,6,S", "1,7,E", "2,3,NE", "2,5,N", "2,9,N", "3,1,N", "3,3,NE", "3,4,SE", "3,5,SE",
              "3,6,NE", "3,7,SE", "3,8,SE", "3,9,NW", "4,1,E", "4,3,NW", "4,7,SW", "5,1,E", "5,3,NE", "5,7,SW", "5,9,W",
              "6,3,NE", "6,4,NE", "6,7,SE", "6,9,W", "7,1,SE", "7,2,NW", "7,3,NW", "7,4,SW", "7,6,W", "7,7,SW", "7,9,S",
              "8,1,S", "8,7,SW", "9,3,W", "9,4,N", "9,5,N", "9,7,NE", "9,9,W"]
     thermometers = [ThermometerFeature(line) for line in lines]
-    Sudoku().solve(' ' * 81, features=thermometers, show=show)
+    return BLANK_GRID, thermometers
 
 
 def puzzle_2021_07_06() -> tuple[str, Sequence[Feature]]:
@@ -641,10 +641,14 @@ def puzzle_2021_07_10() -> tuple[str, Sequence[Feature]]:
         (15, "6,9,S"),
         (17, "7,3,S"),
         (3, "9,6,E")]
-    features: list[PossibilitiesFeature] = [KillerCageFeature(total, squares) for total, squares in killers]
-    features[1:4] = [CombinedPossibilitiesFeature(features[1:4])]
-    features.append(MyHelperFeature())
-    return ' ' * 81, features
+    kill_features: list[PossibilitiesFeature] = [KillerCageFeature(total, squares) for total, squares in killers]
+
+    kill_features[1:4] = [CombinedPossibilitiesFeature(kill_features[1:4])]
+    features = [
+        *kill_features,
+        MyHelperFeature()
+    ]
+    return BLANK_GRID, features
 
 
 def puzzle_2021_07_11() -> tuple[str, Sequence[Feature]]:
@@ -665,13 +669,13 @@ def puzzle_2021_07_11() -> tuple[str, Sequence[Feature]]:
         RenbanFeature("7,3,S,S,E,E"),
         RenbanFeature("5,9,S,S,W,W")
     ]
-    return '.' * 81, features
+    return BLANK_GRID, features
 
 
 def main():
     start = datetime.datetime.now()
     grid, features = puzzle_2021_07_10()
-    Sudoku().solve(grid, features=features, show=False, draw_verbose=True)
+    Sudoku().solve(grid, features=features, initial_only=False, draw_verbose=True)
     end = datetime.datetime.now()
     print(end - start)
 

@@ -379,7 +379,7 @@ def run() -> None:
         grid, features = puzzle()
         print()
         print(f'---------- { puzzle.__name__} ----------')
-        result = Sudoku().solve(grid, features=features, show=False)
+        result = Sudoku().solve(grid, features=features)
         assert result, f'Puzzle {puzzle} failed'
 
 

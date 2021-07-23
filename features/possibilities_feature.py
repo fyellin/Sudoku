@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import abc
 import math
 from collections import defaultdict
@@ -17,9 +19,10 @@ class PossibilitiesFeature(Feature, abc.ABC):
     possibilities: list[tuple[int, ...]]
     handle_neighbors: bool
     handle_duplicates: bool
-    __house_to_indexes: Mapping[House, list[int]]
+    _houses_to_indexes: Mapping[House, list[int]]
     _cells_as_set: set[Cell]
-    __value_only_in_feature: dict[House, SmallIntSet]
+    _value_only_in_feature: dict[House, SmallIntSet]
+    is_primary: bool
 
     def __init__(self, squares: Union[Sequence[Square], str], *,
                  name: Optional[str] = None, neighbors: bool = False, duplicates: bool = False) -> None:
@@ -27,7 +30,8 @@ class PossibilitiesFeature(Feature, abc.ABC):
         self.squares = self.parse_squares(squares) if isinstance(squares, str) else squares
         self.handle_neighbors = neighbors
         self.handle_duplicates = duplicates
-        self.__value_only_in_feature = defaultdict(SmallIntSet)
+        self._value_only_in_feature = defaultdict(SmallIntSet)
+        self.is_primary = False
 
     def initialize(self, grid: Grid) -> None:
         super().initialize(grid)
@@ -37,7 +41,23 @@ class PossibilitiesFeature(Feature, abc.ABC):
         for index, cell in enumerate(self.cells):
             for house in cell.houses:
                 house_to_indexes[house].append(index)
-        self.__house_to_indexes = house_to_indexes
+        self._houses_to_indexes = house_to_indexes
+        features = self.grid.get((self.__class__, "feature"), None)
+        if not features:
+            self.is_primary = True
+            self.grid[(self.__class__, "feature")] = features = set()
+        features.add(self)
+
+    def _initialize_XXX(self, other: PossibilitiesFeature) -> None:
+        self.cells += other.cells
+        self._cells_as_set = set(self.cells)
+        house_to_indexes = defaultdict(list)
+        for index, cell in enumerate(self.cells):
+            for house in cell.houses:
+                house_to_indexes[house].append(index)
+        self._houses_to_indexes = house_to_indexes
+        for house, values in other._value_only_in_feature.items():
+            self._value_only_in_feature[house] |= values
 
     @abc.abstractmethod
     def get_possibilities(self) -> Iterable[tuple[int, ...]]: ...
@@ -54,8 +74,12 @@ class PossibilitiesFeature(Feature, abc.ABC):
 
     @Feature.check_only_if_changed
     def check(self) -> bool:
+        features: set[PossibilitiesFeature] = self.grid[self.__class__, "feature"]
+        if self not in features:
+            return False
         old_length = len(self.possibilities)
         if old_length == 1:
+            features.remove(self)
             return False
 
         # Only keep those possibilities that are still viable
@@ -71,8 +95,23 @@ class PossibilitiesFeature(Feature, abc.ABC):
         change |= self.__handle_all_possibilities_use_value()
         return change
 
+    def __check_XXX(self):
+        old_length = len(self.possibilities)
+        self.possibilities = [values for values in self.possibilities
+                              if all(value in square.possible_values for value, square in zip(values, self.cells))]
+        if len(self.possibilities) != old_length:
+            change = self.__update_for_possibilities()
+        self.__handle_all_possibilities_use_value()
+
+
     def check_special(self) -> bool:
-        return self.__force_value_into_feature()
+        features: set[PossibilitiesFeature] = self.grid[self.__class__, "feature"]
+
+        if self in features and self.__force_value_into_feature():
+            return True
+        if self.is_primary and self.check_join_two():
+            return True
+        return False
 
     def __update_for_possibilities(self, show: bool = True) -> bool:
         updated = False
@@ -92,15 +131,15 @@ class PossibilitiesFeature(Feature, abc.ABC):
         be removed.
         """
         change = False
-        for house, indexes in self.__house_to_indexes.items():
-            locked_values = house.unknown_values - self.__value_only_in_feature[house]
+        for house, indexes in self._houses_to_indexes.items():
+            locked_values = house.unknown_values - self._value_only_in_feature[house]
             for possibility in self.possibilities:
                 locked_values &= SmallIntSet(possibility[i] for i in indexes)
                 if not locked_values:
                     break
 
             else:
-                self.__value_only_in_feature[house] |= locked_values
+                self._value_only_in_feature[house] |= locked_values
                 affected_cells = {cell for cell in house.unknown_cells
                                   if cell not in self._cells_as_set
                                   if not cell.possible_values.isdisjoint(locked_values)}
@@ -118,17 +157,17 @@ class PossibilitiesFeature(Feature, abc.ABC):
         """
         updated = False
         length = len(self.possibilities)
-        for house, house_indexes in self.__house_to_indexes.items():
+        for house, house_indexes in self._houses_to_indexes.items():
             # get list of all values that can be found in house cells outside this feature
             found_outside = {value for cell in house.unknown_cells if cell not in self._cells_as_set
                              for value in cell.possible_values}
             # These are the values that must be inside the feature
             required_inside = house.unknown_values - found_outside
             for value in required_inside:
-                if value in self.__value_only_in_feature[house]:
+                if value in self._value_only_in_feature[house]:
                     # We've already ensured that this value occurs only inside this feature.  Ignore
                     continue
-                self.__value_only_in_feature[house].add(value)
+                self._value_only_in_feature[house].add(value)
                 self.possibilities = [values for values in self.possibilities
                                       if any(values[i] == value for i in house_indexes)]
                 if len(self.possibilities) != length:
@@ -147,6 +186,31 @@ class PossibilitiesFeature(Feature, abc.ABC):
             elif cell1.is_neighbor(cell2):
                 possibilities = [p for p in possibilities if p[index1] != p[index2]]
         return possibilities
+
+    def check_join_two(self):
+        features: set[PossibilitiesFeature] = self.grid[self.__class__, "feature"]
+        sorted_features = sorted((x for x in features if len(x.possibilities) > 1),
+                                 key=lambda f:len(f.possibilities))
+        if len(features) >= 2:
+            sorted_features[0].merge_into_me(sorted_features[1])
+            sorted_features[0].__check_XXX()
+            return True
+        return False
+
+    def merge_into_me(self, other: PossibilitiesFeature):
+        length1, length2 = len(self.possibilities), len(other.possibilities)
+        self._initialize_XXX(other)
+
+        my_possibilities = [item1 + item2 for item1, item2 in product(self.possibilities, other.possibilities)]
+        my_possibilities = self.__remove_bad_neighbors(my_possibilities)
+        length3 = len(my_possibilities)
+        self.possibilities = my_possibilities
+
+        features: set[PossibilitiesFeature] = self.grid[self.__class__, "feature"]
+        features.remove(other)
+        temp = length3 * 100 / (length1 * length2)
+        print(f'Merge {self.name} ({length1}) x {other.name} ({length2}) = ({length3}) {temp:.2f}%')
+
 
 
 class CombinedPossibilitiesFeature(PossibilitiesFeature):
@@ -264,3 +328,4 @@ class GroupedPossibilitiesFeature(Feature, abc.ABC):
                 #  We're not sure if this works or not
                 possibilities = [p for p in possibilities if p[index1] == p[index2]]
         return possibilities
+

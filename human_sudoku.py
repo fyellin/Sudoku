@@ -21,7 +21,9 @@ class Sudoku:
     draw_verbose: bool
 
     def solve(self, puzzle: str, *, features: Sequence[Feature] = (),
-              show: bool = False, draw_verbose: bool = False) -> bool:
+              initial_only: bool = False,
+              medusa: bool = False,
+              draw_verbose: bool = False) -> bool:
         self.features = features
         self.grid = grid = Grid(features)
         self.draw_verbose = draw_verbose
@@ -32,22 +34,25 @@ class Sudoku:
 
         for square, value in self.initial_grid.items():
             grid.matrix[square].set_value_to(value)
+
+        self.grid.print()
+        self.draw_grid()
+        if initial_only:
+            return True
         try:
-            return self.run_solver(show)
+            return self.run_solver(medusa=medusa)
         except Exception:
             self.draw_grid()
             raise
 
-    def run_solver(self, show: bool) -> bool:
+    def run_solver(self, *, medusa: bool) -> bool:
         self.grid.print()
         self.draw_grid()
-
-        if show:
-            return True
 
         while True:
             if self.is_solved():
                 self.draw_grid(done=True, result=True)
+                print("Used", medusa, "medusas")
                 return True
             if self.check_naked_singles() or self.check_hidden_singles():
                 continue
@@ -67,11 +72,12 @@ class Sudoku:
                 continue
             if self.check_xy_chain(81):
                 continue
-            chains = Chains.create(self.grid.cells, True)
-            if self.check_chain_colors(chains):
-                continue
-            if HardMedusa.run(chains, self.features):
-                continue
+            if medusa:
+                chains = Chains.create(self.grid.cells, True)
+                if self.check_chain_colors(chains):
+                    continue
+                if HardMedusa.run(chains, self.features):
+                    continue
 
             self.draw_grid(done=True, result=False)
             return False
@@ -459,26 +465,26 @@ class Sudoku:
         found = dict(fontsize=25, color='blue', weight='bold')
         corner_args = dict(fontsize=8, color='blue', weight='light')
 
+        for row, column in product(range(1, 10), repeat=2):
+            cell = self.grid.matrix[row, column]
+            if cell.known_value:
+                args = given if (row, column) in self.initial_grid else found
+                axes.text(column + .5, row + .5, cell.known_value,
+                          verticalalignment='center', horizontalalignment='center', **args)
+            else:
+                if len(cell.possible_values) <= 8:
+                    axes.text(column + .5, row + .5, ''.join(str(x) for x in sorted(cell.possible_values)),
+                              verticalalignment='center', horizontalalignment='center', **corner_args)
+
         for house in self.grid.houses:
             if house.house_type != House.Type.BOX:
                 continue
-            filled = set()  # cells that have 4 or few possibilities
             cells_to_corners = defaultdict(list)
-            for row, column in product(range(1, 10), repeat=2):
-                cell = self.grid.matrix[row, column]
-                if cell.known_value:
-                    args = given if (row, column) in self.initial_grid else found
-                    axes.text(column + .5, row + .5, cell.known_value,
-                              verticalalignment='center', horizontalalignment='center', **args)
-                elif len(cell.possible_values) <= 8:
-                    axes.text(column + .5, row + .5, ''.join(str(x) for x in sorted(cell.possible_values)),
-                              verticalalignment='center', horizontalalignment='center', **corner_args)
-                    filled.add(cell)
             # Look at the all unknown values that can only fit into three or fewer cells.  We put
             # these into the corner, unless all the cells have been handled above
             for value in house.unknown_values:
                 cells = {cell for cell in house.unknown_cells if value in cell.possible_values}
-                if len(cells) <= 3 and not cells.issubset(filled):
+                if len(cells) <= 3 and any(len(cell.possible_values) > len(cells) for cell in cells):
                     for cell in cells:
                         cells_to_corners[cell].append(value)
             for cell, values in cells_to_corners.items():

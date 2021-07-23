@@ -59,7 +59,7 @@ class DancingDots:
         while True:
             while queue:
                 row_or_column, index = queue.popleft()
-                slots = [(index, column) for column in range(10)] \
+                slots: Sequence[tuple[int, int]] = [(index, column) for column in range(10)] \
                     if row_or_column == RowOrColumn.ROW else [(row, index) for row in range(10)]
                 solutions = info[row_or_column, index]
                 old_length = len(solutions)

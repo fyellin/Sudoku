@@ -6,7 +6,8 @@ from cell import House, Cell
 from draw_context import DrawContext
 from feature import Feature, Square
 from features.features import BoxOfNineFeature, AlternativeBoxesFeature, \
-    XVFeature, KillerCageFeature, CloneBoxFeature, MessageFeature, PalindromeFeature, AdjacentNotConsecutiveFeature
+    XVFeature, KillerCageFeature, CloneBoxFeature, MessageFeature, PalindromeFeature, AdjacentNotConsecutiveFeature, \
+    SimonSaysFeature
 from features.sandwich_feature import SandwichFeature
 from features.chess_move import KnightsMoveFeature, KingsMoveFeature, QueensMoveFeature, TaxicabFeature
 from features.thermometer import Thermometer2Feature, ThermometerAsLessThanFeature
@@ -191,16 +192,21 @@ def act_1() -> tuple[str, Sequence[Feature]]:
 
 def act_2() -> tuple[str, Sequence[Feature]]:
     # KillerCageFeature(32, [(6, 7), (7, 6), (7, 7), (7, 8), (8, 7)])
+    class Helper(SimonSaysFeature):
+        def round_1(self):
+            (self @ (1, 5)).possible_values.remove(1)
+
     thermos = ("1,2,SW,S,SE",
                "1,4,SE,S,SW", "4,8,N,NE,NW,SW",
                "5,6,SW,W,NW,N", "8,1,NE,S,E", "8,6,NE,NE,S,S,E", "9,3,NE,E")
     thermometers = [Thermometer2Feature(thermo) for thermo in thermos]
-    thermometers[4:7] = [CombinedPossibilitiesFeature(thermometers[4:7])]
-    thermometers[0:3] = [CombinedPossibilitiesFeature(thermometers[0:3])]
+    # thermometers[4:7] = [CombinedPossibilitiesFeature(thermometers[4:7])]
+    # thermometers[0:3] = [CombinedPossibilitiesFeature(thermometers[0:3])]
     features = [
         FakeKillerCageFeature("6,7,SW,E,E,SW"),
         *thermometers,
-        DumpResultFeature()
+        DumpResultFeature(),
+        # Helper()
     ]
 
     old_grid = "968145237735629184241837965853716492426953871179482356582374619617298543394561728"
@@ -229,7 +235,7 @@ def act_4_runner():
     for box1, box2 in boxes:
         grid, features = act_4(box1, box2)
         try:
-            result = Sudoku().solve(grid, features=features, show=False, draw_verbose=False)
+            result = Sudoku().solve(grid, features=features, draw_verbose=False)
         except AssertionError:
             result = False
 
@@ -430,11 +436,11 @@ def main():
         act_9,
         act_10, finale
     ]
-    puzzles = [ act_2 ]
+    puzzles = [act_2]
     for puzzle in puzzles:
         print('*************', puzzle, "*****************")
         grid, features = puzzle()
-        result = Sudoku().solve(grid, features=features, show=False, draw_verbose=False)
+        result = Sudoku().solve(grid, features=features, medusa=False)
         assert result
     end = datetime.datetime.now()
     print(end - start)
