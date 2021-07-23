@@ -1,4 +1,5 @@
 import abc
+import math
 from collections import defaultdict
 from itertools import combinations, product, chain
 from typing import Sequence, Mapping, Union, Optional, Iterable
@@ -157,9 +158,18 @@ class CombinedPossibilitiesFeature(PossibilitiesFeature):
         super().__init__(squares, name=name, neighbors=True)
 
     def get_possibilities(self) -> Iterable[tuple[int, ...]]:
-        arguments = [feature.get_possibilities() for feature in self.features]
+        arguments = [list(feature.get_possibilities()) for feature in self.features]
+        print(f'Building {self}:')
+        for feature, argument in zip(self.features, arguments):
+            print(f'   Feature {feature} has {len(argument)} possibilities')
+        total_size = math.prod(len(argument) for argument in arguments)
+        print(f'   Expected total size {total_size}')
         for group in product(*arguments):
             yield tuple(chain(*group))
+
+    def reset(self):
+        super().reset()
+        print(f'  Actual total size {len(self.possibilities)}')
 
     def draw(self, context: DrawContext) -> None:
         for feature in self.features:

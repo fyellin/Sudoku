@@ -1,6 +1,7 @@
 ﻿import datetime
 import itertools
-from typing import Sequence, Tuple, List, Iterable, Set, Optional, cast
+from collections.abc import Sequence, Iterable
+from typing import Optional, cast
 
 from cell import Cell, House, SmallIntSet
 from draw_context import DrawContext
@@ -30,12 +31,12 @@ class Pieces44(Feature):
             self.unknown_values = SmallIntSet(range(2, 10))
             Cell.remove_values_from_cells(self.cells, {1}, show=False)
 
-    eggs: Sequence[List[Square]]
+    eggs: Sequence[list[Square]]
 
     def __init__(self, pattern: str) -> None:
         super().__init__()
         assert len(pattern) == 81
-        info: Sequence[List[Square]] = [list() for _ in range(10)]
+        info: Sequence[list[Square]] = [list() for _ in range(10)]
         for (row, column), letter in zip(itertools.product(range(1, 10), repeat=2), pattern):
             if '1' <= letter <= '7':
                 info[int(letter)].append((row, column))
@@ -81,7 +82,7 @@ class DoubleSumFeature(GroupedPossibilitiesFeature):
         self.ptotal = ptotal
         super().__init__(squares, name=name, compressed=True)
 
-    def get_possibilities(self) -> Iterable[Tuple[Set[int], ...]]:
+    def get_possibilities(self) -> Iterable[tuple[set[int], ...]]:
         total = self.total
         ptotal = self.ptotal
         for item1, item2 in itertools.permutations(range(1, 10), 2):
@@ -244,7 +245,7 @@ def puzzle_hunt(*, show: bool = False) -> None:
 
 def sandwich_07_28(*, show: bool = False) -> None:
     class LiarsSandwichFeature(SandwichFeature):
-        def get_possibilities(self) -> Iterable[Tuple[Set[int], ...]]:
+        def get_possibilities(self) -> Iterable[tuple[set[int], ...]]:
             yield from self._get_possibilities(self.total - 1)
             yield from self._get_possibilities(self.total + 1)
 
@@ -557,7 +558,7 @@ def puzzle_09_21(*, show: bool = False) -> None:
             squares = [(row, column), (row, column + 1), (row + 1, column), (row + 1, column + 1)]
             super().__init__(squares, name=f"Square{row}{column}", neighbors=True)
 
-        def get_possibilities(self) -> List[Tuple[Set[int], ...]]:
+        def get_possibilities(self) -> list[tuple[set[int], ...]]:
             for x, y in itertools.product(range(1, 10), repeat=2):
                 if x <= y:
                     z = x * y

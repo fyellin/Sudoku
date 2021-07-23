@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import itertools
 from collections import deque
+from collections.abc import Sequence
 from enum import Enum
-from typing import Tuple, Sequence
 
 from matplotlib import pyplot as plt
 
@@ -140,7 +140,7 @@ class DancingDots:
             result.append(temp)
         return result
 
-    def draw_grid(self, results: Sequence[Tuple[RowOrColumn, int, str]]) -> None:
+    def draw_grid(self, results: Sequence[tuple[RowOrColumn, int, str]]) -> None:
         figure, axes = plt.subplots(1, 1, figsize=(4, 4), dpi=100)
 
         # Set (1,1) as the top-left corner, and (max_column, max_row) as the bottom right.

@@ -3,7 +3,8 @@ from __future__ import annotations
 import abc
 import datetime
 import itertools
-from typing import Tuple, Sequence, Dict, List, Set, ClassVar, Any, Mapping
+from collections.abc import Sequence, Mapping
+from typing import ClassVar, Any
 
 from matplotlib import pyplot as plt
 from matplotlib.patches import FancyBboxPatch
@@ -12,10 +13,10 @@ from tools.dancing_links import DancingLinks
 
 
 class Sudoku:
-    initial_grid: Mapping[Tuple[int, int], int]
-    constraints: Dict[Tuple[int, int, int], List[str]]
-    optional_constraints: Set[str]
-    deletions: Set[Tuple[int, int, int]]
+    initial_grid: Mapping[tuple[int, int], int]
+    constraints: dict[tuple[int, int, int], list[str]]
+    optional_constraints: set[str]
+    deletions: set[tuple[int, int, int]]
     features: Sequence[Feature]
 
     def solve(self, puzzle: str, features: Sequence[Feature], *, show: bool = False) -> None:
@@ -51,13 +52,13 @@ class Sudoku:
                              row_printer=self.draw_grid)
         links.solve(recursive=False)
 
-    def draw_grid(self, results: Sequence[Tuple[int, int, int]]) -> None:
+    def draw_grid(self, results: Sequence[tuple[int, int, int]]) -> None:
         if not all(feature.check_solution(results) for feature in self.features):
             return
 
         figure, axes = plt.subplots(1, 1, figsize=(4, 4), dpi=100)
 
-        # Set (1,1) as the top-left corner, and (max_column, max_row) as the bottom right.
+        # set (1,1) as the top-left corner, and (max_column, max_row) as the bottom right.
         axes.axis([1, 10, 10, 1])
         axes.axis('equal')
         axes.axis('off')
@@ -86,7 +87,7 @@ class Sudoku:
         print(f"'{temp}'")
         plt.show()
 
-    def not_both(self, triple1: Tuple[int, int, int], triple2: Tuple[int, int, int], name: str = '') -> None:
+    def not_both(self, triple1: tuple[int, int, int], triple2: tuple[int, int, int], name: str = '') -> None:
         row1, column1, value1 = triple1
         row2, column2, value2 = triple2
         constraint = f'{name}:r{row1}c{column1}={value1};r{row2}c{column2}={value2}'
@@ -109,14 +110,14 @@ class Feature(abc.ABC):
     def pre_print(self) -> None:
         pass
 
-    def post_print(self, results: Sequence[Tuple[int, int, int]]) -> None:
+    def post_print(self, results: Sequence[tuple[int, int, int]]) -> None:
         pass
 
-    def check_solution(self, _results: Sequence[Tuple[int, int, int]]) -> bool:
+    def check_solution(self, _results: Sequence[tuple[int, int, int]]) -> bool:
         return True
 
     @staticmethod
-    def draw_line(points: Sequence[Tuple[int, int]], *, closed: bool = False, **kwargs: Any) -> None:
+    def draw_line(points: Sequence[tuple[int, int]], *, closed: bool = False, **kwargs: Any) -> None:
         ys = [row + .5 for row, _ in points]
         xs = [column + .5 for _, column in points]
         if closed:
@@ -136,7 +137,7 @@ class ChessFeature(Feature):
 
     def update_constraints(self, sudoku: Sudoku) -> None:
         for row, column in itertools.product(range(1, 10), repeat=2):
-            neighbors: Set[Tuple[int, int]] = set()
+            neighbors: set[tuple[int, int]] = set()
             if self.knight:
                 neighbors.update(self.knights_move(row, column))
             if self.king:
@@ -149,14 +150,14 @@ class ChessFeature(Feature):
                         sudoku.not_both((row, column, value), (row2, column2, value), 'C')
 
     @staticmethod
-    def knights_move(row: int, column: int) -> Sequence[Tuple[int, int]]:
+    def knights_move(row: int, column: int) -> Sequence[tuple[int, int]]:
         return [((row + dr), (column + dc))
                 for dx, dy in itertools.product((1, -1), (2, -2))
                 for dr, dc in ((dx, dy), (dy, dx))
                 if 1 <= row + dr <= 9 and 1 <= column + dc <= 9]
 
     @staticmethod
-    def kings_move(row: int, column: int) -> Sequence[Tuple[int, int]]:
+    def kings_move(row: int, column: int) -> Sequence[tuple[int, int]]:
         return [((row + dr), (column + dc))
                 for dr, dc in itertools.product((-1, 1), repeat=2)
                 if 1 <= row + dr <= 9 and 1 <= column + dc <= 9]
@@ -173,7 +174,7 @@ class AdjacentFeature(Feature):
                         sudoku.not_both((row, column, value), (row2, column2, value - 1))
 
     @staticmethod
-    def adjacent_move(row: int, column: int) -> Sequence[Tuple[int, int]]:
+    def adjacent_move(row: int, column: int) -> Sequence[tuple[int, int]]:
         return [((row + dr), (column + dc))
                 for dx in (-1, 1)
                 for dr, dc in ((dx, 0), (0, dx))
@@ -181,9 +182,9 @@ class AdjacentFeature(Feature):
 
 
 class ThermometerFeature(Feature):
-    thermometer: Sequence[Tuple[int, int]]
+    thermometer: Sequence[tuple[int, int]]
 
-    def __init__(self, thermometer: Sequence[Tuple[int, int]]):
+    def __init__(self, thermometer: Sequence[tuple[int, int]]):
         super().__init__()
         self.thermometer = thermometer
 
@@ -207,11 +208,11 @@ class ThermometerFeature(Feature):
 
 
 class SnakeFeature(Feature):
-    snake: Sequence[Tuple[int, int]]
+    snake: Sequence[tuple[int, int]]
     closed: bool
     color: str
 
-    def __init__(self, snake: Sequence[Tuple[int, int]], *, closed: bool = False, color: str = 'lightgrey'):
+    def __init__(self, snake: Sequence[tuple[int, int]], *, closed: bool = False, color: str = 'lightgrey'):
         super().__init__()
         self.snake = snake
         self.closed = closed
@@ -231,9 +232,9 @@ class SnakeFeature(Feature):
 
 
 class MagicSquareFeature(Feature):
-    center: Tuple[int, int]
+    center: tuple[int, int]
 
-    def __init__(self, center: Tuple[int, int] = (5, 5)):
+    def __init__(self, center: tuple[int, int] = (5, 5)):
         super().__init__()
         self.center = center
 
@@ -263,9 +264,9 @@ class MagicSquareFeature(Feature):
 
 
 class GermanSnakeFeature(Feature):
-    cup: Sequence[Tuple[int, int]]
+    cup: Sequence[tuple[int, int]]
 
-    def __init__(self, cup: Sequence[Tuple[int, int]]):
+    def __init__(self, cup: Sequence[tuple[int, int]]):
         super().__init__()
         self.cup = cup
 
@@ -300,7 +301,7 @@ class MarvolosRingFeature(Feature):
                 if value1 + value2 not in (1, 4, 8, 9, 16):
                     sudoku.not_both((row1, col1, value1), (row2, col2, value2), 'c')
 
-    def check_solution(self, results: Sequence[Tuple[int, int, int]]) -> bool:
+    def check_solution(self, results: Sequence[tuple[int, int, int]]) -> bool:
         values_in_circle = {value for (row, column, value) in results if (row, column) in self.circle}
         return len(values_in_circle) == 9
 
@@ -342,9 +343,9 @@ class ContainsTextFeature(Feature):
 
 
 class DrawCirclesFeature(Feature):
-    circles: Sequence[Tuple[int, int]]
+    circles: Sequence[tuple[int, int]]
 
-    def __init__(self, circles: Sequence[Tuple[int, int]]):
+    def __init__(self, circles: Sequence[tuple[int, int]]):
         super().__init__()
         self.circles = circles
 
@@ -355,7 +356,7 @@ class DrawCirclesFeature(Feature):
         for row, column in self.circles:
             plt.gca().add_patch(plt.Circle((column + .5, row + .5), radius=.5, fill=False, facecolor='black'))
 
-    def post_print(self, results: Sequence[Tuple[int, int, int]]) -> None:
+    def post_print(self, results: Sequence[tuple[int, int, int]]) -> None:
         mapping = {(row, column): value for (row, column, value) in results}
         grid = ['.'] * 81
         for row, column in self.circles:
@@ -365,9 +366,9 @@ class DrawCirclesFeature(Feature):
 
 
 class EvenFeature(Feature):
-    evens: Sequence[Tuple[int, int]]
+    evens: Sequence[tuple[int, int]]
 
-    def __init__(self, evens:  Sequence[Tuple[int, int]]):
+    def __init__(self, evens:  Sequence[tuple[int, int]]):
         super().__init__()
         self.evens = evens
 
@@ -376,12 +377,12 @@ class EvenFeature(Feature):
 
 
 class CheckEggFeature(Feature):
-    eggs: Sequence[List[Tuple[int, int]]]
+    eggs: Sequence[list[tuple[int, int]]]
 
     def __init__(self, pattern: str) -> None:
         super().__init__()
         assert len(pattern) == 81
-        info: Sequence[List[Tuple[int, int]]] = [list() for _ in range(10)]
+        info: Sequence[list[tuple[int, int]]] = [list() for _ in range(10)]
         for (row, column), letter in zip(itertools.product(range(1, 10), repeat=2), pattern):
             if '0' <= letter <= '9':
                 info[int(letter)].append((row, column))
@@ -406,10 +407,10 @@ class CheckEggFeature(Feature):
 
 
 class PlusFeature(Feature):
-    squares: Sequence[Tuple[int, int]]
+    squares: Sequence[tuple[int, int]]
     puzzles: Sequence[str]
 
-    def __init__(self, squares: Sequence[Tuple[int, int]], puzzles: Sequence[str]) -> None:
+    def __init__(self, squares: Sequence[tuple[int, int]], puzzles: Sequence[str]) -> None:
         super().__init__()
         self.squares = squares
         self.puzzles = puzzles
@@ -433,7 +434,7 @@ class PlusFeature(Feature):
 
 
 class ColorFeature(Feature):
-    setup: Mapping[Tuple[int, int], str]
+    setup: Mapping[tuple[int, int], str]
     color_map: Mapping[str, str]
     plus_feature: PlusFeature
 
@@ -509,7 +510,7 @@ def puzzle1() -> None:
     # XUZZ = "123456789123456789123456789123456789123456789123456789123456789123456789123456789"
     puzzle = "...6.1.....4...2...1.....6.1.......2....8....6.......4.7.....9...1...4.....1.2..3"
     texts = [(3, 1, 8), *[(x, 9) for x in range(1, 9)]]
-    features: List[Feature] = [ContainsTextFeature(i, text) for i, text in enumerate(texts, start=1)]
+    features: list[Feature] = [ContainsTextFeature(i, text) for i, text in enumerate(texts, start=1)]
     features.append(DrawCirclesFeature([(5, 8), (6, 8), (8, 4)]))
     Sudoku().solve(puzzle, features)
 

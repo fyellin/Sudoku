@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from collections import UserDict
-from typing import Dict, Tuple, Sequence, Iterable, TYPE_CHECKING, List
+from collections.abc import Sequence, Iterable
+from typing import TYPE_CHECKING
 
 from cell import Cell, House
 if TYPE_CHECKING:
@@ -9,8 +10,8 @@ if TYPE_CHECKING:
 
 
 class Grid(UserDict):
-    matrix: Dict[Tuple[int, int], Cell]
-    houses: List[House]
+    matrix: dict[tuple[int, int], Cell]
+    houses: list[House]
     features: Sequence[Feature]
 
     def __init__(self, features: Sequence[Feature]) -> None:

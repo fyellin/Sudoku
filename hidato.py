@@ -3,7 +3,8 @@ from __future__ import annotations
 import datetime
 import itertools
 from collections import defaultdict
-from typing import Tuple, Sequence, Dict, Any, List, NamedTuple, Set, Optional, Mapping
+from collections.abc import Sequence, Mapping
+from typing import Any, NamedTuple, Optional
 
 import numpy as np
 from matplotlib import pyplot as plt, patches
@@ -119,7 +120,7 @@ class Hidato:
         self.draw_grid(square_to_values)
 
     @staticmethod
-    def get_initial_grid(puzzle: str) -> Dict[Square, int]:
+    def get_initial_grid(puzzle: str) -> dict[Square, int]:
         grid = {}
         lines = [line for line in puzzle.splitlines() if line]
         for row, line in enumerate(lines, start=1):
@@ -134,7 +135,7 @@ class Hidato:
         assert max_value == len(grid)
         return grid
 
-    def draw_grid(self, square_to_values: Mapping[Square, Set[int]]) -> None:
+    def draw_grid(self, square_to_values: Mapping[Square, set[int]]) -> None:
         figure, axes = plt.subplots(1, 1, figsize=(6, 6), dpi=100)
         reverse_grid = {value: square for square, values in square_to_values.items()
                         if len(values) == 1 for value in [next(iter(values))]}
@@ -143,7 +144,7 @@ class Hidato:
         max_col = max(col for _, col in self.grid.keys())
         max_value = max(self.grid.values())
 
-        # Set (1,1) as the top-left corner, and (max_column, max_row) as the bottom right.
+        # set (1,1) as the top-left corner, and (max_column, max_row) as the bottom right.
         axes.axis([1, max_col + 1, max_row + 1, 1])
         axes.axis('equal')
         axes.axis('off')
@@ -191,7 +192,7 @@ class Hidato:
 
         while walls:
             start_wall = current_wall = next(iter(walls))  # pick some wall
-            points: List[np.ndarray] = []
+            points: list[np.ndarray] = []
 
             while True:
                 # Find the connecting point between the current wall and the wall to the right and add it to our
@@ -234,9 +235,9 @@ class Hidato:
 
 class Statistic(NamedTuple):
     length: int
-    possible: Set[Square]
-    required: Set[Square]
-    required_pairs: Set[Tuple[Square, Square]]
+    possible: set[Square]
+    required: set[Square]
+    required_pairs: set[tuple[Square, Square]]
 
 
 class Segment:
@@ -244,7 +245,7 @@ class Segment:
     end: int
     start_location: Square
     end_location: Square
-    paths: List[Tuple[Square, ...]]
+    paths: list[tuple[Square, ...]]
     statistics: Optional[Statistic]
 
     def __init__(self, grid: Mapping[Square, int], start: int, end: int,
@@ -272,7 +273,7 @@ class Segment:
     def __repr__(self) -> str:
         return str(self)
 
-    def get_initial_paths(self, grid) -> List[Tuple[Square, ...]]:
+    def get_initial_paths(self, grid) -> list[tuple[Square, ...]]:
         def neighbors(location: Square) -> Sequence[Square]:
             r, c = location
             return [Square(r + dr, c + dc) for dr in (-1, 0, 1) for dc in (-1, 0, 1) if dr or dc]
@@ -322,7 +323,7 @@ class Segment:
         self.statistics = Statistic(length=len(self), possible=possible, required=required, required_pairs=pairs)
         return self.statistics
 
-    def add_results(self, result: Dict[Square, Set[int]]) -> None:
+    def add_results(self, result: dict[Square, set[int]]) -> None:
         result[self.start_location].add(self.start)
         result[self.end_location].add(self.end)
         for path in self.paths:
