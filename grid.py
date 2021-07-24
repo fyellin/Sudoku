@@ -45,13 +45,13 @@ class Grid(UserDict):
         for cell in self.matrix.values():
             cell.initialize_neighbors(self)
 
-    def reset(self) -> None:
+    def start(self) -> None:
         for cell in self.cells:
-            cell.reset()
+            cell.start()
         for house in self.houses:
-            house.reset()
+            house.start()
         for feature in self.features:
-            feature.reset()
+            feature.start()
 
     def is_solved(self) -> bool:
         return all(cell.is_known for cell in self.cells)

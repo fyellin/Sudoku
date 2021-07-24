@@ -27,7 +27,7 @@ class Sudoku:
         self.features = features
         self.grid = grid = Grid(features)
         self.draw_verbose = draw_verbose
-        grid.reset()
+        grid.start()
         self.initial_grid = {(row, column): int(letter)
                              for (row, column), letter in zip(product(range(1, 10), repeat=2), puzzle)
                              if '1' <= letter <= '9'}

@@ -10,14 +10,13 @@ from features.chess_move import LittlePrincessFeature, KnightsMoveFeature, Kings
 from features.features import MagicSquareFeature, AlternativeBoxesFeature, BoxOfNineFeature, \
     AdjacentRelationshipFeature, LimitedValuesFeature, XVFeature, AdjacentNotConsecutiveFeature, SimonSaysFeature, \
     OddsAndEvensFeature, ValuesAroundIntersectionFeature, RenbanFeature, KillerCageFeature, ExtremeEndpointsFeature
-from features.possibilities_feature import GroupedPossibilitiesFeature, CombinedPossibilitiesFeature, \
-    PossibilitiesFeature
+from features.possibilities_feature import GroupedPossibilitiesFeature, PossibilitiesFeature
 from features.same_value_as_mate_feature import SameValueAsMateFeature
 from features.sandwich_feature import SandwichFeature, SandwichXboxFeature
+from features.skyscraper_feature import SkyscraperFeature
 from features.thermometer import ThermometerFeature, SlowThermometerFeature
 from grid import Grid
 from human_sudoku import Sudoku
-from features.skyscraper_feature import SkyscraperFeature
 
 BLANK_GRID = '.' * 81
 
@@ -28,8 +27,8 @@ class Pieces44(Feature):
         def __init__(self, index: int, cells: Sequence[Cell]) -> None:
             super().__init__(House.Type.EGG, index, cells)
 
-        def reset(self) -> None:
-            super().reset()
+        def start(self) -> None:
+            super().start()
             self.unknown_values = SmallIntSet(range(2, 10))
             Cell.remove_values_from_cells(self.cells, {1}, show=False)
 
@@ -508,7 +507,7 @@ def puzzle_09_06() -> tuple[str, Sequence[Feature]]:
 
         def draw(self, context: DrawContext) -> None:
             if self.done:
-                self.draw_outline(context, [self.this_square], linestyle="-")
+                context.draw_outline([self.this_square], linestyle="-")
 
     all_squares = cast(Iterable[Square], itertools.product(range(1, 10), range(1, 10)))
     features = [CamelJumpFeature(square) for square in all_squares]
@@ -642,8 +641,6 @@ def puzzle_2021_07_10() -> tuple[str, Sequence[Feature]]:
         (17, "7,3,S"),
         (3, "9,6,E")]
     kill_features: list[PossibilitiesFeature] = [KillerCageFeature(total, squares) for total, squares in killers]
-
-    kill_features[1:4] = [CombinedPossibilitiesFeature(kill_features[1:4])]
     features = [
         *kill_features,
         MyHelperFeature()

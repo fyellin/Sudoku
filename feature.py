@@ -25,7 +25,7 @@ class Feature(abc.ABC):
     def initialize(self, grid) -> None:
         self.grid = grid
 
-    def reset(self) -> None:
+    def start(self) -> None:
         pass
 
     def get_neighbors(self, cell: Cell) -> Iterable[Cell]:
@@ -173,9 +173,9 @@ class MultiFeature(Feature):
         for feature in self.features:
             feature.initialize(grid)
 
-    def reset(self) -> None:
+    def start(self) -> None:
         for feature in self.features:
-            feature.reset()
+            feature.start()
 
     def get_neighbors(self, cell: Cell) -> Iterable[Cell]:
         for feature in self.features:

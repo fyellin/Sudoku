@@ -82,8 +82,8 @@ class SnakesEggFeature(Feature):
         def __init__(self, index: int, cells: Sequence[Cell]) -> None:
             super().__init__(House.Type.EGG, index, cells)
 
-        def reset(self) -> None:
-            super().reset()
+        def start(self) -> None:
+            super().start()
             self.unknown_values = SmallIntSet(range(1, len(self.cells) + 1))
             Cell.remove_values_from_cells(self.cells, set(range(len(self.cells) + 1, 10)))
 
@@ -121,8 +121,8 @@ class PlusFeature(Feature):
         self.squares = squares
         self.puzzles = puzzles
 
-    def reset(self) -> None:
-        super().reset()
+    def start(self) -> None:
+        super().start()
         for row, column in self.squares:
             value = self.__get_value(row, column)
             (self @ (row, column)).set_value_to(value)
@@ -151,8 +151,8 @@ class ColorFeature(Feature):
                       if letter != '.' and letter != '+'}
         self.color_map = dict(zip(color_map, puzzles))
 
-    def reset(self) -> None:
-        super().reset()
+    def start(self) -> None:
+        super().start()
         for (row, column), letter in self.setup.items():
             puzzle = self.color_map[letter]
             index = (row - 1) * 9 + (column - 1)

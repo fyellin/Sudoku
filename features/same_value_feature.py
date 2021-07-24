@@ -32,8 +32,8 @@ class SameValueFeature(Feature):
             self.grid[(self.__class__, "feature")] = features = set()
         features.add(self)
 
-    def reset(self) -> None:
-        super().reset()
+    def start(self) -> None:
+        super().start()
         if self.is_primary:
             features = self.grid[(self.__class__, "feature")]
             _SameValueFeatureInitializer(self.grid, features).run()

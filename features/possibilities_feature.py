@@ -1,13 +1,11 @@
 from __future__ import annotations
 
 import abc
-import math
 from collections import defaultdict
-from itertools import combinations, product, chain
+from itertools import combinations, product
 from typing import Sequence, Mapping, Union, Optional, Iterable
 
 from cell import Cell, House, SmallIntSet
-from draw_context import DrawContext
 from feature import Feature, Square
 from grid import Grid
 
@@ -62,7 +60,7 @@ class PossibilitiesFeature(Feature, abc.ABC):
     @abc.abstractmethod
     def get_possibilities(self) -> Iterable[tuple[int, ...]]: ...
 
-    def reset(self) -> None:
+    def start(self) -> None:
         possibilities = list(self.get_possibilities())
         if self.handle_duplicates:
             possibilities = list(set(possibilities))
@@ -211,33 +209,6 @@ class PossibilitiesFeature(Feature, abc.ABC):
         print(f'Merge {self.name} ({length1}) x {other.name} ({length2}) = ({length3}) {temp:.2f}%')
 
 
-class CombinedPossibilitiesFeature(PossibilitiesFeature):
-    features: Sequence[PossibilitiesFeature]
-
-    def __init__(self, features: Sequence[PossibilitiesFeature], *, name: Optional[str] = None):
-        self.features = features
-        squares = [square for feature in features for square in feature.squares]
-        super().__init__(squares, name=name, neighbors=True)
-
-    def get_possibilities(self) -> Iterable[tuple[int, ...]]:
-        arguments = [list(feature.get_possibilities()) for feature in self.features]
-        print(f'Building {self}:')
-        for feature, argument in zip(self.features, arguments):
-            print(f'   Feature {feature} has {len(argument)} possibilities')
-        total_size = math.prod(len(argument) for argument in arguments)
-        print(f'   Expected total size {total_size}')
-        for group in product(*arguments):
-            yield tuple(chain(*group))
-
-    def reset(self):
-        super().reset()
-        print(f'  Actual total size {len(self.possibilities)}')
-
-    def draw(self, context: DrawContext) -> None:
-        for feature in self.features:
-            feature.draw(context)
-
-
 class GroupedPossibilitiesFeature(Feature, abc.ABC):
     """We are given a set of possible values for a set of cells"""
     squares: Sequence[Square]
@@ -262,7 +233,7 @@ class GroupedPossibilitiesFeature(Feature, abc.ABC):
     @abc.abstractmethod
     def get_possibilities(self) -> list[tuple[Union[SmallIntSet, Iterable[int], int], ...]]: ...
 
-    def reset(self) -> None:
+    def start(self) -> None:
         def fixit_one(x: Union[SmallIntSet, Iterable[int], int]) -> SmallIntSet:
             if isinstance(x, int):
                 return SmallIntSet([x])

@@ -4,12 +4,12 @@ from typing import Any, TYPE_CHECKING
 
 from matplotlib.axes import Axes
 from matplotlib.patches import FancyBboxPatch, Circle, Rectangle
+from cell import House
 
 import numpy as np
 
 if TYPE_CHECKING:
     from feature import Square
-    from cell import House
 
 class DrawContext(UserDict):
     _axis: Axes

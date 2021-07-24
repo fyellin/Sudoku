@@ -135,7 +135,7 @@ class House:
         for cell in self.cells:
             cell.houses.append(self)
 
-    def reset(self) -> None:
+    def start(self) -> None:
         self.unknown_values = SmallIntSet(range(1, 10))
         self.unknown_cells = set(self.cells)
 
@@ -171,7 +171,7 @@ class Cell:
         self.neighbors = frozenset()  # Filled in later
         self.houses = []
 
-    def reset(self) -> None:
+    def start(self) -> None:
         self.known_value = None
         self.possible_values = SmallIntSet(range(1, 10))
 

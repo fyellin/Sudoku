@@ -200,7 +200,7 @@ class LimitedValuesFeature(Feature):
         self.values = SmallIntSet(values)
         self.color = color
 
-    def reset(self) -> None:
+    def start(self) -> None:
         cells = [self @ x for x in self.squares]
         Cell.keep_values_for_cell(cells, self.values, show=False)
 
