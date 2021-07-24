@@ -12,7 +12,7 @@ from features.sandwich_feature import SandwichFeature
 from features.chess_move import KnightsMoveFeature, KingsMoveFeature, QueensMoveFeature, TaxicabFeature
 from features.thermometer import Thermometer2Feature, ThermometerAsLessThanFeature
 from human_sudoku import Sudoku
-from features.possibilities_feature import CombinedPossibilitiesFeature, PossibilitiesFeature
+from features.possibilities_feature import PossibilitiesFeature
 
 
 class FakeKillerCageFeature(Feature):
