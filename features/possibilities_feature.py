@@ -100,9 +100,8 @@ class PossibilitiesFeature(Feature, abc.ABC):
         self.possibilities = [values for values in self.possibilities
                               if all(value in square.possible_values for value, square in zip(values, self.cells))]
         if len(self.possibilities) != old_length:
-            change = self.__update_for_possibilities()
+            self.__update_for_possibilities()
         self.__handle_all_possibilities_use_value()
-
 
     def check_special(self) -> bool:
         features: set[PossibilitiesFeature] = self.grid[self.__class__, "feature"]
@@ -190,7 +189,7 @@ class PossibilitiesFeature(Feature, abc.ABC):
     def check_join_two(self):
         features: set[PossibilitiesFeature] = self.grid[self.__class__, "feature"]
         sorted_features = sorted((x for x in features if len(x.possibilities) > 1),
-                                 key=lambda f:len(f.possibilities))
+                                 key=lambda f: len(f.possibilities))
         if len(features) >= 2:
             sorted_features[0].merge_into_me(sorted_features[1])
             sorted_features[0].__check_XXX()
@@ -210,7 +209,6 @@ class PossibilitiesFeature(Feature, abc.ABC):
         features.remove(other)
         temp = length3 * 100 / (length1 * length2)
         print(f'Merge {self.name} ({length1}) x {other.name} ({length2}) = ({length3}) {temp:.2f}%')
-
 
 
 class CombinedPossibilitiesFeature(PossibilitiesFeature):
