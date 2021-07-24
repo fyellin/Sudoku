@@ -46,23 +46,21 @@ class Sudoku:
             raise
 
     def run_solver(self, *, medusa: bool) -> bool:
-        self.grid.print()
-        self.draw_grid()
+        checking_features = [f for f in self.features if f.is_checking()]
 
         while True:
             if self.is_solved():
                 self.draw_grid(done=True, result=True)
-                print("Used", medusa, "medusas")
                 return True
             if self.check_naked_singles() or self.check_hidden_singles():
                 continue
-            if any(feature.check() for feature in self.features):
+            if any(feature.check() for feature in checking_features):
                 continue
             if self.check_intersection_removal():
                 continue
             if self.check_tuples():
                 continue
-            if any(feature.check_special() for feature in self.features):
+            if any(feature.check_special() for feature in checking_features):
                 continue
 
             self.grid.print()

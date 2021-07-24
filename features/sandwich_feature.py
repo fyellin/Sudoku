@@ -48,7 +48,7 @@ class SandwichFeature(GroupedPossibilitiesFeature):
     ONE_AND_NINE = SmallIntSet((1, 9))
 
     def draw(self, context: DrawContext) -> None:
-        self.draw_outside(context, self.total, self.htype, self.row_column, fontsize=20, weight='bold')
+        context.draw_outside(self.total, self.htype, self.row_column, fontsize=20, weight='bold')
         if not context.get(self.__class__):
             context[self.__class__] = True
             special = [square for square in self.all_squares()
@@ -98,4 +98,4 @@ class SandwichXboxFeature(PossibilitiesFeature):
 
     def draw(self, context: DrawContext) -> None:
         args = dict(fontsize=20, weight='bold')
-        self.draw_outside(context, self.value, self.htype, self.row_column, is_right=self.is_right, **args)
+        context.draw_outside(self.value, self.htype, self.row_column, is_right=self.is_right, **args)

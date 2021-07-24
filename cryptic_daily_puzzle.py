@@ -107,8 +107,8 @@ class DoubleSumFeature(GroupedPossibilitiesFeature):
     def draw(self, context: DrawContext) -> None:
         args = {'fontsize': '15'}
         if self.total:
-            self.draw_outside(context, f'{self.total}', self.htype, self.row_column, padding=.6, **args)
-        self.draw_outside(context, f'{self.ptotal}', self.htype, self.row_column, **args)
+            context.draw_outside(f'{self.total}', self.htype, self.row_column, padding=.6, **args)
+        context.draw_outside(f'{self.ptotal}', self.htype, self.row_column, **args)
 
 
 def thermometer_magic() -> tuple[str, Sequence[Feature]]:

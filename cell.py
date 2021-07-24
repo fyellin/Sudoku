@@ -181,7 +181,8 @@ class Cell:
         for neighbor in self.neighbors:
             neighbor.possible_values.discard(value)
             assert neighbor.possible_values
-        for neighbor in {cell for feature in self.features for cell in feature.get_neighbors_for_value(self, value)}:
+        for neighbor in {cell for feature in self.features
+                         for cell in feature.get_neighbors_for_value(self, value)}:
             neighbor.possible_values.discard(value)
             assert neighbor.possible_values
 

@@ -16,7 +16,9 @@ class Grid(UserDict):
 
     def __init__(self, features: Sequence[Feature]) -> None:
         super().__init__()
-        self.matrix = {(row, column): Cell(row, column, features) for row in range(1, 10) for column in range(1, 10)}
+        neighborly_features = [feature for feature in features if feature.is_neighborly()]
+        self.matrix = {(row, column): Cell(row, column, neighborly_features)
+                       for row in range(1, 10) for column in range(1, 10)}
         self.features = features
 
         def items_in_row(row: int) -> Sequence[Cell]:

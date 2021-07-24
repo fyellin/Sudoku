@@ -228,7 +228,7 @@ class OddsAndEvensFeature(MultiFeature):
 
 class AlternativeBoxesFeature(Feature):
     """Don't use the regular nine boxes, but instead use 9 alternative boxes"""
-    squares: Sequence[Sequence[Square]]
+    house_squares: Sequence[Sequence[Square]]
 
     def __init__(self, pattern: Union[str, Sequence[str]]) -> None:
         super().__init__()
@@ -241,29 +241,28 @@ class AlternativeBoxesFeature(Feature):
                 info[int(letter)].append((row, column))
             for i in range(1, 10):
                 assert len(info[i]) == 9
-            self.squares = info[1:]
+            self.house_squares = info[1:]
         else:
             # Alternatively, we pass along a list of 9 sequences of squares
             assert len(pattern) == 9
-            self.squares = [self.parse_squares(item) for item in pattern]
-            for box in self.squares:
+            self.house_squares = [self.parse_squares(item) for item in pattern]
+            for box in self.house_squares:
                 assert len(box) == 9
-            all_squares = [square for box in self.squares for square in box]
+            all_squares = [square for box in self.house_squares for square in box]
             assert len(set(all_squares)) == 81
 
     def initialize(self, grid: Grid) -> None:
         super().initialize(grid)
         grid.delete_normal_boxes()
-        boxes = [House(House.Type.BOX, i + 1,
-                       [grid.matrix[square] for square in self.squares[i]])
-                 for i in range(len(self.squares))]
+        boxes = [House(House.Type.BOX, i + 1, [grid.matrix[square] for square in self.house_squares[i]])
+                 for i in range(len(self.house_squares))]
         grid.houses.extend(boxes)
 
     def draw(self, context: DrawContext) -> None:
         colors = ('lightcoral', "violet", "bisque", "lightgreen", "lightgray", "yellow", "skyblue",
                   "pink", "purple")
-        for square, color in zip(self.squares, colors):
-            self.draw_outline(context, square, inset=.1, color='black')
+        for squares, color in zip(self.house_squares, colors):
+            context.draw_outline(squares, inset=.1, color=color)
 
 
 class PalindromeFeature(MultiFeature):
@@ -432,7 +431,7 @@ class KillerCageFeature(PossibilitiesFeature):
                 yield *values, last_value
 
     def draw(self, context: DrawContext) -> None:
-        self.draw_outline(context, self.squares)
+        context.draw_outline(self.squares)
         row, column = min(self.squares)
         context.draw_text(column + .2, row + .2, str(self.total),
                           verticalalignment='top', horizontalalignment='left', fontsize=10, weight='bold')

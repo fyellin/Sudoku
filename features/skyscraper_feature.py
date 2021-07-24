@@ -86,9 +86,9 @@ class SkyscraperFeature(GroupedPossibilitiesFeature):
     def draw(self, context: DrawContext) -> None:
         args = dict(fontsize=20, weight='bold')
         if self.left:
-            self.draw_outside(context, self.left, self.htype, self.row_column, **args)
+            context.draw_outside(self.left, self.htype, self.row_column, **args)
         if self.right:
-            self.draw_outside(context, self.right, self.htype, self.row_column, is_right=True, **args)
+            context.draw_outside(context, self.right, self.htype, self.row_column, is_right=True, **args)
         context.draw_rectangles(self.basement, facecolor="lightgrey")
 
 

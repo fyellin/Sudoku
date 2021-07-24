@@ -1,11 +1,11 @@
+from __future__ import annotations
+
 import abc
 import atexit
 from collections import defaultdict, deque
 from collections.abc import Iterable, Sequence, Callable
 from itertools import product
 from typing import Any, ClassVar, Union, cast, Optional
-
-import numpy as np
 
 from cell import Cell, House
 from draw_context import DrawContext
@@ -100,80 +100,6 @@ class Feature(abc.ABC):
         return f'{klass.__name__} #{Feature.class_count[klass]}'
 
     @staticmethod
-    def draw_outside(context: DrawContext, value: Any, htype: House.Type, row_or_column: int, *,
-                     is_right: bool = False, padding: float = 0, **args: Any):
-        args = {'fontsize': 20, 'weight': 'bold', **args}
-
-        if htype == House.Type.ROW:
-            if not is_right:
-                context.draw_text(.9 - padding, row_or_column + .5, str(value),
-                                  verticalalignment='center', horizontalalignment='right', **args)
-            else:
-                context.draw_text(10.1 + padding, row_or_column + .5, str(value),
-                                  verticalalignment='center', horizontalalignment='left', **args)
-        else:
-            if not is_right:
-                context.draw_text(row_or_column + .5, .9 - padding, str(value),
-                                  verticalalignment='bottom', horizontalalignment='center', **args)
-            else:
-                context.draw_text(row_or_column + .5, 10.1 + padding, str(value),
-                                  verticalalignment='top', horizontalalignment='center', **args)
-
-    @staticmethod
-    def draw_outline(context, squares: Sequence[Square], *,
-                     inset: float = .1, **args: Any) -> None:
-        args = {'color': 'black', 'linewidth': 2, 'linestyle': "dotted", **args}
-        squares_set = set(squares)
-
-        # A wall is identified by the square it is in, and the direction you'd be facing from the center of that
-        # square to see the wall.  A wall separates a square inside of "squares" from a square out of it.
-        walls = {(row, column, dr, dc)
-                 for row, column in squares for dr, dc in ((0, 1), (0, -1), (1, 0), (-1, 0))
-                 if (row + dr, column + dc) not in squares_set}
-
-        while walls:
-            start_wall = current_wall = next(iter(walls))  # pick some wall
-            points: list[np.ndarray] = []
-
-            while True:
-                # Find the connecting point between the current wall and the wall to the right and add it to our
-                # set of points
-
-                row, column, ahead_dr, ahead_dc = current_wall  # square, and direction of wall from center
-                right_dr, right_dc = ahead_dc, -ahead_dr  # The direction if we turned right
-
-                # Three possible next walls, in order of preference.
-                #  1) The wall makes a right turn, staying with the current square
-                #  2) The wall continues in its direction, going into the square to our right
-                #  3) The wall makes a left turn, continuing in the square diagonally ahead to the right.
-                next1 = (row, column, right_dr, right_dc)   # right
-                next2 = (row + right_dr, column + right_dc, ahead_dr, ahead_dc)  # straight
-                next3 = (row + right_dr + ahead_dr, column + right_dc + ahead_dc, -right_dr, -right_dc)  # left
-
-                # It is possible for next1 and next3 to both be in walls if we have two squares touching diagonally.
-                # In that case, we prefer to stay within the same cell, so we prefer next1 to next3.
-                next_wall = next(x for x in (next1, next2, next3) if x in walls)
-                walls.remove(next_wall)
-
-                if next_wall == next2:
-                    # We don't need to add a point if the wall is continuing in the direction it was going.
-                    pass
-                else:
-                    np_center = np.array((row, column)) + .5
-                    np_ahead = np.array((ahead_dr, ahead_dc))
-                    np_right = np.array((right_dr, right_dc))
-                    right_inset = inset if next_wall == next1 else -inset
-                    points.append(np_center + (.5 - inset) * np_ahead + (.5 - right_inset) * np_right)
-
-                if next_wall == start_wall:
-                    break
-                current_wall = next_wall
-
-            points.append(points[0])
-            pts = np.vstack(points)
-            context.plot(pts[:, 1], pts[:, 0], **args)
-
-    @staticmethod
     def get_house_squares(htype, index):
         if htype == House.Type.ROW:
             return [(index, i) for i in range(1, 10)]
@@ -196,6 +122,15 @@ class Feature(abc.ABC):
     @staticmethod
     def all_squares() -> Iterable[Square]:
         return cast(Iterable[Square], product(range(1, 10), repeat=2))
+
+    @classmethod
+    def is_neighborly(cls):
+        return (cls.get_neighbors, cls.get_neighbors_for_value) != \
+               (Feature.get_neighbors, Feature.get_neighbors_for_value)
+
+    @classmethod
+    def is_checking(cls):
+        return (cls.check, cls.check_special) != (Feature.check, Feature.check_special)
 
     check_elided: ClassVar[int] = 0
     check_called: ClassVar[int] = 0

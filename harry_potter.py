@@ -188,7 +188,7 @@ class DrawBoxFeature(Feature):
         self.squares = squares
 
     def draw(self, context: DrawContext) -> None:
-        self.draw_outline(context, self.squares)
+        context.draw_outline(self.squares)
 
 
 def merge(p1: str, p2: str) -> str:
