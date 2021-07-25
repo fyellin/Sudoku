@@ -40,6 +40,9 @@ class Feature(abc.ABC):
     def check_special(self) -> bool:
         return False
 
+    def weak_pair(self, cell: Cell, value: int) -> Iterable[tuple[Cell, int]]:
+        return ()
+
     def draw(self, context: DrawContext) -> None:
         pass
 
@@ -124,33 +127,31 @@ class Feature(abc.ABC):
         return cast(Iterable[Square], product(range(1, 10), repeat=2))
 
     @classmethod
-    def is_neighborly(cls):
+    def has_neighbor_method(cls):
         return (cls.get_neighbors, cls.get_neighbors_for_value) != \
                (Feature.get_neighbors, Feature.get_neighbors_for_value)
 
     @classmethod
-    def is_checking(cls):
+    def has_check_method(cls):
         return (cls.check, cls.check_special) != (Feature.check, Feature.check_special)
+
+    @classmethod
+    def has_weak_pair(cls):
+        return cls.weak_pair != Feature.weak_pair
 
     check_elided: ClassVar[int] = 0
     check_called: ClassVar[int] = 0
 
     @staticmethod
-    def check_only_if_changed(checker: CheckFunction) -> CheckFunction:
-        saved_info: dict[Feature, Sequence[int]] = {}
-
-        def called_function(self: Feature) -> bool:
-            cells = cast(Sequence[Cell], getattr(self, 'cells'))
-            if self in saved_info:
-                generator = (-1 if cell.is_known else cell.bitmap for cell in cells)
-                if all(x == y for x, y in zip_longest(saved_info[self], generator)):
-                    Feature.check_elided += 1
-                    return False
-            saved_info[self] = [-1 if cell.is_known else cell.bitmap for cell in cells]
+    def cells_changed_since_last_invocation(location: list[int], cells: Sequence[Cell]) -> bool:
+        generator = (-1 if cell.is_known else cell.bitmap for cell in cells)
+        if all(x == y for x, y in zip_longest(location, generator)):
+            Feature.check_elided += 1
+            return False
+        else:
             Feature.check_called += 1
-            return checker(self)
-
-        return called_function
+            location[:] = (-1 if cell.is_known else cell.bitmap for cell in cells)
+            return True
 
 
 @atexit.register

@@ -16,12 +16,14 @@ class DrawContext(UserDict):
     _axis: Axes
     done: bool
     result: bool
+    draw_normal_boxes: bool
 
     def __init__(self, axis, *, done: bool, result: bool) -> None:
         super().__init__()
         self._axis = axis
         self.done = done
         self.result = result
+        self.draw_normal_boxes = True
 
     def draw_circle(self, center: tuple[float, float], radius: float, **args: Any) -> None:
         self._axis.add_patch(Circle(center, radius=radius, **args))

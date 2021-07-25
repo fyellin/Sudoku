@@ -2,15 +2,12 @@ from __future__ import annotations
 
 import itertools
 from collections import deque
-from enum import Enum, auto
 from collections.abc import Iterable, Iterator, Sequence, Mapping
-from typing import NamedTuple, TYPE_CHECKING
+from enum import Enum, auto
+from typing import NamedTuple
 
 from cell import CellValue, Cell
 from color import Color
-
-if TYPE_CHECKING:
-    from feature import Feature
 
 
 class Chain:
@@ -65,16 +62,14 @@ class Chain:
                     todo.append((next_cell_value, depth + 1))
         return Chain(one, two, medusa)
 
-    def check_colors(self, features: Sequence[Feature]) -> bool:
+    def check_colors(self) -> bool:
         """Pairwise look at each two elements on this chain and see if they lead to insight or a contradiction"""
         for (cell_value1, group1), (cell_value2, group2) in itertools.combinations(self.items(), 2):
             (cell1, value1), (cell2, value2) = cell_value1, cell_value2
             if group1 == group2:
                 # Either cell1=value1 and cell2=value2 are both true or are both false
                 if (cell1 == cell2 and value1 != value2) \
-                        or (value1 == value2 and cell1.is_neighbor(cell2)) \
-                        or (value1 == value2 and any(cell2 in feature.get_neighbors_for_value(cell1, value1)
-                                                     for feature in features)):
+                        or (value1 == value2 and cell1.is_neighbor_for_value(cell2, value2)):
                     # If both are true, it leads to a contradiction.  Both must be false.
                     print(f"Setting value of {self} to {group1.marker()} causes contradiction.")
                     print(f"Both {cell_value1} and {cell_value2} cannot be true")

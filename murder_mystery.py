@@ -5,14 +5,13 @@ from typing import Sequence, cast, Union, Iterable, Optional
 from cell import House, Cell
 from draw_context import DrawContext
 from feature import Feature, Square
-from features.features import BoxOfNineFeature, AlternativeBoxesFeature, \
-    XVFeature, KillerCageFeature, CloneBoxFeature, MessageFeature, PalindromeFeature, AdjacentNotConsecutiveFeature, \
-    SimonSaysFeature
-from features.sandwich_feature import SandwichFeature
 from features.chess_move import KnightsMoveFeature, KingsMoveFeature, QueensMoveFeature, TaxicabFeature
+from features.features import BoxOfNineFeature, AlternativeBoxesFeature, \
+    XVFeature, KillerCageFeature, CloneBoxFeature, MessageFeature, PalindromeFeature, AdjacentNotConsecutiveFeature
+from features.possibilities_feature import PossibilitiesFeature
+from features.sandwich_feature import SandwichFeature
 from features.thermometer import Thermometer2Feature, ThermometerAsLessThanFeature
 from human_sudoku import Sudoku
-from features.possibilities_feature import PossibilitiesFeature
 
 
 class FakeKillerCageFeature(Feature):
@@ -192,9 +191,6 @@ def act_1() -> tuple[str, Sequence[Feature]]:
 
 def act_2() -> tuple[str, Sequence[Feature]]:
     # KillerCageFeature(32, [(6, 7), (7, 6), (7, 7), (7, 8), (8, 7)])
-    class Helper(SimonSaysFeature):
-        def round_1(self):
-            (self @ (1, 5)).possible_values.remove(1)
 
     thermos = ("1,2,SW,S,SE",
                "1,4,SE,S,SW", "4,8,N,NE,NW,SW",
@@ -206,7 +202,7 @@ def act_2() -> tuple[str, Sequence[Feature]]:
         FakeKillerCageFeature("6,7,SW,E,E,SW"),
         *thermometers,
         DumpResultFeature(),
-        Helper()
+        # Helper()
     ]
 
     old_grid = "968145237735629184241837965853716492426953871179482356582374619617298543394561728"
@@ -433,10 +429,11 @@ def main():
     start = datetime.datetime.now()
     puzzles = [
         # act_1,
-        act_2,
-        #act_3, act_4, act_5, act_6, act_7, act_8,
+        # act_2,
+        # act_3, act_4, act_5, act_6, act_7, act_8,
         # act_9,
-        # act_10, finale
+        # act_10,
+        finale
     ]
     for puzzle in puzzles:
         print('*************', puzzle, "*****************")

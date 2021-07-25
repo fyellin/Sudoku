@@ -13,11 +13,15 @@ class Grid(UserDict):
     matrix: dict[tuple[int, int], Cell]
     houses: list[House]
     features: Sequence[Feature]
+    neighborly_features: Sequence[Feature]
+    weak_pair_features: Sequence[Feature]
+    has_alternative_boxes: bool
 
     def __init__(self, features: Sequence[Feature]) -> None:
         super().__init__()
-        neighborly_features = [feature for feature in features if feature.is_neighborly()]
-        self.matrix = {(row, column): Cell(row, column, neighborly_features)
+        self.neighborly_features = [feature for feature in features if feature.has_neighbor_method()]
+        self.weak_pair_features = [feature for feature in features if feature.has_weak_pair()]
+        self.matrix = {(row, column): Cell(row, column, self)
                        for row in range(1, 10) for column in range(1, 10)}
         self.features = features
 

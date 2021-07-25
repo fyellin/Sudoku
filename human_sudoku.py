@@ -46,7 +46,7 @@ class Sudoku:
             raise
 
     def run_solver(self, *, medusa: bool) -> bool:
-        checking_features = [f for f in self.features if f.is_checking()]
+        checking_features = [f for f in self.features if f.has_check_method()]
 
         while True:
             if self.is_solved():
@@ -63,12 +63,16 @@ class Sudoku:
             if any(feature.check_special() for feature in checking_features):
                 continue
 
+            print()
             self.grid.print()
             self.draw_grid()
+            print()
 
             if self.check_fish() or self.check_xy_sword() or self.check_xyz_sword() or self.check_tower():
                 continue
             if self.check_xy_chain(81):
+                continue
+            if self.check_tower_extended():
                 continue
             if medusa:
                 chains = Chains.create(self.grid.cells, True)
@@ -387,7 +391,7 @@ class Sudoku:
         Create strong chains for all the unsolved cells.  See if looking at any two items on the same chain
         yields an insight or contradiction.
         """
-        return any(chain.check_colors(self.features) for chain in chains.chains)
+        return any(chain.check_colors() for chain in chains.chains)
 
     def check_tower(self) -> bool:
         for cell1 in self.grid.cells:
@@ -409,6 +413,46 @@ class Sudoku:
                                 return True
         return False
 
+    def check_tower_extended(self) -> bool:
+        for cell1 in self.grid.cells:
+            if cell1.is_known:
+                continue
+            for value1 in cell1.possible_values:
+                for cell2, value2, house2 in cell1.extended_strong_pair(value1):
+                    for cell3, value3, house3 in cell2.extended_weak_pair(value2):
+                        if house3 is house2 or (cell3, value3) == (cell1, value1):
+                            continue
+                        for cell4, value4, house4 in cell3.extended_strong_pair(value3):
+                            if house4 is house3 or (cell4, value4) in ((cell2, value2), (cell1, value1)):
+                                continue
+                            fixers = []
+
+                            def print_tower():
+                                print(f'Extended Tower on '
+                                      f'/({value1}){cell1}=({value2}){cell2}-({value3}){cell3}=({value4}){cell4}')
+                            # At least one of cell1 == value1 or cell4 == value4 is True
+                            if cell1 == cell4:  # The cell must have one of the other two values
+                                temp = SmallIntSet([value1, value4])
+                                assert temp <= cell1.possible_values
+                                if temp != cell1.possible_values:
+                                    print_tower()
+                                    Cell.keep_values_for_cell([cell1], {value1, value4})
+                                    return True
+                            elif value1 == value4:
+                                fixers = {(cell, value1) for cell in cell1.joint_neighbors(cell4)
+                                          if value1 in cell.possible_values}
+                            else:
+                                if value1 in cell4.possible_values and cell1.is_neighbor_for_value(cell4, value1):
+                                    fixers.append([cell4, value1])
+                                if value4 in cell1.possible_values and cell4.is_neighbor_for_value(cell1, value4):
+                                    fixers.append([cell1, value4])
+                            if fixers:
+                                print_tower()
+                                for cell, value in fixers:
+                                    Cell.remove_value_from_cells([cell], value, show=True)
+                                return True
+        return False
+
     def draw_grid(self, *, done: bool = False, result: bool = False):
         figure, axes = plt.subplots(1, 1, figsize=(6, 6), dpi=100)
 
@@ -424,7 +468,7 @@ class Sudoku:
 
         # Draw the bold outline
         for x in range(1, 11):
-            width = 3 if x in (1, 4, 7, 10) else 1
+            width = 3 if x in (1, 4, 7, 10) and context.draw_normal_boxes else 1
             axes.plot([x, x], [1, 10], linewidth=width, color='black')
             axes.plot([1, 10], [x, x], linewidth=width, color='black')
 
@@ -453,12 +497,6 @@ class Sudoku:
                               fontsize=8, color='blue', weight='light')
 
     def __fill_in_grid_simple(self, axes) -> None:
-        # Draw the bold outline
-        for x in range(1, 11):
-            width = 3 if x in (1, 4, 7, 10) else 1
-            axes.plot([x, x], [1, 10], linewidth=width, color='black')
-            axes.plot([1, 10], [x, x], linewidth=width, color='black')
-
         given = dict(fontsize=25, color='black', weight='heavy')
         found = dict(fontsize=25, color='blue', weight='bold')
         corner_args = dict(fontsize=8, color='blue', weight='light')

@@ -52,6 +52,7 @@ class AdjacentRelationshipFeature(Feature, abc.ABC):
 
     triples: Sequence[tuple[Optional[Cell], Cell, Optional[Cell]]]
     color: Optional[str]
+    __check_cache: list[int]
 
     def __init__(self, squares: Union[Sequence[Square], str], *,
                  name: Optional[str] = None, cyclic: bool = False, color: Optional[str] = 'gold'):
@@ -59,6 +60,7 @@ class AdjacentRelationshipFeature(Feature, abc.ABC):
         self.squares = self.parse_squares(squares)
         self.cyclic = cyclic
         self.color = color
+        self.__check_cache = []
 
     def initialize(self, grid: Grid) -> None:
         super().initialize(grid)
@@ -71,8 +73,10 @@ class AdjacentRelationshipFeature(Feature, abc.ABC):
     @abc.abstractmethod
     def match(self, digit1: int, digit2: int) -> bool: ...
 
-    @Feature.check_only_if_changed
     def check(self) -> bool:
+        if not self.cells_changed_since_last_invocation(self.__check_cache, self.cells):
+            return False
+
         for previous_cell, cell, next_cell in self.triples:
             if cell.is_known:
                 continue
@@ -259,10 +263,9 @@ class AlternativeBoxesFeature(Feature):
         grid.houses.extend(boxes)
 
     def draw(self, context: DrawContext) -> None:
-        colors = ('lightcoral', "violet", "bisque", "lightgreen", "lightgray", "yellow", "skyblue",
-                  "pink", "purple")
-        for squares, color in zip(self.house_squares, colors):
-            context.draw_outline(squares, inset=.1, color=color)
+        context.draw_normal_boxes = False
+        for squares in self.house_squares:
+            context.draw_outline(squares, inset=0, color='black', linestyle='solid', linewidth=3)
 
 
 class PalindromeFeature(MultiFeature):

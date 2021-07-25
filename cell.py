@@ -158,14 +158,14 @@ class Cell:
     houses: Final[list[House]]
     index: Final[tuple[int, int]]
     neighbors: frozenset[Cell]
-    features: Final[Sequence[Feature]]
+    grid: Final[grid]
 
     known_value: Optional[int]
     possible_values: SmallIntSet
 
-    def __init__(self, row: int, column: int, features: Sequence['Feature']) -> None:
+    def __init__(self, row: int, column: int, grid: Grid) -> None:
         self.index = (row, column)
-        self.features = features
+        self.grid = grid
         self.known_value = None
         self.possible_values = SmallIntSet(range(1, 10))
         self.neighbors = frozenset()  # Filled in later
@@ -181,7 +181,8 @@ class Cell:
         for neighbor in self.neighbors:
             neighbor.possible_values.discard(value)
             assert neighbor.possible_values
-        for neighbor in {cell for feature in self.features
+        for neighbor in {cell
+                         for feature in self.grid.neighborly_features
                          for cell in feature.get_neighbors_for_value(self, value)}:
             neighbor.possible_values.discard(value)
             assert neighbor.possible_values
@@ -205,10 +206,8 @@ class Cell:
         return self.possible_values.bits
 
     def initialize_neighbors(self, _grid: 'Grid') -> None:
-        neighbors: set[Cell] = set()
-        for house in self.all_houses():
-            neighbors.update(house.cells)
-        neighbors.update(cell for feature in self.features for cell in feature.get_neighbors(self))
+        neighbors = {n for house in self.all_houses() for n in house.cells}
+        neighbors.update(n for feature in self.grid.neighborly_features for n in feature.get_neighbors(self))
         neighbors.remove(self)
         self.neighbors = frozenset(neighbors)
 
@@ -219,18 +218,37 @@ class Cell:
     def house_of_type(self, house_type: House.Type) -> House:
         return next(house for house in self.houses if house.house_type == house_type)
 
-    def weak_pair(self, value: int) -> Iterable[tuple[Cell, House]]:
-        return ((cell, house) for house in self.houses
-                for cell in house.unknown_cells if cell != self and value in cell.possible_values)
-
     def strong_pair(self, value: int) -> Iterable[tuple[Cell, House]]:
         for house in self.houses:
             temp = [cell for cell in house.unknown_cells if cell != self and value in cell.possible_values]
             if len(temp) == 1:
                 yield temp[0], house
 
+    def extended_strong_pair(self, value: int) -> Iterable[tuple[Cell, int, Union[House, Feature, bool]]]:
+        for cell2, house2 in self.strong_pair(value):
+            yield cell2, value, house2
+        if len(self.possible_values) == 2:
+            yield self, (self.possible_values - {value}).unique(), True
+
+    def weak_pair(self, value: int) -> Iterable[tuple[Cell, House]]:
+        return ((cell, house) for house in self.houses
+                for cell in house.unknown_cells if cell != self and value in cell.possible_values)
+
+    def extended_weak_pair(self, value) -> Iterable[tuple[Cell, int, Union[House, Feature, bool]]]:
+        for cell2, house2 in self.weak_pair(value):
+            yield cell2, value, house2
+        for value2 in self.possible_values - {value}:
+            yield self, value2, True
+        for feature in self.grid.weak_pair_features:
+            for cell2, value2 in feature.weak_pair(self, value):
+                yield cell2, value2, feature
+
     def is_neighbor(self, other: Cell) -> bool:
         return other in self.neighbors
+
+    def is_neighbor_for_value(self, other: Cell, value: int):
+        return other in self.neighbors or \
+               any(other in feature.get_neighbors_for_value(self, value) for feature in self.grid.neighborly_features)
 
     def joint_neighbors(self, other: Cell) -> Iterator[Cell]:
         return (cell for cell in self.neighbors if other.is_neighbor(cell))

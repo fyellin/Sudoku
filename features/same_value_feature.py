@@ -15,12 +15,14 @@ class SameValueFeature(Feature):
     squares: list[Square]
     cells: list[Cell]
     is_primary: bool
+    __check_cache: list[int]
 
     def __init__(self, squares: Union[Sequence[Square], str], name: Optional[str] = None) -> None:
         self.squares = list(self.parse_squares(squares))
         assert len(self.squares) > 1
         name = name or '='.join(f'r{r}c{c}' for r, c in self.squares)
         self.is_primary = False
+        self.__check_cache = []
         super().__init__(name=name)
 
     def initialize(self, grid: Grid) -> None:
@@ -38,8 +40,9 @@ class SameValueFeature(Feature):
             features = self.grid[(self.__class__, "feature")]
             _SameValueFeatureInitializer(self.grid, features).run()
 
-    @Feature.check_only_if_changed
     def check(self) -> bool:
+        if not self.cells_changed_since_last_invocation(self.__check_cache, self.cells):
+            return False
         if self not in self.grid[(self.__class__, "feature")]:
             return False
         result = functools.reduce(operator.__and__, (cell.possible_values for cell in self.cells))

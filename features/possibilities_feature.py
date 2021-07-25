@@ -21,6 +21,7 @@ class PossibilitiesFeature(Feature, abc.ABC):
     _cells_as_set: set[Cell]
     _value_only_in_feature: dict[House, SmallIntSet]
     is_primary: bool
+    __check_cache: list[int]
 
     def __init__(self, squares: Union[Sequence[Square], str], *,
                  name: Optional[str] = None, neighbors: bool = False, duplicates: bool = False) -> None:
@@ -30,6 +31,7 @@ class PossibilitiesFeature(Feature, abc.ABC):
         self.handle_duplicates = duplicates
         self._value_only_in_feature = defaultdict(SmallIntSet)
         self.is_primary = False
+        self.__check_cache = []
 
     def initialize(self, grid: Grid) -> None:
         super().initialize(grid)
@@ -70,8 +72,21 @@ class PossibilitiesFeature(Feature, abc.ABC):
         self.possibilities = possibilities
         self.__update_for_possibilities(False)
 
-    @Feature.check_only_if_changed
+    def weak_pair(self, cell: Cell, value: int) -> Iterable[tuple[Cell, int]]:
+        if cell not in self._cells_as_set:
+            return
+        index = self.cells.index(cell)
+        possibilities = [x for x in self.possibilities if x[index] == value]
+        for index2, cell2 in enumerate(self.cells):
+            if index2 == index or cell2.is_known:
+                continue
+            legal_values = SmallIntSet(values[index2] for values in possibilities)
+            for value2 in cell2.possible_values - legal_values:
+                yield cell2, value2
+
     def check(self) -> bool:
+        if not self.cells_changed_since_last_invocation(self.__check_cache, self.cells):
+            return False
         features: set[PossibilitiesFeature] = self.grid[self.__class__, "feature"]
         if self not in features:
             return False
@@ -192,7 +207,7 @@ class PossibilitiesFeature(Feature, abc.ABC):
         try:
             _count, m1, m2 = max(((clinginess(f1, f2), f1, f2) for f1, f2 in combinations(sorted_features[:10], 2)
                                  if len(f1.possibilities) * len(f2.possibilities) <= 10_000),
-                                 key = lambda x:x[0])
+                                 key=lambda x: x[0])
             m1.merge_into_me(m2)
             m1.__handle_all_possibilities_use_value()
             return True
@@ -221,6 +236,7 @@ class GroupedPossibilitiesFeature(Feature, abc.ABC):
     possibilities: list[tuple[SmallIntSet, ...]]
     handle_neighbors: bool
     compressed: bool
+    __check_cache: list[int]
 
     def __init__(self, squares: Union[Sequence[Square], str], *,
                  name: Optional[str] = None, neighbors: bool = False, compressed: bool = False) -> None:
@@ -230,6 +246,7 @@ class GroupedPossibilitiesFeature(Feature, abc.ABC):
         self.squares = squares
         self.handle_neighbors = neighbors
         self.compressed = compressed
+        self.__check_cache = []
 
     def initialize(self, grid: Grid) -> None:
         super().initialize(grid)
@@ -257,8 +274,10 @@ class GroupedPossibilitiesFeature(Feature, abc.ABC):
         self.possibilities = possibilities
         self.__update_for_possibilities(False)
 
-    @Feature.check_only_if_changed
     def check(self) -> bool:
+        if not self.cells_changed_since_last_invocation(self.__check_cache, self.cells):
+            return False
+
         old_length = len(self.possibilities)
         if old_length == 1:
             return False

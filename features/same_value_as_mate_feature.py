@@ -77,7 +77,7 @@ class SameValueAsExactlyOneMateFeature(AbstractMateFeature):
             if count >= 2 or (count == 0 and not mates):
                 impossible_values.add(value)
         if impossible_values:
-            print(f'Cell {self.this_cell} must have a mate value')
+            print(f'Cell {self.this_cell} must have exactly one mate value')
             Cell.remove_values_from_cells([self.this_cell], impossible_values)
             return True
         return False
@@ -94,8 +94,7 @@ class SameValueAsMateFeature(AbstractMateFeature):
         assert len(mates) >= 1
         if len(mates) == 1:
             print(f'Cell {self.this_cell} has only one possible mate')
-            mates[0].\
-                set_value_to(value, show=True)
+            mates[0].set_value_to(value, show=True)
             self.done = True
             return True
         return False
