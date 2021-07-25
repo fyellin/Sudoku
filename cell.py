@@ -250,6 +250,15 @@ class Cell:
         return other in self.neighbors or \
                any(other in feature.get_neighbors_for_value(self, value) for feature in self.grid.neighborly_features)
 
+    def get_all_neighbors_for_value(self, value: int) -> frozenset[Cell]:
+        immediate_neighbors = self.neighbors
+        other_neighbors = {x for feature in self.grid.neighborly_features
+                           for x in feature.get_neighbors_for_value(self, value)}
+        if other_neighbors:
+            return immediate_neighbors | other_neighbors
+        else:
+            return immediate_neighbors
+
     def joint_neighbors(self, other: Cell) -> Iterator[Cell]:
         return (cell for cell in self.neighbors if other.is_neighbor(cell))
 
@@ -318,3 +327,5 @@ class CellValue(NamedTuple):
     def to_string(self, truth: bool) -> str:
         char = '=' if truth else '≠'
         return f'{self.cell}{char}{self.value}'
+
+

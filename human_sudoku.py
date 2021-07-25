@@ -19,6 +19,7 @@ class Sudoku:
     features: Sequence[Feature]
     initial_grid: Mapping[tuple[int, int], int]
     draw_verbose: bool
+    __check_hidden_singles_cache: dict[House, list[int]]
 
     def solve(self, puzzle: str, *, features: Sequence[Feature] = (),
               initial_only: bool = False,
@@ -46,6 +47,7 @@ class Sudoku:
             raise
 
     def run_solver(self, *, medusa: bool) -> bool:
+        self.__check_hidden_singles_cache = defaultdict(list)
         checking_features = [f for f in self.features if f.has_check_method()]
 
         while True:
@@ -150,17 +152,8 @@ class Sudoku:
         cell0, *other_candidates = candidates
         # Find all cells that both have the specified value, and are neighbors of all the candidates.
 
-        def get_all_neighbors(cell: Cell) -> frozenset[Cell]:
-            immediate_neighbors = cell.neighbors
-            other_neighbors = {x for feature in self.features
-                               for x in feature.get_neighbors_for_value(cell, value)}
-            if other_neighbors:
-                return immediate_neighbors.union(other_neighbors)
-            else:
-                return immediate_neighbors
-
-        fixers = {cell for cell in get_all_neighbors(cell0) if value in cell.possible_values}
-        fixers.intersection_update(*(get_all_neighbors(cell) for cell in other_candidates))
+        fixers = {cell for cell in cell0.get_all_neighbors_for_value(value) if value in cell.possible_values}
+        fixers.intersection_update(*(cell.get_all_neighbors_for_value(value) for cell in other_candidates))
         if fixers:
             print(f'Intersection Removal: {house} = {value} must be one of {sorted(candidates)}')
             Cell.remove_value_from_cells(fixers, value)
@@ -177,7 +170,8 @@ class Sudoku:
                    # Specifically find all tuples of 2 before trying all tuples of 3, . . . .
                    for count in range(2, 9)
                    # Look at each house
-                   for house in self.grid.houses if len(house.unknown_values) > count
+                   for house in self.grid.houses
+                   if len(house.unknown_values) > count
                    # Look at each subset of size "count" of the unknown values of that house
                    for values in combinations(house.unknown_values, count))
 

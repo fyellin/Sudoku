@@ -20,7 +20,7 @@ class Grid(UserDict):
     def __init__(self, features: Sequence[Feature]) -> None:
         super().__init__()
         self.neighborly_features = [feature for feature in features if feature.has_neighbor_method()]
-        self.weak_pair_features = [feature for feature in features if feature.has_weak_pair()]
+        self.weak_pair_features = [feature for feature in features if feature.has_strong_weak_pair_method()]
         self.matrix = {(row, column): Cell(row, column, self)
                        for row in range(1, 10) for column in range(1, 10)}
         self.features = features
@@ -55,6 +55,7 @@ class Grid(UserDict):
         for house in self.houses:
             house.start()
         for feature in self.features:
+            print(feature, type(feature), isinstance(feature, tuple))
             feature.start()
 
     def is_solved(self) -> bool:

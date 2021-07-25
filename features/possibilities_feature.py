@@ -6,7 +6,7 @@ from itertools import combinations, product
 from typing import Sequence, Mapping, Union, Optional, Iterable
 
 from cell import Cell, House, SmallIntSet
-from feature import Feature, Square
+from feature import Feature, Square, SquaresParseable
 from grid import Grid
 
 
@@ -23,7 +23,7 @@ class PossibilitiesFeature(Feature, abc.ABC):
     is_primary: bool
     __check_cache: list[int]
 
-    def __init__(self, squares: Union[Sequence[Square], str], *,
+    def __init__(self, squares: SquaresParseable, *,
                  name: Optional[str] = None, neighbors: bool = False, duplicates: bool = False) -> None:
         super().__init__(name=name)
         self.squares = self.parse_squares(squares) if isinstance(squares, str) else squares
@@ -238,7 +238,7 @@ class GroupedPossibilitiesFeature(Feature, abc.ABC):
     compressed: bool
     __check_cache: list[int]
 
-    def __init__(self, squares: Union[Sequence[Square], str], *,
+    def __init__(self, squares: SquaresParseable, *,
                  name: Optional[str] = None, neighbors: bool = False, compressed: bool = False) -> None:
         super().__init__(name=name)
         if isinstance(squares, str):

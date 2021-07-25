@@ -12,6 +12,7 @@ from draw_context import DrawContext
 from grid import Grid
 
 Square = tuple[int, int]
+SquaresParseable = Union[str, int, Sequence[Square]]
 CheckFunction = Callable[['Feature'], bool]
 
 
@@ -40,7 +41,10 @@ class Feature(abc.ABC):
     def check_special(self) -> bool:
         return False
 
-    def weak_pair(self, cell: Cell, value: int) -> Iterable[tuple[Cell, int]]:
+    def strong_pair(self, _cell: Cell, _value: int) -> Iterable[tuple[Cell, int]]:
+        return ()
+
+    def weak_pair(self, _cell: Cell, _value: int) -> Iterable[tuple[Cell, int]]:
         return ()
 
     def draw(self, context: DrawContext) -> None:
@@ -64,7 +68,7 @@ class Feature(abc.ABC):
     __DESCRIPTORS = dict(N=(-1, 0), S=(1, 0), E=(0, 1), W=(0, -1), NE=(-1, 1), NW=(-1, -1), SE=(1, 1), SW=(1, -1))
 
     @staticmethod
-    def parse_squares(descriptor: Union[str, int, Sequence[Square]]) -> Sequence[Square]:
+    def parse_squares(descriptor: SquaresParseable) -> Sequence[Square]:
         if isinstance(descriptor, int):
             descriptor = str(descriptor)
         if not isinstance(descriptor, str):
@@ -90,7 +94,7 @@ class Feature(abc.ABC):
         return squares
 
     @staticmethod
-    def parse_square(descriptor: Union[str, int, Square]) -> Square:
+    def parse_square(descriptor: SquaresParseable) -> Square:
         temp = Feature.parse_squares(descriptor)
         assert len(temp) == 1
         return temp[0]
@@ -128,16 +132,16 @@ class Feature(abc.ABC):
 
     @classmethod
     def has_neighbor_method(cls):
-        return (cls.get_neighbors, cls.get_neighbors_for_value) != \
-               (Feature.get_neighbors, Feature.get_neighbors_for_value)
+        return cls.get_neighbors != Feature.get_neighbors or \
+            cls.get_neighbors_for_value != Feature.get_neighbors_for_value
 
     @classmethod
     def has_check_method(cls):
-        return (cls.check, cls.check_special) != (Feature.check, Feature.check_special)
+        return cls.check != Feature.check or cls.check_special != Feature.check_special
 
     @classmethod
-    def has_weak_pair(cls):
-        return cls.weak_pair != Feature.weak_pair
+    def has_strong_weak_pair_method(cls):
+        return cls.weak_pair != Feature.weak_pair or cls.strong_pair != Feature.strong_pair
 
     check_elided: ClassVar[int] = 0
     check_called: ClassVar[int] = 0

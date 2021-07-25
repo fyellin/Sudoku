@@ -578,7 +578,7 @@ def puzzle_09_21() -> tuple[str, Sequence[Feature]]:
 def puzzle_10_17() -> tuple[str, Sequence[Feature]]:
     # noinspection SpellCheckingInspection
     puzzle = "XXXXX3.9.4.1.6.9.4.5.3.8.7.6.5.4X".replace("X", "---").replace("-", "...")
-    return puzzle, [AdjacentNotConsecutiveFeature()]
+    return puzzle, AdjacentNotConsecutiveFeature.create()
 
 
 def puzzle_2021_01_21() -> tuple[str, Sequence[Feature]]:
@@ -650,7 +650,7 @@ def puzzle_2021_07_10() -> tuple[str, Sequence[Feature]]:
 
 def puzzle_2021_07_11() -> tuple[str, Sequence[Feature]]:
     features = [
-        OddsAndEvensFeature(evens=[(1, 4), (2, 2), (2, 9), (8, 1), (8, 1), (8, 8), (9, 6)]),
+        *OddsAndEvensFeature.create(evens=[(1, 4), (2, 2), (2, 9), (8, 1), (8, 1), (8, 8), (9, 6)]),
         BoxOfNineFeature("7,1,NE,E,NE,E,E,NE,E,NE"),
         BoxOfNineFeature("1,3,S,SE,SE,S,S,SE,SE,S"),
         ValuesAroundIntersectionFeature(top_left=(1, 1), values=(2, 3)),

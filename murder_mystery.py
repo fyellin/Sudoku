@@ -1,10 +1,10 @@
 import datetime
 import itertools
-from typing import Sequence, cast, Union, Iterable, Optional
+from typing import Sequence, cast, Iterable, Optional
 
 from cell import House, Cell
 from draw_context import DrawContext
-from feature import Feature, Square
+from feature import Feature, Square, SquaresParseable
 from features.chess_move import KnightsMoveFeature, KingsMoveFeature, QueensMoveFeature, TaxicabFeature
 from features.features import BoxOfNineFeature, AlternativeBoxesFeature, \
     XVFeature, KillerCageFeature, CloneBoxFeature, MessageFeature, PalindromeFeature, AdjacentNotConsecutiveFeature
@@ -17,7 +17,7 @@ from human_sudoku import Sudoku
 class FakeKillerCageFeature(Feature):
     squares: Sequence[Square]
 
-    def __init__(self, squares: Union[Sequence[Square], str]):
+    def __init__(self, squares: SquaresParseable):
         super().__init__()
         self.squares = Feature.parse_squares(squares)
 
@@ -41,7 +41,7 @@ class QKillerCageFeature(PossibilitiesFeature):
     puzzle: int
     criminal: str
 
-    def __init__(self, total: int, squares: Union[Sequence[Square], str], *,
+    def __init__(self, total: int, squares: SquaresParseable, *,
                  puzzle: int, name: str, dr: int = 0, dc: int = 0):
         self.total = total
         self.criminal = name
@@ -72,7 +72,7 @@ class QKillerCageFeature(PossibilitiesFeature):
 class DrawCircleFeature(Feature):
     squares: Sequence[Square]
 
-    def __init__(self, squares: Union[str, Sequence[Square]]):
+    def __init__(self, squares: SquaresParseable):
         super().__init__()
         self.squares = self.parse_squares(squares)
 
@@ -244,7 +244,7 @@ def act_4(box1: int = 1, box2: int = 9) -> tuple[str, Sequence[Feature]]:
     # Success occurs with boxes 1 and 9
 
     features = [
-        CloneBoxFeature(box1, box2),
+        *CloneBoxFeature.create(box1, box2),
         FakeKillerCageFeature("4,4,S,S,NE,NE,S,S"),
         DumpResultFeature(),
     ]
@@ -328,8 +328,8 @@ def act_9() -> tuple[str, Sequence[Feature]]:
     # KillerCageFeature(12, [(3, 5), (3, 6), (4, 6), (4, 5)])
 
     features = [
-        MessageFeature("HELLSERVELONG", "15,SE,SE,SE,44,SE,SE,SE,SE,63,SE,SE,SE"),
-        PalindromeFeature("43,NW,S,S,S,S,NE,E,SE,NE,E,SE,N,N,N,N,SW,W,NW,SW,S"),
+        *MessageFeature.create("HELLSERVELONG", "15,SE,SE,SE,44,SE,SE,SE,SE,63,SE,SE,SE"),
+        *PalindromeFeature.create("43,NW,S,S,S,S,NE,E,SE,NE,E,SE,N,N,N,N,SW,W,NW,SW,S"),
         FakeKillerCageFeature("35,E,S,W"),
         DumpResultFeature(),
         # SameValueFeature("62,55"),
@@ -407,7 +407,7 @@ def act_10() -> tuple[str, Sequence[Feature]]:
 def finale() -> tuple[str, Sequence[Feature]]:
     features = [
         KnightsMoveFeature(),
-        AdjacentNotConsecutiveFeature(),
+        *AdjacentNotConsecutiveFeature.create(),
         AlternativeBoxesFeature(["11,S,S,S,SE,N,N,N,SE", "12,E,E,E,SE,W,W,W,SE", "16,E,E,E,SW,W,SW,E,E",
                                  "35,SW,E,SW,E,E,SW,E,SW", "29,S,S,S,NW,W,W,SE,S", "43,S,SE,W,W,NW,S,S,S",
                                  "91,E,E,E,NW,W,N,E,E", "76,SE,W,W,W,SE,E,E,E", "58,S,E,S,W,W,SE,E,S"]),
@@ -428,11 +428,11 @@ def finale() -> tuple[str, Sequence[Feature]]:
 def main():
     start = datetime.datetime.now()
     puzzles = [
-        # act_1,
-        # act_2,
-        # act_3, act_4, act_5, act_6, act_7, act_8,
-        # act_9,
-        # act_10,
+        act_1,
+        act_2,
+        act_3, act_4, act_5, act_6, act_7, act_8,
+        act_9,
+        act_10,
         finale
     ]
     for puzzle in puzzles:

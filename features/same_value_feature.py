@@ -3,11 +3,11 @@ from __future__ import annotations
 import colorsys
 import functools
 import operator
-from typing import Sequence, Union, Optional
+from typing import Optional
 
 from cell import Cell
 from draw_context import DrawContext
-from feature import Feature, Square
+from feature import Feature, Square, SquaresParseable
 from grid import Grid
 
 
@@ -17,7 +17,7 @@ class SameValueFeature(Feature):
     is_primary: bool
     __check_cache: list[int]
 
-    def __init__(self, squares: Union[Sequence[Square], str], name: Optional[str] = None) -> None:
+    def __init__(self, squares: SquaresParseable, name: Optional[str] = None) -> None:
         self.squares = list(self.parse_squares(squares))
         assert len(self.squares) > 1
         name = name or '='.join(f'r{r}c{c}' for r, c in self.squares)

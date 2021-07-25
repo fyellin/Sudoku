@@ -4,7 +4,7 @@ from typing import Sequence, Tuple, List, Mapping, Iterable, Set, cast
 
 from cell import Cell, House, SmallIntSet
 from draw_context import DrawContext
-from feature import Feature, Square, MultiFeature
+from feature import Feature, Square
 from features.chess_move import KnightsMoveFeature
 from features.features import AllValuesPresentFeature, AdjacentRelationshipFeature, BoxOfNineFeature, \
     LimitedValuesFeature
@@ -14,16 +14,18 @@ from grid import Grid
 from human_sudoku import Sudoku
 
 
-class MalvoloRingFeature(MultiFeature):
+class MalvoloRingFeature:
     SQUARES = ((2, 4), (2, 5), (2, 6), (3, 7), (4, 8), (5, 8), (6, 8), (7, 7),
                (8, 6), (8, 5), (8, 4), (7, 3), (6, 2), (5, 2), (4, 2), (3, 3))
 
-    def __init__(self) -> None:
-        super().__init__([self.SumToSquareCubeFeature(), AllValuesPresentFeature(self.SQUARES)])
+    @classmethod
+    def create(cls) -> Sequence[Feature]:
+        return [cls.SumToSquareCubeFeature(cls.SQUARES),
+                AllValuesPresentFeature(cls.SQUARES)]
 
     class SumToSquareCubeFeature(AdjacentRelationshipFeature):
-        def __init__(self,) -> None:
-            super().__init__(MalvoloRingFeature.SQUARES, name="Malvolo Ring", cyclic=True)
+        def __init__(self, squares: Sequence[Square]) -> None:
+            super().__init__(squares, name="Malvolo Ring", cyclic=True)
 
         def match(self, digit1: int, digit2: int) -> bool:
             return digit1 + digit2 in (4, 8, 9, 16)
@@ -38,9 +40,9 @@ class MalvoloRingFeature(MultiFeature):
                 return True
             return False
 
-    def draw(self, context: DrawContext) -> None:
-        radius = math.hypot(2.5, 1.5)
-        context.draw_circle((5.5, 5.5), radius=radius, fill=False, facecolor='black')
+        def draw(self, context: DrawContext) -> None:
+            radius = math.hypot(2.5, 1.5)
+            context.draw_circle((5.5, 5.5), radius=radius, fill=False, facecolor='black')
 
 
 class GermanSnakeFeature(AdjacentRelationshipFeature):
@@ -212,7 +214,7 @@ def puzzle2() -> None:
     puzzle = '.9...16....................8............9............8....................16...8.'
     puzzle = merge(puzzle, previous)
     sudoku = Sudoku()
-    sudoku.solve(puzzle, features=[MalvoloRingFeature()])
+    sudoku.solve(puzzle, features=MalvoloRingFeature.create())
 
 
 def puzzle3() -> None:
