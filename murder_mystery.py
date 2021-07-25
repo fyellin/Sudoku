@@ -206,7 +206,7 @@ def act_2() -> tuple[str, Sequence[Feature]]:
         FakeKillerCageFeature("6,7,SW,E,E,SW"),
         *thermometers,
         DumpResultFeature(),
-        # Helper()
+        Helper()
     ]
 
     old_grid = "968145237735629184241837965853716492426953871179482356582374619617298543394561728"
@@ -432,16 +432,16 @@ def finale() -> tuple[str, Sequence[Feature]]:
 def main():
     start = datetime.datetime.now()
     puzzles = [
-        act_1,
+        # act_1,
         act_2,
-        act_3, act_4, act_5, act_6, act_7, act_8,
-        act_9,
-        act_10, finale
+        #act_3, act_4, act_5, act_6, act_7, act_8,
+        # act_9,
+        # act_10, finale
     ]
     for puzzle in puzzles:
         print('*************', puzzle, "*****************")
         grid, features = puzzle()
-        result = Sudoku().solve(grid, features=features, medusa=True)
+        result = Sudoku().solve(grid, features=features, medusa=False)
         assert result
     end = datetime.datetime.now()
     print(end - start)

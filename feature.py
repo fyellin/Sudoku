@@ -4,7 +4,7 @@ import abc
 import atexit
 from collections import defaultdict, deque
 from collections.abc import Iterable, Sequence, Callable
-from itertools import product
+from itertools import product, zip_longest
 from typing import Any, ClassVar, Union, cast, Optional
 
 from cell import Cell, House
@@ -143,7 +143,7 @@ class Feature(abc.ABC):
             cells = cast(Sequence[Cell], getattr(self, 'cells'))
             if self in saved_info:
                 generator = (-1 if cell.is_known else cell.bitmap for cell in cells)
-                if all(x == y for x, y in zip(saved_info[self], generator)):
+                if all(x == y for x, y in zip_longest(saved_info[self], generator)):
                     Feature.check_elided += 1
                     return False
             saved_info[self] = [-1 if cell.is_known else cell.bitmap for cell in cells]

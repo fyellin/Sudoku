@@ -46,7 +46,7 @@ class PossibilitiesFeature(Feature, abc.ABC):
             self.grid[(self.__class__, "feature")] = features = set()
         features.add(self)
 
-    def _initialize_XXX(self, other: PossibilitiesFeature) -> None:
+    def __initialize_after_merge(self, other: PossibilitiesFeature) -> None:
         self.cells += other.cells
         self._cells_as_set = set(self.cells)
         house_to_indexes = defaultdict(list)
@@ -92,14 +92,6 @@ class PossibilitiesFeature(Feature, abc.ABC):
 
         change |= self.__handle_all_possibilities_use_value()
         return change
-
-    def __check_XXX(self):
-        old_length = len(self.possibilities)
-        self.possibilities = [values for values in self.possibilities
-                              if all(value in square.possible_values for value, square in zip(values, self.cells))]
-        if len(self.possibilities) != old_length:
-            self.__update_for_possibilities()
-        self.__handle_all_possibilities_use_value()
 
     def check_special(self) -> bool:
         features: set[PossibilitiesFeature] = self.grid[self.__class__, "feature"]
@@ -185,18 +177,31 @@ class PossibilitiesFeature(Feature, abc.ABC):
         return possibilities
 
     def check_join_two(self):
+        def clinginess(f1: PossibilitiesFeature, f2: PossibilitiesFeature) -> int:
+            count = 0
+            for cell in f2.cells:
+                if cell in f1._cells_as_set:
+                    count += 9
+                else:
+                    count += len(cell.neighbors & f1._cells_as_set)
+            return count
+
         features: set[PossibilitiesFeature] = self.grid[self.__class__, "feature"]
         sorted_features = sorted((x for x in features if len(x.possibilities) > 1),
                                  key=lambda f: len(f.possibilities))
-        if len(features) >= 2:
-            sorted_features[0].merge_into_me(sorted_features[1])
-            sorted_features[0].__check_XXX()
+        try:
+            _count, m1, m2 = max(((clinginess(f1, f2), f1, f2) for f1, f2 in combinations(sorted_features[:10], 2)
+                                 if len(f1.possibilities) * len(f2.possibilities) <= 10_000),
+                                 key = lambda x:x[0])
+            m1.merge_into_me(m2)
+            m1.__handle_all_possibilities_use_value()
             return True
-        return False
+        except ValueError:
+            return False
 
     def merge_into_me(self, other: PossibilitiesFeature):
         length1, length2 = len(self.possibilities), len(other.possibilities)
-        self._initialize_XXX(other)
+        self.__initialize_after_merge(other)
 
         my_possibilities = [item1 + item2 for item1, item2 in product(self.possibilities, other.possibilities)]
         my_possibilities = self.__remove_bad_neighbors(my_possibilities)

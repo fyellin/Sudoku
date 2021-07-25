@@ -11,6 +11,7 @@ import numpy as np
 if TYPE_CHECKING:
     from feature import Square
 
+
 class DrawContext(UserDict):
     _axis: Axes
     done: bool
@@ -98,7 +99,7 @@ class DrawContext(UserDict):
                 #  1) The wall makes a right turn, staying with the current square
                 #  2) The wall continues in its direction, going into the square to our right
                 #  3) The wall makes a left turn, continuing in the square diagonally ahead to the right.
-                next1 = (row, column, right_dr, right_dc)   # right
+                next1 = (row, column, right_dr, right_dc)  # right
                 next2 = (row + right_dr, column + right_dc, ahead_dr, ahead_dc)  # straight
                 next3 = (row + right_dr + ahead_dr, column + right_dc + ahead_dc, -right_dr, -right_dc)  # left
 
