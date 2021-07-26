@@ -432,8 +432,8 @@ def main():
         # act_2,
         # act_3, act_4, act_5, act_6, act_7, act_8,
         act_9,
-        act_10,
-        finale
+        # act_10,
+        # finale
     ]
     for puzzle in puzzles:
         print('*************', puzzle, "*****************")

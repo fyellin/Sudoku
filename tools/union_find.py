@@ -1,4 +1,4 @@
-from collections import Hashable
+from collections import Hashable, Iterable
 from typing import TypeVar, Generic
 
 Node = TypeVar('Node', bound=Hashable)
@@ -11,6 +11,9 @@ class UnionFind(Generic[Node]):
     def __init__(self):
         self.parent = {}
         self.rank = {}
+
+    def all_nodes(self) -> Iterable[Node]:
+        return self.parent.keys()
 
     def find(self, x: Node):
         parent = self.parent

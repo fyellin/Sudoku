@@ -3,6 +3,7 @@ from __future__ import annotations
 import colorsys
 import functools
 import operator
+from collections import Sequence, defaultdict
 from typing import Optional
 
 from cell import Cell
@@ -14,14 +15,16 @@ from grid import Grid
 class SameValueFeature(Feature):
     squares: list[Square]
     cells: list[Cell]
-    is_primary: bool
+    features: set[SameValueFeature]
+
+    master: Optional[_SaveValueSupervisor]
     __check_cache: list[int]
 
     def __init__(self, squares: SquaresParseable, name: Optional[str] = None) -> None:
         self.squares = list(self.parse_squares(squares))
         assert len(self.squares) > 1
         name = name or '='.join(f'r{r}c{c}' for r, c in self.squares)
-        self.is_primary = False
+        self.master = None
         self.__check_cache = []
         super().__init__(name=name)
 
@@ -30,20 +33,19 @@ class SameValueFeature(Feature):
         self.cells = [self @ square for square in self.squares]
         features = self.grid.get((self.__class__, "feature"), None)
         if not features:
-            self.is_primary = True
             self.grid[(self.__class__, "feature")] = features = set()
+            self.master = _SaveValueSupervisor(features, grid)
         features.add(self)
+        self.features = features
 
     def start(self) -> None:
-        super().start()
-        if self.is_primary:
-            features = self.grid[(self.__class__, "feature")]
-            _SameValueFeatureInitializer(self.grid, features).run()
+        if self.master:
+            self.master.start()
 
     def check(self) -> bool:
-        if not self.cells_changed_since_last_invocation(self.__check_cache, self.cells):
+        if self not in self.features:
             return False
-        if self not in self.grid[(self.__class__, "feature")]:
+        if not self.cells_changed_since_last_invocation(self.__check_cache, self.cells):
             return False
         result = functools.reduce(operator.__and__, (cell.possible_values for cell in self.cells))
         cells_to_update = [cell for cell in self.cells if cell.possible_values != result]
@@ -53,38 +55,41 @@ class SameValueFeature(Feature):
         return False
 
     def check_special(self) -> bool:
-        if self not in self.grid[(self.__class__, "feature")]:
+        if self not in self.features:
             return False
-        neighbors = self.cells[0].neighbors  # From reset() above, all the cells have the same neighbors
+        neighbors = self.cells[0].neighbors  # All cells have the same neighbors and the same value
         for value in self.cells[0].possible_values:
             for house in self.grid.houses:
                 if value not in house.unknown_values:
                     continue
                 value_in_house = {cell for cell in house.unknown_cells if value in cell.possible_values}
                 if value_in_house <= neighbors:
+                    # If we set ourselves to that value, then every occurrence of that value in the given house
+                    # would be eliminated as they are all our neighbors
                     print(f'{self} ≠ {value} because it would eliminate all {value}s from {house}')
                     Cell.remove_value_from_cells(self.cells, value, show=False)
                     return True
         return False
 
     def draw(self, context: DrawContext) -> None:
-        if self.is_primary:
-            features = self.grid[(self.__class__, "feature")]
-            for feature in features:
-                hue = (hash(feature.name) % 1000) / 1000
-                color = colorsys.hsv_to_rgb(hue, 1.0, 1.0)
-                for y, x in feature.squares:
-                    context.draw_circle((x + .5, y + .2), radius=.1, fill=True, color=color)
+        if not self.master:
+            return
+        for feature in self.features:
+            hue = (hash(feature.name) % 1000) / 1000
+            color = colorsys.hsv_to_rgb(hue, 1.0, 1.0)
+            for y, x in feature.squares:
+                context.draw_circle((x + .5, y + .2), radius=.1, fill=True, color=color)
 
 
-class _SameValueFeatureInitializer:
+class _SaveValueSupervisor:
     features: set[SameValueFeature]
+    grid: Grid
 
-    def __init__(self, grid: Grid, features: set[SameValueFeature]):
-        self.grid = grid
+    def __init__(self, features: set[SameValueFeature], grid: Grid):
         self.features = features
+        self.grid = grid
 
-    def run(self):
+    def start(self):
         self.verify_neighbors()
         self.merge_overlapping_features_and_set_neighbors()
         self.expand_features()
@@ -96,9 +101,13 @@ class _SameValueFeatureInitializer:
         for feature in sorted(features, key=lambda f: len(f.cells)):
             neighbors = frozenset.union(*(cell.neighbors for cell in feature.cells))
             self.set_all_neighbors(feature, neighbors)
-            merged_features = {cell_to_feature[cell]: cell for cell in feature.cells if cell in cell_to_feature}
-            for merged_feature, shared_cell in merged_features.items():
-                print(f'Merging {merged_feature} into {feature} because it shares {shared_cell}')
+            merged_feature_and_cells = defaultdict(list)
+            for cell in feature.cells:
+                if cell in cell_to_feature:
+                    merged_feature_and_cells[cell_to_feature[cell]].append(cell)
+            for merged_feature, shared_cells in merged_feature_and_cells.items():
+                print(f'Merging {merged_feature} into {feature} because it shares',
+                      ", ".join(str(cell) for cell in shared_cells))
                 self.merge_into_feature(feature, merged_feature)
             cell_to_feature.update((cell, feature) for cell in feature.cells)
 
@@ -138,20 +147,22 @@ class _SameValueFeatureInitializer:
     def add_square_to_feature(self, feature, cell: Cell) -> None:
         assert cell not in feature.cells
         neighbors = feature.cells[0].neighbors | cell.neighbors
-        feature.cells.append(cell)
-        feature.squares.append(cell.index)
+        feature.cells += [cell]
+        feature.squares += [cell.index]
         self.set_all_neighbors(feature, neighbors)
 
     def merge_into_feature(self, feature: SameValueFeature, other_feature: SameValueFeature) -> None:
         self.features.remove(other_feature)
         my_squares = set(feature.squares)
-        neighbors = feature.cells[0].neighbors | other_feature.cells[0].neighbors
-        for other_square, other_cell in zip(other_feature.squares, other_feature.cells):
-            if other_square not in my_squares:
-                feature.squares.append(other_square)
-                feature.cells.append(other_cell)
-                my_squares.add(other_square)
-        self.set_all_neighbors(feature, neighbors)
+        added_stuff = [(other_square, other_cell)
+                       for other_square, other_cell in zip(other_feature.squares, other_feature.cells)
+                       if other_square not in my_squares]
+        if added_stuff:
+            neighbors = feature.cells[0].neighbors | other_feature.cells[0].neighbors
+            added_squares, added_cells = zip(*added_stuff)
+            feature.squares += added_squares
+            feature.cells += added_cells
+            self.set_all_neighbors(feature, neighbors)
 
     @staticmethod
     def set_all_neighbors(feature, neighbors: frozenset[Cell]):

@@ -649,7 +649,7 @@ class MessageFeature:
             BoxOfNineFeature(squares=[squares[0] for squares in mapping.values()], show=False),
             *[SameValueFeature(squares, name=f'Letter "{letter}"')
               for letter, squares in mapping.items() if len(squares) > 1],
-            draw_only_feature
+            draw_only_feature,
         ]
 
     @classmethod
@@ -671,9 +671,6 @@ class DrawOnlyFeature(Feature):
     def __init__(self, drawer: Callable[[DrawContext], None]) -> None:
         super().__init__()
         self.drawer = drawer
-
-    def initialize(self, grid) -> None:
-        super().initialize(grid)
 
     def draw(self, context: DrawContext) -> None:
         self.drawer(context)
