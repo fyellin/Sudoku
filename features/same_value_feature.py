@@ -3,7 +3,7 @@ from __future__ import annotations
 import colorsys
 import functools
 import operator
-from collections import Sequence, defaultdict
+from collections import defaultdict
 from typing import Optional
 
 from cell import Cell
@@ -17,30 +17,32 @@ class SameValueFeature(Feature):
     cells: list[Cell]
     features: set[SameValueFeature]
 
-    master: Optional[_SaveValueSupervisor]
+    supervisor: Optional[_SameValueSupervisor]
     __check_cache: list[int]
 
     def __init__(self, squares: SquaresParseable, name: Optional[str] = None) -> None:
         self.squares = list(self.parse_squares(squares))
         assert len(self.squares) > 1
         name = name or '='.join(f'r{r}c{c}' for r, c in self.squares)
-        self.master = None
+        self.supervisor = None
         self.__check_cache = []
         super().__init__(name=name)
 
     def initialize(self, grid: Grid) -> None:
         super().initialize(grid)
         self.cells = [self @ square for square in self.squares]
-        features = self.grid.get((self.__class__, "feature"), None)
+
+        key = (SameValueFeature, "supervisor")
+        features = self.grid.get(key, None)
         if not features:
-            self.grid[(self.__class__, "feature")] = features = set()
-            self.master = _SaveValueSupervisor(features, grid)
+            self.grid[key] = features = set()
+            self.supervisor = _SameValueSupervisor(features, grid)
         features.add(self)
         self.features = features
 
     def start(self) -> None:
-        if self.master:
-            self.master.start()
+        if self.supervisor:
+            self.supervisor.start()
 
     def check(self) -> bool:
         if self not in self.features:
@@ -72,7 +74,7 @@ class SameValueFeature(Feature):
         return False
 
     def draw(self, context: DrawContext) -> None:
-        if not self.master:
+        if not self.supervisor:
             return
         for feature in self.features:
             hue = (hash(feature.name) % 1000) / 1000
@@ -81,7 +83,7 @@ class SameValueFeature(Feature):
                 context.draw_circle((x + .5, y + .2), radius=.1, fill=True, color=color)
 
 
-class _SaveValueSupervisor:
+class _SameValueSupervisor:
     features: set[SameValueFeature]
     grid: Grid
 

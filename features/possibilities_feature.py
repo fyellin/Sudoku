@@ -2,150 +2,199 @@ from __future__ import annotations
 
 import abc
 from collections import defaultdict
-from itertools import combinations, product
+from itertools import combinations, product, chain
 from typing import Sequence, Mapping, Union, Optional, Iterable, Callable
 
 from cell import Cell, House, SmallIntSet
 from feature import Feature, Square, SquaresParseable
 from grid import Grid
+from tools.union_find import Node
+
+Possibility = tuple[int, ...]
 
 
 class PossibilitiesFeature(Feature, abc.ABC):
     """We are given a set of possible values for a set of cells"""
     squares: Sequence[Square]
     cells: Sequence[Cell]
-    possibilities: list[tuple[int, ...]]
+    cells_as_set: set[Cell]
+    possibilities: list[Possibility]
     handle_neighbors: bool
     handle_duplicates: bool
-    _houses_to_indexes: Mapping[House, list[int]]
-    _cells_as_set: set[Cell]
-    _value_only_in_feature: dict[House, SmallIntSet]
-    is_primary: bool
+    features: set[PossibilitiesFeature]
+    __supervisor: _PossibilitiesSupervisor
+    __value_only_in_feature: dict[House, SmallIntSet]
+    __houses_to_indexes: Mapping[House, list[int]]
+    __verified_cells: set[Cell]
     __check_cache: list[int]
 
+    @classmethod
+    def create(cls, squares: SquaresParseable, *,
+               possibility_function: Callable[[], Iterable[Possibility]],
+               name: Optional[str] = None, neighbors: bool = False,
+               duplicates: bool = False) -> Sequence[PossibilitiesFeature]:
+        return [
+            PossibilitiesFeature(squares, possibility_function=possibility_function,
+                                 name=name, neighbors=neighbors, duplicates=duplicates)
+        ]
+
     def __init__(self, squares: SquaresParseable, *,
+                 possibility_function: Optional[Callable[[], Iterable[Possibility]]] = None,
                  name: Optional[str] = None, neighbors: bool = False, duplicates: bool = False) -> None:
         super().__init__(name=name)
         self.squares = self.parse_squares(squares) if isinstance(squares, str) else squares
+        self.possibility_function = possibility_function or self.get_possibilities
         self.handle_neighbors = neighbors
         self.handle_duplicates = duplicates
-        self._value_only_in_feature = defaultdict(SmallIntSet)
-        self.is_primary = False
+        self.__value_only_in_feature = defaultdict(SmallIntSet)
         self.__check_cache = []
+        self.__verified_cells = set()
 
-    def initialize(self, grid: Grid) -> None:
+    def initialize(self, grid: Grid, synthetic: bool = False) -> None:
         super().initialize(grid)
         self.cells = [grid.matrix[square] for square in self.squares]
-        self._cells_as_set = set(self.cells)
+        self.__finish_initialize()
+
+        key = (PossibilitiesFeature, "supervisor")
+        supervisor = self.grid.get(key, None)
+        if synthetic:
+            # We can't take ownership since the system never calls us
+            assert supervisor
+        elif not supervisor:
+            self.grid[key] = supervisor = _PossibilitiesSupervisor(self, grid)
+        else:
+            supervisor.owner = self
+        self.__supervisor = supervisor
+        self.features = supervisor.features
+        self.features.add(self)
+
+    def __finish_initialize(self):
+        self.cells_as_set = set(self.cells)
         house_to_indexes = defaultdict(list)
         for index, cell in enumerate(self.cells):
             for house in cell.houses:
                 house_to_indexes[house].append(index)
-        self._houses_to_indexes = house_to_indexes
-        features = self.grid.get((self.__class__, "feature"), None)
-        if not features:
-            self.is_primary = True
-            self.grid[(self.__class__, "feature")] = features = set()
-        features.add(self)
+        self.__houses_to_indexes = house_to_indexes
 
-    def __initialize_after_merge(self, other: PossibilitiesFeature) -> None:
-        self.cells += other.cells
-        self._cells_as_set = set(self.cells)
-        house_to_indexes = defaultdict(list)
-        for index, cell in enumerate(self.cells):
-            for house in cell.houses:
-                house_to_indexes[house].append(index)
-        self._houses_to_indexes = house_to_indexes
-        for house, values in other._value_only_in_feature.items():
-            self._value_only_in_feature[house] |= values
+    def get_possibilities(self) -> Iterable[tuple[int, ...]]:
+        return ()
 
-    @abc.abstractmethod
-    def get_possibilities(self) -> Iterable[tuple[int, ...]]: ...
-
-    def start(self) -> None:
-        possibilities = list(self.get_possibilities())
+    def start(self, verbose: bool = False) -> None:
+        possibilities = list(self.possibility_function())
         if self.handle_duplicates:
             possibilities = list(set(possibilities))
         if self.handle_neighbors:
             possibilities = self.__remove_bad_neighbors(possibilities)
         print(f'{self} has {len(possibilities)} possibilities')
         self.possibilities = possibilities
-        self.__update_for_possibilities(False)
-
-    def weak_pair(self, cell: Cell, value: int) -> Iterable[tuple[Cell, int]]:
-        if cell not in self._cells_as_set:
-            return
-        index = self.cells.index(cell)
-        possibilities = [x for x in self.possibilities if x[index] == value]
-        for index2, cell2 in enumerate(self.cells):
-            if index2 == index or cell2.is_known:
-                continue
-            legal_values = SmallIntSet(values[index2] for values in possibilities)
-            for value2 in cell2.possible_values - legal_values:
-                yield cell2, value2
+        self.__update_cells_for_possibilities(verbose)
 
     def check(self) -> bool:
-        if not self.cells_changed_since_last_invocation(self.__check_cache, self.cells):
-            return False
-        features: set[PossibilitiesFeature] = self.grid[self.__class__, "feature"]
-        if self not in features:
-            return False
-        old_length = len(self.possibilities)
-        if old_length == 1:
-            features.remove(self)
-            return False
+        if self in self.features and self.cells_changed_since_last_invocation(self.__check_cache, self.cells):
+            old_length = len(self.possibilities)
+            if old_length == 1:
+                self.features.remove(self)
+            else:
+                # Only keep those possibilities that are still viable
+                possibilities = [values for values in self.possibilities
+                                 if all(value in square.possible_values for value, square in zip(values, self.cells))]
+                if len(possibilities) != old_length:
+                    print(f"Possibilities for {self} reduced from {old_length} to {len(possibilities)}")
+                    self.possibilities = possibilities
+                    change = self.__update_cells_for_possibilities()
+                    change |= self.__handle_all_possibilities_use_value_in_house()
+                    if change:
+                        return True
 
-        # Only keep those possibilities that are still viable
-        self.possibilities = [values for values in self.possibilities
-                              if all(value in square.possible_values for value, square in zip(values, self.cells))]
-
-        if len(self.possibilities) == old_length:
-            return False
-        else:
-            print(f"Possibilities for {self} reduced from {old_length} to {len(self.possibilities)}")
-            change = self.__update_for_possibilities()
-
-        change |= self.__handle_all_possibilities_use_value()
-        return change
+        if self.__supervisor.owner == self:
+            return any(feature.check() for feature in self.__supervisor.added_features)
 
     def check_special(self) -> bool:
-        features: set[PossibilitiesFeature] = self.grid[self.__class__, "feature"]
+        if self in self.features:
+            if self.__handle_value_in_house_only_occurs_in_possibility():
+                return True
 
-        if self in features and self.__force_value_into_feature():
-            return True
-        if self.is_primary and self.check_join_two():
-            return True
+        if self.__supervisor.owner == self:
+            if any(feature.check_special() for feature in self.__supervisor.added_features):
+                return True
+
+        if self.__supervisor.owner == self:
+            return self.__supervisor.check_special()
+
         return False
 
-    def __update_for_possibilities(self, show: bool = True) -> bool:
-        updated = False
+    def weak_pair(self, cell: Cell, value: int) -> Iterable[tuple[Cell, int]]:
+        if self in self.features and cell in self.cells_as_set:
+            index = self.cells.index(cell)
+            # A weak pair says both conditions can't simultaneously be true.  Assume the cell has the indicated index
+            # and see which values in other cells are no longer possibilities that had been before.
+            possibilities = [possibility for possibility in self.possibilities if possibility[index] == value]
+            for index2, cell2 in enumerate(self.cells):
+                if index2 == index or cell2.is_known:
+                    continue
+                legal_values = SmallIntSet(values[index2] for values in possibilities)
+                for value2 in cell2.possible_values - legal_values:
+                    # By setting cell=value, it is no longer possible that cell2=value2
+                    yield cell2, value2
+
+        if self.__supervisor.owner == self:
+            for feature in self.__supervisor.added_features:
+                yield from feature.weak_pair(cell, value)
+
+    def simplify(self):
+        seen = set()
+        deleted = set()
+        for index, cell in enumerate(self.cells):
+            if cell.is_known or cell in seen:
+                deleted.add(index)
+            seen.add(cell)
+
+        def trim(a_tuple: Sequence[Node]) -> tuple[Node, ...]:
+            return tuple(item for ix, item in enumerate(a_tuple) if ix not in deleted)
+
+        if not deleted:
+            return
+        self.cells = trim(self.cells)
+        self.squares = trim(self.squares)
+        self.possibilities = list(map(trim, self.possibilities))
+        self.__finish_initialize()
+
+    def __update_cells_for_possibilities(self, show: bool = True) -> bool:
+        changed = False
         for index, cell in enumerate(self.cells):
             if cell.is_known:
+                if cell not in self.__verified_cells:
+                    assert all(values[index] == cell.known_value for values in self.possibilities)
+                    self.__verified_cells.add(cell)
                 continue
             legal_values = SmallIntSet(values[index] for values in self.possibilities)
             if not cell.possible_values <= legal_values:
-                updated = True
-                Cell.keep_values_for_cell([cell], legal_values, show=show)
-        return updated
+                changed = True
+                if len(legal_values) == 1:
+                    cell.set_value_to(legal_values.unique(), show=True)
+                    self.__verified_cells.add(cell)
+                else:
+                    Cell.keep_values_for_cell([cell], legal_values, show=show)
+        return changed
 
-    def __handle_all_possibilities_use_value(self) -> bool:
+    def __handle_all_possibilities_use_value_in_house(self) -> bool:
         """
         If all possibilities force a specific value for a house to occur in this feature, then that value
         must inside this feature, and all occurrences of that value inside the house but outside the feature can
         be removed.
         """
         change = False
-        for house, indexes in self._houses_to_indexes.items():
-            locked_values = house.unknown_values - self._value_only_in_feature[house]
+        for house, indexes in self.__houses_to_indexes.items():
+            locked_values = house.unknown_values - self.__value_only_in_feature[house]
             for possibility in self.possibilities:
                 locked_values &= SmallIntSet(possibility[i] for i in indexes)
                 if not locked_values:
                     break
 
             else:
-                self._value_only_in_feature[house] |= locked_values
+                self.__value_only_in_feature[house] |= locked_values
                 affected_cells = {cell for cell in house.unknown_cells
-                                  if cell not in self._cells_as_set
+                                  if cell not in self.cells_as_set
                                   if not cell.possible_values.isdisjoint(locked_values)}
                 if affected_cells:
                     print(f'Values {locked_values} locked into {self} in {house}')
@@ -153,7 +202,7 @@ class PossibilitiesFeature(Feature, abc.ABC):
                     change = True
         return change
 
-    def __force_value_into_feature(self) -> bool:
+    def __handle_value_in_house_only_occurs_in_possibility(self) -> bool:
         """
         If for a specific house, the location of a value doesn't occur outside this feature, then the value must
         occur as part of this feature.  We can prune the possibilities that not put the value somewhere inside
@@ -161,17 +210,17 @@ class PossibilitiesFeature(Feature, abc.ABC):
         """
         updated = False
         length = len(self.possibilities)
-        for house, house_indexes in self._houses_to_indexes.items():
+        for house, house_indexes in self.__houses_to_indexes.items():
             # get list of all values that can be found in house cells outside this feature
-            found_outside = {value for cell in house.unknown_cells if cell not in self._cells_as_set
+            found_outside = {value for cell in house.unknown_cells if cell not in self.cells_as_set
                              for value in cell.possible_values}
             # These are the values that must be inside the feature
             required_inside = house.unknown_values - found_outside
             for value in required_inside:
-                if value in self._value_only_in_feature[house]:
+                if value in self.__value_only_in_feature[house]:
                     # We've already ensured that this value occurs only inside this feature.  Ignore
                     continue
-                self._value_only_in_feature[house].add(value)
+                self.__value_only_in_feature[house].add(value)
                 self.possibilities = [values for values in self.possibilities
                                       if any(values[i] == value for i in house_indexes)]
                 if len(self.possibilities) != length:
@@ -180,7 +229,7 @@ class PossibilitiesFeature(Feature, abc.ABC):
                     updated = True
                     length = len(self.possibilities)
         if updated:
-            return self.__update_for_possibilities()
+            return self.__update_cells_for_possibilities()
 
     def __remove_bad_neighbors(self, possibilities: Sequence[tuple[int, ...]]) -> list[tuple[int, ...]]:
         for (index1, cell1), (index2, cell2) in combinations(enumerate(self.cells), 2):
@@ -191,42 +240,71 @@ class PossibilitiesFeature(Feature, abc.ABC):
                 possibilities = [p for p in possibilities if p[index1] != p[index2]]
         return possibilities
 
-    def check_join_two(self):
-        def clinginess(f1: PossibilitiesFeature, f2: PossibilitiesFeature) -> int:
+
+class _PossibilitiesSupervisor:
+    owner: PossibilitiesFeature
+    features: set[PossibilitiesFeature]
+    grid: Grid
+    added_features: list[PossibilitiesFeature]
+    creation_count: int
+
+    def __init__(self, owner: PossibilitiesFeature, grid: Grid):
+        self.owner = owner
+        self.features = set()
+        self.grid = grid
+        self.added_features = []
+        self.creation_count = 0
+
+    def check_special(self) -> bool:
+        def closeness(f1: PossibilitiesFeature, f2: PossibilitiesFeature) -> int:
             count = 0
             for cell in f2.cells:
-                if cell in f1._cells_as_set:
+                if cell in f1.cells_as_set:
                     count += 9
                 else:
-                    count += len(cell.neighbors & f1._cells_as_set)
+                    count += len(cell.neighbors & f1.cells_as_set)
             return count
 
-        features: set[PossibilitiesFeature] = self.grid[self.__class__, "feature"]
-        sorted_features = sorted((x for x in features if len(x.possibilities) > 1),
+        sorted_features = sorted((x for x in self.features if len(x.possibilities) > 1),
                                  key=lambda f: len(f.possibilities))
         try:
-            _count, m1, m2 = max(((clinginess(f1, f2), f1, f2) for f1, f2 in combinations(sorted_features[:10], 2)
+            _count, m1, m2 = max(((closeness(f1, f2), f1, f2) for f1, f2 in combinations(sorted_features[:10], 2)
                                  if len(f1.possibilities) * len(f2.possibilities) <= 10_000),
                                  key=lambda x: x[0])
-            m1.merge_into_me(m2)
-            m1.__handle_all_possibilities_use_value()
-            return True
         except ValueError:
             return False
 
-    def merge_into_me(self, other: PossibilitiesFeature):
-        length1, length2 = len(self.possibilities), len(other.possibilities)
-        self.__initialize_after_merge(other)
+        merged_feature = self.merge_features(m1, m2)
+        self.features -= {m1, m2}
+        if m1 in self.added_features:
+            self.added_features.remove(m1)  # They mey not be there, but we can delete them if they are
+        if m2 in self.added_features:
+            self.added_features.remove(m2)
+        self.added_features.append(merged_feature)
+        return True
 
-        my_possibilities = [item1 + item2 for item1, item2 in product(self.possibilities, other.possibilities)]
-        my_possibilities = self.__remove_bad_neighbors(my_possibilities)
-        length3 = len(my_possibilities)
-        self.possibilities = my_possibilities
+    def merge_features(self, feature1: PossibilitiesFeature, feature2: PossibilitiesFeature) -> PossibilitiesFeature:
+        length1, length2 = len(feature1.possibilities), len(feature2.possibilities)
 
-        features: set[PossibilitiesFeature] = self.grid[self.__class__, "feature"]
-        features.remove(other)
+        def possibility_function() -> Iterable[Possibility]:
+            return (p1 + p2 for p1, p2 in product(feature1.possibilities, feature2.possibilities))
+
+        self.creation_count += 1
+        owner = self.owner
+        result = PossibilitiesFeature(tuple(chain(feature1.squares, feature2.squares)),
+                                      name=f'Merged #{self.creation_count}',
+                                      possibility_function=possibility_function, neighbors=True)
+        result.initialize(self.grid, synthetic=True)
+        assert self.owner == owner
+        result.start(True)
+        length3 = len(result.possibilities)
         temp = length3 * 100 / (length1 * length2)
-        print(f'Merge {self.name} ({length1}) x {other.name} ({length2}) = ({length3}) {temp:.2f}%')
+        print(f'Merge {feature1.name} ({length1}) x {feature1.name} ({length2}) = '
+              f'{result.name} ({length3}) {temp:.2f}%')
+        result.check()
+        result.check_special()
+        result.simplify()
+        return result
 
 
 class GroupedPossibilitiesFeature(Feature, abc.ABC):

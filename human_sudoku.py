@@ -424,8 +424,8 @@ class Sudoku:
                             fixers = []
 
                             def print_tower():
-                                print(f'Tower: {cell1}≠{value1} → {cell2}={value2} → {cell3}≠{value3} → {cell4}={value4}. '
-                                      f'So {cell1}={value1} or {cell4}={value4}.')
+                                print(f'Tower: {cell1}≠{value1} → {cell2}={value2} → {cell3}≠{value3} → '
+                                      f'{cell4}={value4}. So {cell1}={value1} or {cell4}={value4}.')
                             # At least one of cell1 == value1 or cell4 == value4 is True
                             if cell1 == cell4:  # The cell must have one of the other two values
                                 temp = SmallIntSet([value1, value4])
