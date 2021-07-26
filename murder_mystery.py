@@ -428,9 +428,9 @@ def finale() -> tuple[str, Sequence[Feature]]:
 def main():
     start = datetime.datetime.now()
     puzzles = [
-        act_1,
-        act_2,
-        act_3, act_4, act_5, act_6, act_7, act_8,
+        # act_1,
+        # act_2,
+        # act_3, act_4, act_5, act_6, act_7, act_8,
         act_9,
         act_10,
         finale

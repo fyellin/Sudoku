@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import abc
 import functools
-from collections import defaultdict
+from collections import defaultdict, Callable
 from collections.abc import Iterable, Sequence, Mapping
 from itertools import permutations, product, tee, groupby, combinations_with_replacement
 from typing import Optional, ClassVar, Any, Union
@@ -215,28 +215,21 @@ class LimitedValuesFeature(Feature):
 
 class OddsAndEvensFeature:
     @classmethod
-    def create(cls, odds: SquaresParseable = (), evens: SquaresParseable = ()) -> \
-            Sequence[Feature]:
-        return [
-            o := LimitedValuesFeature(odds, (1, 3, 5, 7, 9)),
-            e := LimitedValuesFeature(evens, (2, 4, 6, 8)),
-            cls._OddsAndEvensDrawer(o, e)
-        ]
+    def create(cls, odds: SquaresParseable = (), evens: SquaresParseable = ()) -> Sequence[Feature]:
+        odds_feature = LimitedValuesFeature(odds, (1, 3, 5, 7, 9))
+        evens_feature = LimitedValuesFeature(evens, (2, 4, 6, 8))
 
-    class _OddsAndEvensDrawer(Feature):
-        odds: LimitedValuesFeature
-        evens: LimitedValuesFeature
-
-        def __init__(self, odds: LimitedValuesFeature, evens: LimitedValuesFeature) -> None:
-            super().__init__()
-            self.odds = odds
-            self.evens = evens
-
-        def draw(self, context: DrawContext) -> None:
-            for row, column in self.evens.squares:
+        def draw_function(context):
+            for row, column in evens_feature.squares:
                 context.draw_rectangle((column + .1, row + .1), width=.8, height=.8, color='lightgray', fill=True)
-            for row, column in self.odds.squares:
+            for row, column in odds_feature.squares:
                 context.draw_circle((column + .5, row + .5), radius=.4, color='lightgray', fill=True)
+
+        return [
+            odds_feature,
+            evens_feature,
+            DrawOnlyFeature(draw_function)
+        ]
 
 
 class AlternativeBoxesFeature(Feature):
@@ -284,13 +277,12 @@ class PalindromeFeature:
         color = color or 'blue'
         count = len(squares) // 2
 
-        class Drawer(Feature):
-            def draw(self, context: DrawContext) -> None:
-                context.draw_line(squares, color=color)
+        def draw_function(context: DrawContext) -> None:
+            context.draw_line(squares, color=color)
 
         return [
             *[SameValueFeature((square1, square2)) for square1, square2 in zip(squares[:count], squares[::-1])],
-            Drawer()
+            DrawOnlyFeature(draw_function),
         ]
 
 
@@ -506,16 +498,15 @@ class LocalMinOrMaxFeature:
         reds = Feature.parse_squares(reds)
         greens = Feature.parse_squares(greens)
 
-        class Drawer(Feature):
-            def draw(self, context: DrawContext) -> None:
-                for color, squares in (('#FCA0A0', reds), ('#B0FEB0', greens)):
-                    for y, x in squares:
-                        context.draw_rectangle((x, y), width=1, height=1, color=color, fill=True)
+        def draw_function(context: DrawContext) -> None:
+            for color, squares in (('#FCA0A0', reds), ('#B0FEB0', greens)):
+                for y, x in squares:
+                    context.draw_rectangle((x, y), width=1, height=1, color=color, fill=True)
 
         return [
             *[cls._Comparer(square, high=True) for square in reds],
             *[cls._Comparer(square, high=False) for square in greens],
-            Drawer()
+            DrawOnlyFeature(draw_function)
         ]
 
     class _Comparer(PossibilitiesFeature):
@@ -649,30 +640,43 @@ class MessageFeature:
             mapping[letter].append(square)
         assert len(mapping) == 9   # We'll fix this later, maybe
 
+        def draw_function(context):
+            cls.draw_function(context, mapping, draw_only_feature)
+
+        draw_only_feature = DrawOnlyFeature(draw_function)
+
         return [
             BoxOfNineFeature(squares=[squares[0] for squares in mapping.values()], show=False),
             *[SameValueFeature(squares, name=f'Letter "{letter}"')
               for letter, squares in mapping.items() if len(squares) > 1],
-            cls.Drawer(mapping)
+            draw_only_feature
         ]
 
-    class Drawer(Feature):
-        mapping: dict[str, list[Square]]
+    @classmethod
+    def draw_function(cls, context: DrawContext, mapping: dict[str, list[Square]], feature: Feature) -> None:
+        for letter, squares in mapping.items():
+            for y, x in squares:
+                context.draw_text(x, y, letter, weight='bold', fontsize=10,
+                                  verticalalignment='top', horizontalalignment='left')
+        if context.done and context.result:
+            # Print the values of the letters in numeric order
+            value_map = {feature @ squares[0]: letter for letter, squares in mapping.items()}
+            pieces = [f'{value}={value_map[value]}' for value in sorted(value_map)]
+            print('Message:', ', '.join(pieces))
 
-        def __init__(self, mapping):
-            super().__init__()
-            self.mapping = mapping
 
-        def draw(self, context: DrawContext) -> None:
-            if context.done and context.result:
-                # Print the values of the letters in numeric order
-                value_map = {self @ squares[0]: letter for letter, squares in self.mapping.items()}
-                pieces = [f'{value}={value_map[value]}' for value in sorted(value_map)]
-                print('Message:', ', '.join(pieces))
-            for letter, squares in self.mapping.items():
-                for y, x in squares:
-                    context.draw_text(x, y, letter, weight='bold', fontsize=10,
-                                      verticalalignment='top', horizontalalignment='left')
+class DrawOnlyFeature(Feature):
+    drawer: Callable[[DrawContext], None]
+
+    def __init__(self, drawer: Callable[[DrawContext], None]) -> None:
+        super().__init__()
+        self.drawer = drawer
+
+    def initialize(self, grid) -> None:
+        super().initialize(grid)
+
+    def draw(self, context: DrawContext) -> None:
+        self.drawer(context)
 
 
 class SimonSaysFeature(Feature):

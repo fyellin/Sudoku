@@ -302,6 +302,15 @@ def puzzle8() -> None:
     ]
     Sudoku().solve('.'*81, features=features)
 
+def main():
+    puzzle1()
+    puzzle2()
+    puzzle3()
+    puzzle4()
+    puzzle5()
+    puzzle6()
+    puzzle7()
+    puzzle8()
 
 if __name__ == '__main__':
-    puzzle8()
+    main()

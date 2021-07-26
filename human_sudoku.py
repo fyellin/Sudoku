@@ -402,6 +402,8 @@ class Sudoku:
                             fixers = {cell for cell in cell1.joint_neighbors(cell4)
                                       if value in cell.possible_values}
                             if fixers:
+                                print(f'Tower: {cell1}≠{value} → {cell2}={value} → {cell3}≠{value} → {cell4}={value}. '
+                                      f'So {cell1}={value} or {cell4}={value}.')
                                 print(f'Tower on /{value}/ {cell1}={cell2}-{cell3}={cell4}')
                                 Cell.remove_value_from_cells(fixers, value)
                                 return True
@@ -422,8 +424,8 @@ class Sudoku:
                             fixers = []
 
                             def print_tower():
-                                print(f'Extended Tower on '
-                                      f'/({value1}){cell1}=({value2}){cell2}-({value3}){cell3}=({value4}){cell4}')
+                                print(f'Tower: {cell1}≠{value1} → {cell2}={value2} → {cell3}≠{value3} → {cell4}={value4}. '
+                                      f'So {cell1}={value1} or {cell4}={value4}.')
                             # At least one of cell1 == value1 or cell4 == value4 is True
                             if cell1 == cell4:  # The cell must have one of the other two values
                                 temp = SmallIntSet([value1, value4])
@@ -433,6 +435,7 @@ class Sudoku:
                                     Cell.keep_values_for_cell([cell1], {value1, value4})
                                     return True
                             elif value1 == value4:
+                                # TODO:  Joint neighbors for value??
                                 fixers = {(cell, value1) for cell in cell1.joint_neighbors(cell4)
                                           if value1 in cell.possible_values}
                             else:

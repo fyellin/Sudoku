@@ -3,7 +3,7 @@ from __future__ import annotations
 import abc
 from collections import defaultdict
 from itertools import combinations, product
-from typing import Sequence, Mapping, Union, Optional, Iterable
+from typing import Sequence, Mapping, Union, Optional, Iterable, Callable
 
 from cell import Cell, House, SmallIntSet
 from feature import Feature, Square, SquaresParseable

@@ -55,7 +55,6 @@ class Grid(UserDict):
         for house in self.houses:
             house.start()
         for feature in self.features:
-            print(feature, type(feature), isinstance(feature, tuple))
             feature.start()
 
     def is_solved(self) -> bool:
