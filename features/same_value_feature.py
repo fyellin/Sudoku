@@ -3,8 +3,8 @@ from __future__ import annotations
 import colorsys
 import functools
 import operator
-from collections import defaultdict
-from typing import Optional, ClassVar
+from collections import defaultdict, deque
+from typing import Optional, ClassVar, Sequence, Deque
 
 from cell import Cell
 from draw_context import DrawContext
@@ -18,27 +18,31 @@ class SameValueFeature(Feature):
     squares: list[Square]
     cells: list[Cell]
     features: set[SameValueFeature]
+    color: str
 
     shared_data: _SameValueSharedData
     __check_cache: list[int]
 
     @classmethod
-    def create(cls, grid: Grid, squares: SquaresParseable, *, name: Optional[str] = None) -> Optional[SameValueFeature]:
+    def create(cls, grid: Grid, cells: Sequence[Cell], *, name: Optional[str] = None) -> \
+            tuple[Optional[SameValueFeature], bool]:
         shared_data = _SameValueSharedData.get_unique(grid)
-        squares = cls.parse_squares(squares)
-        cells = [grid.matrix[square] for square in squares]
-        features = [shared_data.cell_to_feature[cell] for cell in cells]
+        features = [shared_data.cell_to_feature.get(cell) for cell in cells]
         if not any(features):
+            squares = [cell.index for cell in cells]
             result = SameValueFeature(squares, name=name)
             result.initialize(grid)
             result.start()
-            return result
+            return result, True
+        elif all(feature == features[0] for feature in features):
+            # Everything already corresponds to the same feature
+            return None, False
         else:
-            main_feature = max(features, key=lambda f: (len(f.cells), f.name))
+            main_feature = max(filter(None, features), key=lambda f: (len(f.cells), f.name))
             for cell in cells:
                 if shared_data.cell_to_feature.get(cell) != main_feature:
                     main_feature.__merge_square_into_me(cell)
-            return None
+            return None, True
 
     def __init__(self, squares: SquaresParseable, name: Optional[str] = None) -> None:
         self.squares = list(self.parse_squares(squares))
@@ -52,6 +56,7 @@ class SameValueFeature(Feature):
         self.cells = [self @ square for square in self.squares]
         self.shared_data = _SameValueSharedData.get_unique(grid)
         self.shared_data.owner = self.shared_data.owner or self
+        self.color = self.shared_data.get_next_color()
 
     def start(self) -> None:
         shared_data = self.shared_data
@@ -73,14 +78,14 @@ class SameValueFeature(Feature):
         self.__verify_neighbors()
 
     def check(self) -> bool:
-        print(self.name, self.cells, ','.join(str(cell.possible_values) for cell in self.cells))
-        if self not in self.shared_data.features:
-            return False
-        if not self.cells_changed_since_last_invocation(self.__check_cache, self.cells):
-            return False
-        return self._check()
+        if self in self.shared_data.features:
+            if self.cells_changed_since_last_invocation(self.__check_cache, self.cells):
+                if self.__check():
+                    return True
 
-    def _check(self):
+        return False
+
+    def __check(self):
         result = functools.reduce(operator.__and__, (cell.possible_values for cell in self.cells))
         if len(result) == 1:
             value = result.unique()
@@ -90,8 +95,7 @@ class SameValueFeature(Feature):
                 for cell in cells_to_update:
                     cell.set_value_to(value)
                 print(f'  {", ".join(str(cell) for cell in sorted(cells_to_update))} := {value}')
-            self.shared_data.features.remove(self)
-            [self.shared_data.cell_to_feature.pop(cell) for cell in self.cells]
+            self.shared_data.remove_feature(self)
             return bool(cells_to_update)
 
         cells_to_update = [cell for cell in self.cells if cell.possible_values != result]
@@ -102,9 +106,11 @@ class SameValueFeature(Feature):
         return False
 
     def check_special(self) -> bool:
-        if self not in self.shared_data.features:
-            return False
-        return self.__check_all_values_legal_in_all_houses() | self.__check_feature_can_expand()
+        if self in self.shared_data.features:
+            if self.__check_all_values_legal_in_all_houses() | self.__check_feature_can_expand():
+                return True
+
+        return False
 
     def __check_all_values_legal_in_all_houses(self):
         neighbors = self.cells[0].neighbors  # All cells have the same neighbors and the same value
@@ -139,7 +145,7 @@ class SameValueFeature(Feature):
                 new_cell = viable_candidates.pop()
                 print(f'In {house}, {self} must include {new_cell}')
                 self.__merge_square_into_me(new_cell)
-                self._check()
+                self.__check()
                 self.__verify_neighbors()
                 changed = True
                 break
@@ -197,17 +203,20 @@ class SameValueFeature(Feature):
         assert len(copy) == 0
 
     def draw(self, context: DrawContext) -> None:
-        if not self.shared_data.owner == self:
+        if self not in self.shared_data.features:
             return
-        for feature in self.shared_data.features:
-            if any(not cell.is_known for cell in feature.cells):
-                hue = (hash(feature.name) % 1000) / 1000
-                color = colorsys.hsv_to_rgb(hue, 1.0, 1.0)
-                for y, x in feature.squares:
-                    context.draw_circle((x + .5, y + .2), radius=.1, fill=True, color=color)
+        if all(cell.is_known for cell in self.cells):
+            return
+        for cell in self.cells:
+            y, x = cell.index
+            context.draw_circle((x + .5, y + .2), radius=.1, fill=True, color=self.color)
 
 
 class _SameValueSharedData:
+    COLORS = ('#e6194B', '#3cb44b', '#ffe119', '#4363d8', '#f58231', '#911eb4', '#42d4f4', '#f032e6',
+              '#bfef45', '#fabed4', '#469990', '#dcbeff', '#9A6324', '#fffac8', '#800000', '#aaffc3',
+              '#808000', '#ffd8b1', '#000075', '#a9a9a9', '#000000')
+
     owner: Optional[SameValueFeature]
     features: set[SameValueFeature]
     cell_to_feature: dict[Cell, SameValueFeature]
@@ -218,6 +227,8 @@ class _SameValueSharedData:
         self.cell_to_feature = {}
         self.grid = grid
         self.owner = None
+        self.count = -1
+        self.colors = deque(self.COLORS)
 
     @staticmethod
     def get_unique(grid: Grid) -> _SameValueSharedData:
@@ -226,6 +237,16 @@ class _SameValueSharedData:
         if not shared_data:
             shared_data = grid[key] = _SameValueSharedData(grid)
         return shared_data
+
+    def get_next_color(self):
+        return self.colors.popleft()
+
+    def remove_feature(self, feature: SameValueFeature):
+        self.features.remove(feature)
+        for cell in feature.cells:
+            self.cell_to_feature.pop(cell)
+        self.colors.append(feature.color)
+
 
 
 

@@ -10,6 +10,7 @@ from cell import House, Cell, SmallIntSet
 from chain import Chains
 from draw_context import DrawContext
 from feature import Feature
+from features.same_value_feature import SameValueFeature
 from grid import Grid
 from hard_medusa import HardMedusa
 
@@ -20,6 +21,7 @@ class Sudoku:
     initial_grid: Mapping[tuple[int, int], int]
     draw_verbose: bool
     __check_hidden_singles_cache: dict[House, list[int]]
+    checking_features: Sequence[Feature]
 
     def solve(self, puzzle: str, *, features: Sequence[Feature] = (),
               initial_only: bool = False,
@@ -48,7 +50,7 @@ class Sudoku:
 
     def run_solver(self, *, medusa: bool) -> bool:
         self.__check_hidden_singles_cache = defaultdict(list)
-        checking_features = [f for f in self.features if f.has_check_method()]
+        self.checking_features = [f for f in self.features if f.has_check_method()]
 
         while True:
             if self.is_solved():
@@ -56,13 +58,16 @@ class Sudoku:
                 return True
             if self.check_naked_singles() or self.check_hidden_singles():
                 continue
-            if any(feature.check() for feature in checking_features):
+            if any(feature.check() for feature in self.checking_features):
                 continue
             if self.check_intersection_removal():
                 continue
             if self.check_tuples():
                 continue
-            if any(feature.check_special() for feature in checking_features):
+            if any(feature.check_special() for feature in self.checking_features):
+                continue
+
+            if self.check_simple_coloring():
                 continue
 
             print()
@@ -76,6 +81,7 @@ class Sudoku:
                 continue
             if self.check_tower_extended():
                 continue
+
             if medusa:
                 chains = Chains.create(self.grid.cells, True)
                 if self.check_chain_colors(chains):
@@ -449,6 +455,29 @@ class Sudoku:
                                     Cell.remove_value_from_cells([cell], value, show=True)
                                 return True
         return False
+
+    def check_simple_coloring(self):
+        changed = False
+        binaries = defaultdict(list)
+        for cell in self.grid.cells:
+            if len(cell.possible_values) == 2:
+                binaries[cell.possible_values].append(cell)
+        for cells in binaries.values():
+            if len(cells) <= 2:
+                continue
+            for cell1, cell2 in combinations(cells, 2):
+                for cell3 in cells:
+                    if cell3 not in (cell1, cell2) and cell1 in cell3.neighbors and cell2 in cell3.neighbors:
+                        feature, modified = SameValueFeature.create(self.grid, (cell1, cell2))
+                        if modified:
+                            print(f'Two-valued cells {cell1} == {cell2} because both are neighbors of {cell3}')
+                            changed = True
+                        if feature:
+                            self.features.append(feature)
+                            self.checking_features.append(feature)
+                        break
+
+        return changed
 
     def draw_grid(self, *, done: bool = False, result: bool = False):
         figure, axes = plt.subplots(1, 1, figsize=(6, 6), dpi=100)

@@ -3,6 +3,7 @@ import itertools
 from typing import Sequence, cast, Iterable, Optional
 
 from cell import House, Cell
+from cryptic_daily_puzzle import puzzle_2021_07_10
 from draw_context import DrawContext
 from feature import Feature, Square, SquaresParseable
 from features.chess_move import KnightsMoveFeature, KingsMoveFeature, QueensMoveFeature, TaxicabFeature
@@ -434,6 +435,7 @@ def main():
         act_9,
         # act_10,
         # finale
+        puzzle_2021_07_10
     ]
     for puzzle in puzzles:
         print('*************', puzzle, "*****************")

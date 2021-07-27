@@ -232,7 +232,7 @@ def double_sum_puzzle() -> tuple[str, Sequence[Feature]]:
         DoubleSumFeature(House.Type.COLUMN, 7, 11, 15),
         DoubleSumFeature(House.Type.COLUMN, 8, 11, 9),
 
-        # CheckSpecialFeature(),
+        *[[] if True else [CheckSpecialFeature()]]
     ]
     return BLANK_GRID, features
 
@@ -618,11 +618,6 @@ def puzzle_2021_07_06() -> tuple[str, Sequence[Feature]]:
 
 
 def puzzle_2021_07_10() -> tuple[str, Sequence[Feature]]:
-    class MyHelperFeature(SimonSaysFeature):
-        def round_1(self) -> None:
-            Cell.remove_values_from_cells([self @ (3, 7)], {1, 2})
-            Cell.keep_values_for_cell([self @ (6, 5), self @ (6, 8)], {1, 2})
-
     killers = [
         (7, "2,2,S,S"),
         (5, "2,6,E"),
@@ -635,7 +630,6 @@ def puzzle_2021_07_10() -> tuple[str, Sequence[Feature]]:
     kill_features: list[PossibilitiesFeature] = [KillerCageFeature(total, squares) for total, squares in killers]
     features = [
         *kill_features,
-        MyHelperFeature()
     ]
     return BLANK_GRID, features
 
