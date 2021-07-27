@@ -4,7 +4,7 @@ import colorsys
 import functools
 import operator
 from collections import defaultdict
-from typing import Optional
+from typing import Optional, ClassVar
 
 from cell import Cell
 from draw_context import DrawContext
@@ -13,52 +13,100 @@ from grid import Grid
 
 
 class SameValueFeature(Feature):
+    VERIFY: ClassVar[bool] = False
+
     squares: list[Square]
     cells: list[Cell]
     features: set[SameValueFeature]
 
-    supervisor: Optional[_SameValueSupervisor]
+    shared_data: _SameValueSharedData
     __check_cache: list[int]
+
+    @classmethod
+    def create(cls, grid: Grid, squares: SquaresParseable, *, name: Optional[str] = None) -> Optional[SameValueFeature]:
+        shared_data = _SameValueSharedData.get_unique(grid)
+        squares = cls.parse_squares(squares)
+        cells = [grid.matrix[square] for square in squares]
+        features = [shared_data.cell_to_feature[cell] for cell in cells]
+        if not any(features):
+            result = SameValueFeature(squares, name=name)
+            result.initialize(grid)
+            result.start()
+            return result
+        else:
+            main_feature = max(features, key=lambda f: (len(f.cells), f.name))
+            for cell in cells:
+                if shared_data.cell_to_feature.get(cell) != main_feature:
+                    main_feature.__merge_square_into_me(cell)
+            return None
 
     def __init__(self, squares: SquaresParseable, name: Optional[str] = None) -> None:
         self.squares = list(self.parse_squares(squares))
         assert len(self.squares) > 1
         name = name or '='.join(f'r{r}c{c}' for r, c in self.squares)
-        self.supervisor = None
         self.__check_cache = []
         super().__init__(name=name)
 
     def initialize(self, grid: Grid) -> None:
         super().initialize(grid)
         self.cells = [self @ square for square in self.squares]
-
-        key = (SameValueFeature, "supervisor")
-        features = self.grid.get(key, None)
-        if not features:
-            self.grid[key] = features = set()
-            self.supervisor = _SameValueSupervisor(features, grid)
-        features.add(self)
-        self.features = features
+        self.shared_data = _SameValueSharedData.get_unique(grid)
+        self.shared_data.owner = self.shared_data.owner or self
 
     def start(self) -> None:
-        if self.supervisor:
-            self.supervisor.start()
+        shared_data = self.shared_data
+        self.shared_data.features.add(self)
+
+        neighbors = frozenset.union(*(cell.neighbors for cell in self.cells))
+        self.__set_all_neighbors(neighbors)
+
+        mergers = defaultdict(list)
+        for cell in self.cells:
+            if cell in shared_data.cell_to_feature:
+                mergers[shared_data.cell_to_feature[cell]].append(cell)
+        for merged_feature, shared_cells in mergers.items():
+            print(f'Merging {merged_feature} into {self} because it shares',
+                  ", ".join(str(cell) for cell in shared_cells))
+            self.__merge_feature_into_me(merged_feature)
+
+        self.shared_data.cell_to_feature.update((cell, self) for cell in self.cells)
+        self.__verify_neighbors()
 
     def check(self) -> bool:
-        if self not in self.features:
+        print(self.name, self.cells, ','.join(str(cell.possible_values) for cell in self.cells))
+        if self not in self.shared_data.features:
             return False
         if not self.cells_changed_since_last_invocation(self.__check_cache, self.cells):
             return False
+        return self._check()
+
+    def _check(self):
         result = functools.reduce(operator.__and__, (cell.possible_values for cell in self.cells))
+        if len(result) == 1:
+            value = result.unique()
+            print(f'{self} is known to have the value {value}')
+            cells_to_update = [cell for cell in self.cells if not cell.is_known]
+            if cells_to_update:
+                for cell in cells_to_update:
+                    cell.set_value_to(value)
+                print(f'  {", ".join(str(cell) for cell in sorted(cells_to_update))} := {value}')
+            self.shared_data.features.remove(self)
+            [self.shared_data.cell_to_feature.pop(cell) for cell in self.cells]
+            return bool(cells_to_update)
+
         cells_to_update = [cell for cell in self.cells if cell.possible_values != result]
         if cells_to_update:
             Cell.keep_values_for_cell(cells_to_update, result)
             return True
+
         return False
 
     def check_special(self) -> bool:
-        if self not in self.features:
+        if self not in self.shared_data.features:
             return False
+        return self.__check_all_values_legal_in_all_houses() | self.__check_feature_can_expand()
+
+    def __check_all_values_legal_in_all_houses(self):
         neighbors = self.cells[0].neighbors  # All cells have the same neighbors and the same value
         for value in self.cells[0].possible_values:
             for house in self.grid.houses:
@@ -73,109 +121,111 @@ class SameValueFeature(Feature):
                     return True
         return False
 
-    def draw(self, context: DrawContext) -> None:
-        if not self.supervisor:
-            return
-        for feature in self.features:
-            hue = (hash(feature.name) % 1000) / 1000
-            color = colorsys.hsv_to_rgb(hue, 1.0, 1.0)
-            for y, x in feature.squares:
-                context.draw_circle((x + .5, y + .2), radius=.1, fill=True, color=color)
-
-
-class _SameValueSupervisor:
-    features: set[SameValueFeature]
-    grid: Grid
-
-    def __init__(self, features: set[SameValueFeature], grid: Grid):
-        self.features = features
-        self.grid = grid
-
-    def start(self):
-        self.verify_neighbors()
-        self.merge_overlapping_features_and_set_neighbors()
-        self.expand_features()
-        self.verify_neighbors()
-
-    def merge_overlapping_features_and_set_neighbors(self):
-        cell_to_feature = {}
-        features = self.features
-        for feature in sorted(features, key=lambda f: len(f.cells)):
-            neighbors = frozenset.union(*(cell.neighbors for cell in feature.cells))
-            self.set_all_neighbors(feature, neighbors)
-            merged_feature_and_cells = defaultdict(list)
-            for cell in feature.cells:
-                if cell in cell_to_feature:
-                    merged_feature_and_cells[cell_to_feature[cell]].append(cell)
-            for merged_feature, shared_cells in merged_feature_and_cells.items():
-                print(f'Merging {merged_feature} into {feature} because it shares',
-                      ", ".join(str(cell) for cell in shared_cells))
-                self.merge_into_feature(feature, merged_feature)
-            cell_to_feature.update((cell, feature) for cell in feature.cells)
-
-    def expand_features(self):
-        changed = True
-        while changed:
-            changed = False
-            for feature in sorted(self.features, key=lambda f: len(f.cells), reverse=True):
-                if feature in self.features:
-                    changed |= self.expand_one_feature(feature)
-
-    def expand_one_feature(self, feature):
+    def __check_feature_can_expand(self) -> bool:
         changed = False
-        while True:
-            neighbors = feature.cells[0].neighbors
-            my_houses = {house for cell in feature.cells for house in cell.houses}
-            for house in feature.grid.houses:
+        while self in self.shared_data.features:  # The call to self._check() may make us drop out
+            my_neighbors = self.cells[0].neighbors
+            my_values = self.cells[0].possible_values
+            my_houses = {house for cell in self.cells for house in cell.houses}
+            for house in self.grid.houses:
                 if house in my_houses:
                     continue
-                temp = set(house.cells) - neighbors
-                assert len(temp) > 0
-                if len(temp) > 1:
+                viable_candidates = [cell for cell in set(house.cells)
+                                     if cell not in my_neighbors
+                                     if not cell.possible_values.isdisjoint(my_values)]
+                assert len(viable_candidates) > 0
+                if len(viable_candidates) > 1:
                     continue
-                new_cell = temp.pop()
-                other_feature = next((feature for feature in self.features if new_cell in feature.cells), None)
-                if other_feature:
-                    print(f'In {house}, {feature} must include {new_cell}, part of {other_feature}')
-                    self.merge_into_feature(feature, other_feature)
-                else:
-                    print(f'In {house}, {feature} must include {new_cell}')
-                    self.add_square_to_feature(feature, new_cell)
+                new_cell = viable_candidates.pop()
+                print(f'In {house}, {self} must include {new_cell}')
+                self.__merge_square_into_me(new_cell)
+                self._check()
+                self.__verify_neighbors()
                 changed = True
                 break
             else:
                 return changed
+        return changed
 
-    def add_square_to_feature(self, feature, cell: Cell) -> None:
-        assert cell not in feature.cells
-        neighbors = feature.cells[0].neighbors | cell.neighbors
-        feature.cells += [cell]
-        feature.squares += [cell.index]
-        self.set_all_neighbors(feature, neighbors)
-
-    def merge_into_feature(self, feature: SameValueFeature, other_feature: SameValueFeature) -> None:
-        self.features.remove(other_feature)
-        my_squares = set(feature.squares)
-        added_stuff = [(other_square, other_cell)
-                       for other_square, other_cell in zip(other_feature.squares, other_feature.cells)
-                       if other_square not in my_squares]
-        if added_stuff:
-            neighbors = feature.cells[0].neighbors | other_feature.cells[0].neighbors
-            added_squares, added_cells = zip(*added_stuff)
-            feature.squares += added_squares
-            feature.cells += added_cells
-            self.set_all_neighbors(feature, neighbors)
-
-    @staticmethod
-    def set_all_neighbors(feature, neighbors: frozenset[Cell]):
-        assert neighbors.isdisjoint(feature.cells)
-        for cell in feature.cells:
+    def __set_all_neighbors(self, neighbors: frozenset[Cell]):
+        assert neighbors.isdisjoint(self.cells)
+        for cell in self.cells:
             cell.neighbors = neighbors
-        cells_as_list = set(feature.cells)
+        cells_as_list = set(self.cells)
         for cell in neighbors:
             cell.neighbors |= cells_as_list
 
-    def verify_neighbors(self) -> None:
+    def __merge_feature_into_me(self, other: SameValueFeature) -> None:
+        self.shared_data.features.remove(other)
+        my_squares = set(self.squares)
+        added_stuff = [(other_square, other_cell)
+                       for other_square, other_cell in zip(other.squares, other.cells)
+                       if other_square not in my_squares]
+        if added_stuff:
+            neighbors = self.cells[0].neighbors | other.cells[0].neighbors
+            added_squares, added_cells = zip(*added_stuff)
+            self.squares += added_squares
+            self.cells += added_cells
+            self.__set_all_neighbors(neighbors)
+            self.shared_data.cell_to_feature.update((cell, self) for cell in added_cells)
+
+    def __merge_square_into_me(self, cell: Cell):
+        cell_feature = self.shared_data.cell_to_feature.get(cell)
+        if cell_feature == self:
+            pass
+        elif cell_feature is not None:
+            print(f"Cell {cell} is part of {cell_feature}, so merging the two")
+            self.__merge_feature_into_me(cell_feature)
+        else:
+            neighbors = self.cells[0].neighbors | cell.neighbors
+            self.cells += [cell]
+            self.squares += [cell.index]
+            self.__set_all_neighbors(neighbors)
+            self.shared_data.cell_to_feature[cell] = self
+
+    def __verify_neighbors(self) -> None:
+        if not self.VERIFY:
+            return
         for cell in self.grid.cells:
             for neighbor in cell.neighbors:
                 assert cell in neighbor.neighbors
+        copy = self.shared_data.cell_to_feature.copy()
+        for feature in self.shared_data.features:
+            for cell in feature.cells:
+                cell_feature = copy.pop(cell)
+                assert cell_feature == feature
+        assert len(copy) == 0
+
+    def draw(self, context: DrawContext) -> None:
+        if not self.shared_data.owner == self:
+            return
+        for feature in self.shared_data.features:
+            if any(not cell.is_known for cell in feature.cells):
+                hue = (hash(feature.name) % 1000) / 1000
+                color = colorsys.hsv_to_rgb(hue, 1.0, 1.0)
+                for y, x in feature.squares:
+                    context.draw_circle((x + .5, y + .2), radius=.1, fill=True, color=color)
+
+
+class _SameValueSharedData:
+    owner: Optional[SameValueFeature]
+    features: set[SameValueFeature]
+    cell_to_feature: dict[Cell, SameValueFeature]
+    grid: Grid
+
+    def __init__(self,  grid: Grid):
+        self.features = set()
+        self.cell_to_feature = {}
+        self.grid = grid
+        self.owner = None
+
+    @staticmethod
+    def get_unique(grid: Grid) -> _SameValueSharedData:
+        key = _SameValueSharedData
+        shared_data = grid.get(key)
+        if not shared_data:
+            shared_data = grid[key] = _SameValueSharedData(grid)
+        return shared_data
+
+
+

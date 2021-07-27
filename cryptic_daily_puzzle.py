@@ -202,7 +202,7 @@ def thermometer_07_23() -> tuple[str, Sequence[Feature]]:
 
 
 def double_sum_puzzle() -> tuple[str, Sequence[Feature]]:
-    class CheckSpecialFeature(Feature):
+    class CheckSpecialFeature(SimonSaysFeature):
         cells: Sequence[Cell]
 
         def initialize(self, grid: Grid) -> None:
@@ -232,7 +232,7 @@ def double_sum_puzzle() -> tuple[str, Sequence[Feature]]:
         DoubleSumFeature(House.Type.COLUMN, 7, 11, 15),
         DoubleSumFeature(House.Type.COLUMN, 8, 11, 9),
 
-        CheckSpecialFeature(),
+        # CheckSpecialFeature(),
     ]
     return BLANK_GRID, features
 
@@ -609,19 +609,11 @@ def puzzle_2021_05_24() -> tuple[str, Sequence[Feature]]:
 
 
 def puzzle_2021_07_06() -> tuple[str, Sequence[Feature]]:
-    class Cheat (SimonSaysFeature):
-        def round_1(self):
-            Cell.remove_value_from_cells([self @ (7, 3)], 7)
-
-        def round_2(self):
-            (self @ (6, 4)).set_value_to(4)
-
     grid = "-.1.---.8.----.2.----------------".replace('-', '...')
     a, b, c, d, e, f, g, h, i, j = (1, 1), (3, 3), (5, 1), (5, 5), (5, 9), (7, 3), (7, 7), (9, 1), (9, 5), (9, 9)
     ends = [(a, b), (a, c), (b, c), (b, d), (c, d), (c, f), (c, h), (d, f), (d, i), (d, g), (e, g), (e, j),
             (f, h), (f, i), (g, i), (g, j), (h, i), (i, j)]
     features: list[Feature] = [ExtremeEndpointsFeature.between(x, y) for x, y in ends]
-    features.append(Cheat())
     return grid, features
 
 
@@ -672,7 +664,7 @@ def puzzle_2021_07_11() -> tuple[str, Sequence[Feature]]:
 def main():
     start = datetime.datetime.now()
     grid, features = puzzle_2021_07_10()
-    Sudoku().solve(grid, features=features, initial_only=False, draw_verbose=True)
+    Sudoku().solve(grid, features=features, initial_only=False, draw_verbose=False)
     end = datetime.datetime.now()
     print(end - start)
 

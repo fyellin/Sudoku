@@ -21,7 +21,7 @@ class PossibilitiesFeature(Feature, abc.ABC):
     possibilities: list[Possibility]
     handle_neighbors: bool
     handle_duplicates: bool
-    features: set[PossibilitiesFeature]
+    __features: set[PossibilitiesFeature]
     __supervisor: _PossibilitiesSupervisor
     __value_only_in_feature: dict[House, SmallIntSet]
     __houses_to_indexes: Mapping[House, list[int]]
@@ -60,13 +60,13 @@ class PossibilitiesFeature(Feature, abc.ABC):
         if synthetic:
             # We can't take ownership since the system never calls us
             assert supervisor
-        elif not supervisor:
-            self.grid[key] = supervisor = _PossibilitiesSupervisor(self, grid)
         else:
+            if not supervisor:
+                self.grid[key] = supervisor = _PossibilitiesSupervisor(grid)
             supervisor.owner = self
         self.__supervisor = supervisor
-        self.features = supervisor.features
-        self.features.add(self)
+        self.__features = supervisor.features
+        self.__features.add(self)
 
     def __finish_initialize(self):
         self.cells_as_set = set(self.cells)
@@ -90,10 +90,10 @@ class PossibilitiesFeature(Feature, abc.ABC):
         self.__update_cells_for_possibilities(verbose)
 
     def check(self) -> bool:
-        if self in self.features and self.cells_changed_since_last_invocation(self.__check_cache, self.cells):
+        if self in self.__features and self.cells_changed_since_last_invocation(self.__check_cache, self.cells):
             old_length = len(self.possibilities)
             if old_length == 1:
-                self.features.remove(self)
+                self.__features.remove(self)
             else:
                 # Only keep those possibilities that are still viable
                 possibilities = [values for values in self.possibilities
@@ -110,7 +110,7 @@ class PossibilitiesFeature(Feature, abc.ABC):
             return any(feature.check() for feature in self.__supervisor.added_features)
 
     def check_special(self) -> bool:
-        if self in self.features:
+        if self in self.__features:
             if self.__handle_value_in_house_only_occurs_in_possibility():
                 return True
 
@@ -124,7 +124,7 @@ class PossibilitiesFeature(Feature, abc.ABC):
         return False
 
     def weak_pair(self, cell: Cell, value: int) -> Iterable[tuple[Cell, int]]:
-        if self in self.features and cell in self.cells_as_set:
+        if self in self.__features and cell in self.cells_as_set:
             index = self.cells.index(cell)
             # A weak pair says both conditions can't simultaneously be true.  Assume the cell has the indicated index
             # and see which values in other cells are no longer possibilities that had been before.
@@ -248,8 +248,7 @@ class _PossibilitiesSupervisor:
     added_features: list[PossibilitiesFeature]
     creation_count: int
 
-    def __init__(self, owner: PossibilitiesFeature, grid: Grid):
-        self.owner = owner
+    def __init__(self, grid: Grid):
         self.features = set()
         self.grid = grid
         self.added_features = []
