@@ -458,24 +458,28 @@ class Sudoku:
 
     def check_simple_coloring(self):
         changed = False
-        binaries = defaultdict(list)
+        binaries = defaultdict(set)
         for cell in self.grid.cells:
             if len(cell.possible_values) == 2:
-                binaries[cell.possible_values].append(cell)
+                binaries[cell.possible_values].add(cell)
         for values, cells in binaries.items():
             if len(cells) <= 2:
                 continue
             for cell1, cell2 in combinations(cells, 2):
-                for cell3 in cells:
-                    if cell3 not in (cell1, cell2) and cell1 in cell3.neighbors and cell2 in cell3.neighbors:
-                        feature, modified = SameValueFeature.create(self.grid, (cell1, cell2))
-                        if modified:
-                            print(f'{cell1} == {cell2} because both see {cell3} and all have binary value {values}')
-                            changed = True
-                        if feature:
-                            self.features.append(feature)
-                            self.checking_features.append(feature)
-                        break
+                if SameValueFeature.already_paired(self.grid, cell1, cell2):
+                    continue
+                common_neighbors = cells & cell1.neighbors & cell2.neighbors
+                if not common_neighbors:
+                    continue
+                feature, modified = SameValueFeature.create(self.grid, (cell1, cell2), prefix=f'[{values}]')
+                assert modified
+                if modified:
+                    one_neighbor = next(iter(common_neighbors))
+                    print(f'{cell1} == {cell2} because both see {one_neighbor} and all have binary value {values}')
+                    changed = True
+                if feature:
+                    self.features.append(feature)
+                    self.checking_features.append(feature)
 
         return changed
 

@@ -20,12 +20,19 @@ class SameValueFeature(Feature):
     cells: list[Cell]
     color: Optional[str]
     is_assigned: bool
+    has_real_name: bool
 
     shared_data: _SameValueSharedData
     __check_cache: list[int]
 
     @classmethod
-    def create(cls, grid: Grid, cells: Sequence[Cell], *, name: Optional[str] = None) -> \
+    def already_paired(cls, grid: Grid, cell1, cell2: Cell):
+        shared_data = _SameValueSharedData.get(grid)
+        feature1 = shared_data.cell_to_feature(cell1)
+        return feature1 is not None and feature1 == shared_data.cell_to_feature(cell2)
+
+    @classmethod
+    def create(cls, grid: Grid, cells: Sequence[Cell], *, name: Optional[str] = None, prefix: Optional[str] = None) -> \
             tuple[Optional[SameValueFeature], bool]:
 
         shared_data = _SameValueSharedData.get(grid)
@@ -33,7 +40,7 @@ class SameValueFeature(Feature):
         if features[0] is not None and all(features[0] == feature for feature in features):
             return None, False
 
-        result = SameValueFeature('', name=name, cells=cells)
+        result = SameValueFeature('', name=name, prefix=prefix, cells=cells)
         result.initialize(grid)
         result.start()
         if result in shared_data.features:
@@ -41,20 +48,20 @@ class SameValueFeature(Feature):
         else:
             return None, True
 
-    def __init__(self, squares: SquaresParseable, name: Optional[str] = None, *, cells: Sequence[Cell] = ()) -> None:
+    def __init__(self, squares: SquaresParseable, name: Optional[str] = None, *, prefix: Optional[str] = None,
+                 cells: Sequence[Cell] = ()) -> None:
         if cells:
             assert not squares
             self.squares = []
             self.cells = list(cells)
-            name = name or '='.join(str(cell) for cell in self.cells)
         else:
             self.squares = list(self.parse_squares(squares))
             self.cells = []
-            name = name or '='.join(f'r{r}c{c}' for r, c in self.squares)
         self.color = None
         self.is_assigned = False
         self.__check_cache = []
-        super().__init__(name=name)
+        self.has_real_name = name is not None or prefix is not None
+        super().__init__(name=name, prefix=prefix)
 
     def initialize(self, grid: Grid) -> None:
         super().initialize(grid)
@@ -133,7 +140,7 @@ class SameValueFeature(Feature):
                     continue
                 candidate = viable_candidates.pop()
                 print(f'In {house}, {self} must also include {candidate}')
-                fake_feature = SameValueFeature('', cells=(self.cells[0], candidate), name=f'{candidate}/{self}')
+                fake_feature = SameValueFeature('', cells=(self.cells[0], candidate), name=f'[+= {candidate}]')
                 fake_feature.initialize(self.grid)
                 fake_feature.start()
                 assert fake_feature not in self.shared_data.features
@@ -143,6 +150,16 @@ class SameValueFeature(Feature):
             else:
                 return changed
         return changed
+
+    def __str__(self):
+        temp = '='.join(str(cell) for cell in self.cells)
+        if self.has_real_name:
+            return self.name + " " + temp
+        else:
+            return temp
+
+    def __repr__(self):
+        return str(self)
 
     def set_all_neighbors(self, neighbors: frozenset[Cell]):
         assert neighbors.isdisjoint(self.cells)
@@ -219,21 +236,22 @@ class _SameValueSharedData:
             if not prev_feature:
                 self.token_to_feature[token] = feature
             else:
-                print(f'...Merging {feature} into {prev_feature}')
+                old_name = str(prev_feature)
                 neighbors = feature.cells[0].neighbors | prev_feature.cells[0].neighbors
                 prev_feature.set_all_neighbors(neighbors)
                 prev_feature.cells = list(unique_everseen(itertools.chain(prev_feature.cells, feature.cells)))
+                print(f'...Merging {feature} into {old_name} yielding {prev_feature}')
                 deletions.append(feature)
         for feature in deletions:
             self.features.pop(feature)
             if feature.color:
                 self.colors.append(feature.color)
-        self.__verify()
+        if self.VERIFY:
+            self.__verify()
 
     def __verify(self) -> None:
-        if not self.VERIFY:
-            return
         for cell in self.grid.cells:
+            assert cell not in cell.neighbors
             for neighbor in cell.neighbors:
                 assert cell in neighbor.neighbors
 
@@ -246,7 +264,6 @@ class _SameValueSharedData:
             cells = set(feature.cells)
             assert cells <= nodes
             nodes -= cells
-        assert len(nodes) == 0
 
 
 def unique_everseen(iterable):

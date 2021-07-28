@@ -5,7 +5,7 @@ import atexit
 from collections import defaultdict, deque
 from collections.abc import Iterable, Sequence, Callable
 from itertools import product, zip_longest
-from typing import Any, ClassVar, Union, cast, Optional
+from typing import ClassVar, Union, cast, Optional
 
 from cell import Cell, House
 from draw_context import DrawContext
@@ -20,8 +20,14 @@ class Feature(abc.ABC):
     name: str
     grid: Grid
 
-    def __init__(self, *, name: Optional[str] = None) -> None:
-        self.name = name or self.get_default_feature_name()
+    __prefix_count: ClassVar[dict[str, int]] = defaultdict(int)
+
+    def __init__(self, *, name: Optional[str] = None, prefix: Optional[str] = None) -> None:
+        if not name:
+            prefix = prefix or self.__class__.__name__.removesuffix("Feature")
+            self.__prefix_count[prefix] += 1
+            name = f'{prefix} #{self.__prefix_count[prefix]}'
+        self.name = name
 
     def initialize(self, grid) -> None:
         self.grid = grid
@@ -98,13 +104,6 @@ class Feature(abc.ABC):
         temp = Feature.parse_squares(descriptor)
         assert len(temp) == 1
         return temp[0]
-
-    class_count: ClassVar[dict[Any, int]] = defaultdict(int)
-
-    def get_default_feature_name(self):
-        klass = self.__class__
-        Feature.class_count[klass] += 1
-        return f'{klass.__name__} #{Feature.class_count[klass]}'
 
     @staticmethod
     def get_house_squares(htype, index):

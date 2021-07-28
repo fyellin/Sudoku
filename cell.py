@@ -99,7 +99,7 @@ class SmallIntSet:
 
     def __str__(self) -> str:
         elements = [str(x) for x in self]
-        return "{" + ", ".join(elements) + "}"
+        return "/" + "".join(elements) + "/"
 
     def __eq__(self, other: SmallIntSet):
         return self.bits == other.bits
