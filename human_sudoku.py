@@ -17,17 +17,17 @@ from hard_medusa import HardMedusa
 
 class Sudoku:
     grid: Grid
-    features: Sequence[Feature]
+    features: list[Feature]
     initial_grid: Mapping[tuple[int, int], int]
     draw_verbose: bool
     __check_hidden_singles_cache: dict[House, list[int]]
-    checking_features: Sequence[Feature]
+    checking_features: list[Feature]
 
     def solve(self, puzzle: str, *, features: Sequence[Feature] = (),
               initial_only: bool = False,
               medusa: bool = False,
               draw_verbose: bool = False) -> bool:
-        self.features = features
+        self.features = list(features)
         self.grid = grid = Grid(features)
         self.draw_verbose = draw_verbose
         grid.start()
@@ -462,7 +462,7 @@ class Sudoku:
         for cell in self.grid.cells:
             if len(cell.possible_values) == 2:
                 binaries[cell.possible_values].append(cell)
-        for cells in binaries.values():
+        for values, cells in binaries.items():
             if len(cells) <= 2:
                 continue
             for cell1, cell2 in combinations(cells, 2):
@@ -470,7 +470,7 @@ class Sudoku:
                     if cell3 not in (cell1, cell2) and cell1 in cell3.neighbors and cell2 in cell3.neighbors:
                         feature, modified = SameValueFeature.create(self.grid, (cell1, cell2))
                         if modified:
-                            print(f'Two-valued cells {cell1} == {cell2} because both are neighbors of {cell3}')
+                            print(f'{cell1} == {cell2} because both see {cell3} and all have binary value {values}')
                             changed = True
                         if feature:
                             self.features.append(feature)

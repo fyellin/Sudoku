@@ -21,8 +21,7 @@ class PossibilitiesFeature(Feature, abc.ABC):
     possibilities: list[Possibility]
     handle_neighbors: bool
     handle_duplicates: bool
-    __features: set[PossibilitiesFeature]
-    __supervisor: _PossibilitiesSupervisor
+    shared_data: _PossibilitiesSharedData
     __value_only_in_feature: dict[House, SmallIntSet]
     __houses_to_indexes: Mapping[House, list[int]]
     __verified_cells: set[Cell]
@@ -53,20 +52,11 @@ class PossibilitiesFeature(Feature, abc.ABC):
     def initialize(self, grid: Grid, synthetic: bool = False) -> None:
         super().initialize(grid)
         self.cells = [grid.matrix[square] for square in self.squares]
+        self.shared_data = _PossibilitiesSharedData.get(grid)
+        if not synthetic:
+            self.shared_data.owner = self
+        self.shared_data.features.add(self)
         self.__finish_initialize()
-
-        key = (PossibilitiesFeature, "supervisor")
-        supervisor = self.grid.get(key, None)
-        if synthetic:
-            # We can't take ownership since the system never calls us
-            assert supervisor
-        else:
-            if not supervisor:
-                self.grid[key] = supervisor = _PossibilitiesSupervisor(grid)
-            supervisor.owner = self
-        self.__supervisor = supervisor
-        self.__features = supervisor.features
-        self.__features.add(self)
 
     def __finish_initialize(self):
         self.cells_as_set = set(self.cells)
@@ -90,10 +80,11 @@ class PossibilitiesFeature(Feature, abc.ABC):
         self.__update_cells_for_possibilities(verbose)
 
     def check(self) -> bool:
-        if self in self.__features and self.cells_changed_since_last_invocation(self.__check_cache, self.cells):
+        if self in self.shared_data.features and \
+                self.cells_changed_since_last_invocation(self.__check_cache, self.cells):
             old_length = len(self.possibilities)
             if old_length == 1:
-                self.__features.remove(self)
+                self.shared_data.features.remove(self)
             else:
                 # Only keep those possibilities that are still viable
                 possibilities = [values for values in self.possibilities
@@ -106,25 +97,25 @@ class PossibilitiesFeature(Feature, abc.ABC):
                     if change:
                         return True
 
-        if self.__supervisor.owner == self:
-            return any(feature.check() for feature in self.__supervisor.added_features)
+        if self.shared_data.owner == self:
+            return any(feature.check() for feature in self.shared_data.added_features)
 
     def check_special(self) -> bool:
-        if self in self.__features:
+        if self in self.shared_data.features:
             if self.__handle_value_in_house_only_occurs_in_possibility():
                 return True
 
-        if self.__supervisor.owner == self:
-            if any(feature.check_special() for feature in self.__supervisor.added_features):
+        if self.shared_data.owner == self:
+            if any(feature.check_special() for feature in self.shared_data.added_features):
                 return True
 
-        if self.__supervisor.owner == self:
-            return self.__supervisor.check_special()
+        if self.shared_data.owner == self:
+            return self.shared_data.check_special()
 
         return False
 
     def weak_pair(self, cell: Cell, value: int) -> Iterable[tuple[Cell, int]]:
-        if self in self.__features and cell in self.cells_as_set:
+        if self in self.shared_data.features and cell in self.cells_as_set:
             index = self.cells.index(cell)
             # A weak pair says both conditions can't simultaneously be true.  Assume the cell has the indicated index
             # and see which values in other cells are no longer possibilities that had been before.
@@ -137,8 +128,8 @@ class PossibilitiesFeature(Feature, abc.ABC):
                     # By setting cell=value, it is no longer possible that cell2=value2
                     yield cell2, value2
 
-        if self.__supervisor.owner == self:
-            for feature in self.__supervisor.added_features:
+        if self.shared_data.owner == self:
+            for feature in self.shared_data.added_features:
                 yield from feature.weak_pair(cell, value)
 
     def simplify(self):
@@ -241,12 +232,20 @@ class PossibilitiesFeature(Feature, abc.ABC):
         return possibilities
 
 
-class _PossibilitiesSupervisor:
+class _PossibilitiesSharedData:
     owner: PossibilitiesFeature
     features: set[PossibilitiesFeature]
     grid: Grid
     added_features: list[PossibilitiesFeature]
     creation_count: int
+
+    @classmethod
+    def get(cls, grid: Grid) -> _PossibilitiesSharedData:
+        key = _PossibilitiesSharedData
+        result = grid.get(key)
+        if result is None:
+            grid[key] = result = _PossibilitiesSharedData(grid)
+        return result
 
     def __init__(self, grid: Grid):
         self.features = set()
@@ -398,4 +397,3 @@ class GroupedPossibilitiesFeature(Feature, abc.ABC):
                 #  We're not sure if this works or not
                 possibilities = [p for p in possibilities if p[index1] == p[index2]]
         return possibilities
-
