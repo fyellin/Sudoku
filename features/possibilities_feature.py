@@ -5,7 +5,7 @@ from collections import defaultdict
 from itertools import combinations, product, chain
 from typing import Sequence, Mapping, Union, Optional, Iterable, Callable
 
-from cell import Cell, House, SmallIntSet
+from cell import Cell, House, SmallIntSet, CellValue
 from feature import Feature, Square, SquaresParseable
 from grid import Grid
 from tools.union_find import Node
@@ -114,7 +114,8 @@ class PossibilitiesFeature(Feature, abc.ABC):
 
         return False
 
-    def weak_pair(self, cell: Cell, value: int) -> Iterable[tuple[Cell, int]]:
+    def get_weak_pairs(self, cell_value: CellValue) -> Iterable[CellValue]:
+        cell, value = cell_value
         if self in self.shared_data.features and cell in self.cells_as_set:
             index = self.cells.index(cell)
             # A weak pair says both conditions can't simultaneously be true.  Assume the cell has the indicated index
@@ -126,11 +127,11 @@ class PossibilitiesFeature(Feature, abc.ABC):
                 legal_values = SmallIntSet(values[index2] for values in possibilities)
                 for value2 in cell2.possible_values - legal_values:
                     # By setting cell=value, it is no longer possible that cell2=value2
-                    yield cell2, value2
+                    yield CellValue(cell2, value2)
 
         if self.shared_data.owner == self:
             for feature in self.shared_data.added_features:
-                yield from feature.weak_pair(cell, value)
+                yield from feature.get_weak_pairs(cell_value)
 
     def simplify(self):
         seen = set()

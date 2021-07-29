@@ -49,7 +49,7 @@ class Chain:
             cell_value, depth = todo.popleft()
             (one if depth % 2 == 0 else two).append(cell_value)
             (this_cell, this_value) = cell_value
-            for next_cell, _ in this_cell.strong_pair(this_value):
+            for next_cell, _ in this_cell.get_strong_pairs(this_value):
                 next_cell_value = CellValue(next_cell, this_value)
                 if next_cell_value not in seen:
                     seen.add(next_cell_value)
@@ -114,18 +114,18 @@ class Chain:
             cell_value: CellValue = todo.popleft()
             if cell_value == start:
                 break
-            (this_cell, this_value) = cell_value
-            for next_cell, _ in this_cell.strong_pair(this_value):
-                next_cell_value = CellValue(next_cell, this_value)
-                if next_cell_value not in seen:
-                    seen[next_cell_value] = cell_value
-                    todo.append(next_cell_value)
-            if self.is_medusa and len(this_cell.possible_values) == 2:
-                next_value = (this_cell.possible_values - {this_value}).unique()
-                next_cell_value = CellValue(this_cell, next_value)
-                if next_cell_value not in seen:
-                    seen[next_cell_value] = cell_value
-                    todo.append(next_cell_value)
+            if not self.is_medusa:
+                (this_cell, this_value) = cell_value
+                for next_cell, _ in this_cell.get_chain_pairs(this_value):
+                    next_cell_value = CellValue(next_cell, this_value)
+                    if next_cell_value not in seen:
+                        seen[next_cell_value] = cell_value
+                        todo.append(next_cell_value)
+            else:
+                for next_cell_value, _ in cell_value.get_chain_pairs_extended():
+                    if next_cell_value not in seen:
+                        seen[next_cell_value] = cell_value
+                        todo.append(next_cell_value)
         cell_value = start
         group = Chain.Group.ONE
         items = []

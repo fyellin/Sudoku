@@ -5,6 +5,7 @@ from collections.abc import Sequence, Iterable
 from typing import TYPE_CHECKING
 
 from cell import Cell, House
+
 if TYPE_CHECKING:
     from feature import Feature
 
@@ -14,13 +15,15 @@ class Grid(UserDict):
     houses: list[House]
     features: Sequence[Feature]
     neighborly_features: Sequence[Feature]
-    weak_pair_features: Sequence[Feature]
+    pair_features: Sequence[Feature]
     has_alternative_boxes: bool
 
     def __init__(self, features: Sequence[Feature]) -> None:
         super().__init__()
+        # Features that affect neighbors of a cell
         self.neighborly_features = [feature for feature in features if feature.has_neighbor_method()]
-        self.weak_pair_features = [feature for feature in features if feature.has_strong_weak_pair_method()]
+        # Features that have strong/weak/chain pairs
+        self.pair_features = [feature for feature in features if feature.has_any_pair_method()]
         self.matrix = {(row, column): Cell(row, column, self)
                        for row in range(1, 10) for column in range(1, 10)}
         self.features = features

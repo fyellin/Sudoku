@@ -218,30 +218,21 @@ class Cell:
     def house_of_type(self, house_type: House.Type) -> House:
         return next(house for house in self.houses if house.house_type == house_type)
 
-    def strong_pair(self, value: int) -> Iterable[tuple[Cell, House]]:
+    def simple_chain_pair(self, value: int) -> Iterable[tuple[Cell, House]]:
+        """A chain pair implies that exactly one of self=value or result=value is True."""
+        return self.simple_strong_pair(value)
+
+    def simple_strong_pair(self, value: int) -> Iterable[tuple[Cell, House]]:
+        """A strong pair implies that at least one of self=value or result=value is True"""
         for house in self.houses:
             temp = [cell for cell in house.unknown_cells if cell != self and value in cell.possible_values]
             if len(temp) == 1:
                 yield temp[0], house
 
-    def extended_strong_pair(self, value: int) -> Iterable[tuple[Cell, int, Union[House, Feature, bool]]]:
-        for cell2, house2 in self.strong_pair(value):
-            yield cell2, value, house2
-        if len(self.possible_values) == 2:
-            yield self, (self.possible_values - {value}).unique(), True
-
-    def weak_pair(self, value: int) -> Iterable[tuple[Cell, House]]:
+    def simple_weak_pair(self, value: int) -> Iterable[tuple[Cell, House]]:
+        """A strong pair implies that at most one of self=value or result=value is True.  Both may be False"""
         return ((cell, house) for house in self.houses
                 for cell in house.unknown_cells if cell != self and value in cell.possible_values)
-
-    def extended_weak_pair(self, value) -> Iterable[tuple[Cell, int, Union[House, Feature, bool]]]:
-        for cell2, house2 in self.weak_pair(value):
-            yield cell2, value, house2
-        for value2 in self.possible_values - {value}:
-            yield self, value2, True
-        for feature in self.grid.weak_pair_features:
-            for cell2, value2 in feature.weak_pair(self, value):
-                yield cell2, value2, feature
 
     def is_neighbor(self, other: Cell) -> bool:
         return other in self.neighbors
@@ -327,5 +318,34 @@ class CellValue(NamedTuple):
     def to_string(self, truth: bool) -> str:
         char = '=' if truth else '≠'
         return f'{self.cell}{char}{self.value}'
+
+    def get_strong_pairs_extended(self) -> Iterable[tuple[CellValue, Union[House, Feature, bool]]]:
+        cell, value = self
+        yield from ((CellValue(cell2, value), house2) for cell2, house2 in cell.simple_strong_pair(value))
+        if len(cell.possible_values) == 2:
+            yield CellValue(cell, (cell.possible_values - {value}).unique()), True
+        yield from ((cv, feature)
+                    for feature in cell.grid.pair_features
+                    for cv in feature.get_strong_pairs(self))
+
+    def get_weak_pairs_extended(self) -> Iterable[tuple[CellValue, Union[House, Feature, bool]]]:
+        cell, value = self
+        yield from ((CellValue(cell2, value), house2) for cell2, house2 in cell.simple_weak_pair(value))
+        yield from ((CellValue(cell, value2), True) for value2 in cell.possible_values if value != value2)
+        yield from ((cv, feature)
+                    for feature in cell.grid.pair_features
+                    for cv in feature.get_weak_pairs(self))
+
+    def get_chain_pairs_extended(self):
+        cell, value = self
+        yield from ((CellValue(cell2, value), house2) for cell2, house2 in cell.simple_chain_pair(value))
+        if len(cell.possible_values) == 2:
+            yield CellValue(cell, (cell.possible_values - {value}).unique()), True
+        yield from ((cv, feature)
+                    for feature in cell.grid.pair_features
+                    for cv in feature.get_chain_pairs(self))
+
+
+
 
 

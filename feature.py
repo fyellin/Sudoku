@@ -7,7 +7,7 @@ from collections.abc import Iterable, Sequence, Callable
 from itertools import product, zip_longest
 from typing import ClassVar, Union, cast, Optional
 
-from cell import Cell, House
+from cell import Cell, House, CellValue
 from draw_context import DrawContext
 from grid import Grid
 
@@ -47,11 +47,31 @@ class Feature(abc.ABC):
     def check_special(self) -> bool:
         return False
 
-    def strong_pair(self, _cell: Cell, _value: int) -> Iterable[tuple[Cell, int]]:
+    # noinspection PyMethodMayBeStatic
+    def get_strong_pairs(self, _cell_value: CellValue) -> Iterable[CellValue]:
+        """
+        cell1=value1 and cell2=value2 are a strong pair if at least one of them is always True.
+        For now, we only generate results in which exactly one of them is always True."""
+        """"""
         return ()
 
-    def weak_pair(self, _cell: Cell, _value: int) -> Iterable[tuple[Cell, int]]:
+    def get_weak_pairs(self, _cell_value: CellValue) -> Iterable[CellValue]:
+        """
+        cell1=value1 and cell2=value2 are a weak pair if both of them cannot be simultaneously True.
+        If either of them is true, then the other must be False.
+        """
         return ()
+
+    # noinspection PyMethodMayBeStatic
+    def get_chain_pairs(self, cell_value: CellValue) -> Iterable[CellValue]:
+        """
+        Exactly one of cell1=value and cell2=value is true.  These are both strong and weak.
+        """
+        # In the lack of better information, we can just intersection strong_pairs and weak_pairs.  Most features
+        # don't even bother having strong pairs, so find that first.
+        strong_pairs = set(self.get_strong_pairs(cell_value))
+        if strong_pairs:
+            yield from (w for w in self.get_weak_pairs(cell_value) if w in strong_pairs)
 
     def draw(self, context: DrawContext) -> None:
         pass
@@ -139,8 +159,9 @@ class Feature(abc.ABC):
         return cls.check != Feature.check or cls.check_special != Feature.check_special
 
     @classmethod
-    def has_strong_weak_pair_method(cls):
-        return cls.weak_pair != Feature.weak_pair or cls.strong_pair != Feature.strong_pair
+    def has_any_pair_method(cls):
+        return cls.get_weak_pairs != Feature.get_weak_pairs or cls.get_strong_pairs != Feature.get_strong_pairs or \
+            cls.get_chain_pairs != Feature.get_chain_pairs
 
     check_elided: ClassVar[int] = 0
     check_called: ClassVar[int] = 0

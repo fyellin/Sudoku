@@ -6,7 +6,7 @@ from itertools import product, combinations, permutations
 
 from matplotlib import pyplot as plt
 
-from cell import House, Cell, SmallIntSet
+from cell import House, Cell, SmallIntSet, CellValue
 from chain import Chains
 from draw_context import DrawContext
 from feature import Feature
@@ -151,7 +151,8 @@ class Sudoku:
                    for house in self.grid.houses
                    for value in house.unknown_values)
 
-    def __check_intersection_removal(self, house: House, value: int) -> bool:
+    @staticmethod
+    def __check_intersection_removal(house: House, value: int) -> bool:
         """Checks for intersection removing of the specific value in the specific house"""
         candidates = [cell for cell in house.unknown_cells if value in cell.possible_values]
         assert len(candidates) > 1
@@ -386,6 +387,7 @@ class Sudoku:
                             return True
         return False
 
+    # noinspection PyMethodMayBeStatic
     def check_chain_colors(self, chains: Chains) -> bool:
         """
         Create strong chains for all the unsolved cells.  See if looking at any two items on the same chain
@@ -398,11 +400,11 @@ class Sudoku:
             if cell1.is_known:
                 continue
             for value in cell1.possible_values:
-                for cell2, house2 in cell1.strong_pair(value):
-                    for cell3, house3 in cell2.weak_pair(value):
+                for cell2, house2 in cell1.simple_strong_pair(value):
+                    for cell3, house3 in cell2.simple_weak_pair(value):
                         if house3 == house2 or cell3 in (cell1, cell2):
                             continue
-                        for cell4, house4 in cell3.strong_pair(value):
+                        for cell4, house4 in cell3.simple_strong_pair(value):
                             if house4 == house3 or cell4 in (cell1, cell2, cell3):
                                 continue
                             fixers = {cell for cell in cell1.joint_neighbors(cell4)
@@ -416,44 +418,48 @@ class Sudoku:
         return False
 
     def check_tower_extended(self) -> bool:
-        for cell1 in self.grid.cells:
-            if cell1.is_known:
-                continue
-            for value1 in cell1.possible_values:
-                for cell2, value2, house2 in cell1.extended_strong_pair(value1):
-                    for cell3, value3, house3 in cell2.extended_weak_pair(value2):
-                        if house3 is house2 or (cell3, value3) == (cell1, value1):
+        for cv1 in (CellValue(cell, value)
+                    for cell in self.grid.cells if not cell.is_known
+                    for value in cell.possible_values):
+            for cv2, house2 in cv1.get_strong_pairs_extended():
+                for cv3, house3 in cv2.get_weak_pairs_extended():
+                    if house3 is house2 or cv3 == cv1:
+                        continue
+                    for cv4, house4 in cv3.get_strong_pairs_extended():
+                        if house4 == house3 or cv4 == cv1 or cv4 == cv2:
                             continue
-                        for cell4, value4, house4 in cell3.extended_strong_pair(value3):
-                            if house4 is house3 or (cell4, value4) in ((cell2, value2), (cell1, value1)):
-                                continue
-                            fixers = []
+                        fixers = []
+                        cell1, value1 = cv1
+                        cell4, value4 = cv4
 
-                            def print_tower():
-                                print(f'Tower: {cell1}≠{value1} → {cell2}={value2} → {cell3}≠{value3} → '
-                                      f'{cell4}={value4}. So {cell1}={value1} or {cell4}={value4}.')
-                            # At least one of cell1 == value1 or cell4 == value4 is True
-                            if cell1 == cell4:  # The cell must have one of the other two values
-                                temp = SmallIntSet([value1, value4])
-                                assert temp <= cell1.possible_values
-                                if temp != cell1.possible_values:
-                                    print_tower()
-                                    Cell.keep_values_for_cell([cell1], {value1, value4})
-                                    return True
-                            elif value1 == value4:
-                                # TODO:  Joint neighbors for value??
-                                fixers = {(cell, value1) for cell in cell1.joint_neighbors(cell4)
-                                          if value1 in cell.possible_values}
-                            else:
-                                if value1 in cell4.possible_values and cell1.is_neighbor_for_value(cell4, value1):
-                                    fixers.append([cell4, value1])
-                                if value4 in cell1.possible_values and cell4.is_neighbor_for_value(cell1, value4):
-                                    fixers.append([cell1, value4])
-                            if fixers:
+                        def print_tower():
+                            print(f'Tower: {cv1.to_string(False)} → {cv2.to_string(True)} → {cv3.to_string(False)} → '
+                                  f'{cv4.to_string(True)}. So {cv1.to_string(True)} or {cv4.to_string(True)}.')
+
+                        # At least one of cell1 == value1 or cell4 == value4 is True
+                        if cell1 == cell4:  # The cell must have one of the other two values
+                            temp = SmallIntSet([value1, value4])
+                            assert temp <= cell1.possible_values
+                            if temp != cell1.possible_values:
                                 print_tower()
-                                for cell, value in fixers:
-                                    Cell.remove_value_from_cells([cell], value, show=True)
+                                Cell.keep_values_for_cell([cell1], {value1, value4})
                                 return True
+                        elif value1 == value4:
+                            # Either cell1 or cell4 has the value.  We can remove it from joint neighbors
+                            fixers = {CellValue(cell, value1) for cell in cell1.joint_neighbors(cell4)
+                                      if value1 in cell.possible_values}
+                        else:
+                            # If they are approriately neighborly, value1 can't be in cell4 and value4 can't be in
+                            # cell1, since then both statements would be false.
+                            if value1 in cell4.possible_values and cell1.is_neighbor_for_value(cell4, value1):
+                                fixers.append(CellValue(cell4, value1))
+                            if value4 in cell1.possible_values and cell4.is_neighbor_for_value(cell1, value4):
+                                fixers.append(CellValue(cell1, value4))
+                        if fixers:
+                            print_tower()
+                            for cell, value in fixers:
+                                Cell.remove_value_from_cells([cell], value, show=True)
+                            return True
         return False
 
     def check_simple_coloring(self):
