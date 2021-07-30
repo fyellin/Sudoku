@@ -52,7 +52,7 @@ class PossibilitiesFeature(Feature, abc.ABC):
     def initialize(self, grid: Grid, synthetic: bool = False) -> None:
         super().initialize(grid)
         self.cells = [grid.matrix[square] for square in self.squares]
-        self.shared_data = _PossibilitiesSharedData.get(grid)
+        self.shared_data = _PossibilitiesSharedData.get_singleton(grid)
         if not synthetic:
             self.shared_data.owner = self
         self.shared_data.features.add(self)
@@ -241,7 +241,7 @@ class _PossibilitiesSharedData:
     creation_count: int
 
     @classmethod
-    def get(cls, grid: Grid) -> _PossibilitiesSharedData:
+    def get_singleton(cls, grid: Grid) -> _PossibilitiesSharedData:
         key = _PossibilitiesSharedData
         result = grid.get(key)
         if result is None:

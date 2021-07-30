@@ -27,7 +27,7 @@ class SameValueFeature(Feature):
 
     @classmethod
     def already_paired(cls, grid: Grid, cell1, cell2: Cell):
-        shared_data = _SameValueSharedData.get(grid)
+        shared_data = _SameValueSharedData.get_singleton(grid)
         feature1 = shared_data.cell_to_feature(cell1)
         return feature1 is not None and feature1 == shared_data.cell_to_feature(cell2)
 
@@ -35,7 +35,7 @@ class SameValueFeature(Feature):
     def create(cls, grid: Grid, cells: Sequence[Cell], *, name: Optional[str] = None, prefix: Optional[str] = None) -> \
             tuple[Optional[SameValueFeature], bool]:
 
-        shared_data = _SameValueSharedData.get(grid)
+        shared_data = _SameValueSharedData.get_singleton(grid)
         features = [shared_data.cell_to_feature(cell) for cell in cells]
         if features[0] is not None and all(features[0] == feature for feature in features):
             return None, False
@@ -67,7 +67,7 @@ class SameValueFeature(Feature):
         super().initialize(grid)
         if not self.cells:
             self.cells = [self @ square for square in self.squares]
-        self.shared_data = _SameValueSharedData.get(grid)
+        self.shared_data = _SameValueSharedData.get_singleton(grid)
         self.shared_data.owner = self.shared_data.owner or self
 
     def start(self) -> None:
@@ -187,7 +187,7 @@ class _SameValueSharedData:
               '#bfef45', '#fabed4', '#469990', '#dcbeff', '#9A6324', '#fffac8', '#800000', '#aaffc3',
               '#808000', '#ffd8b1', '#000075', '#a9a9a9', '#000000')
 
-    features: dict[SameValueFeature, int]   # Using the fact that dictionaries are Ordered
+    features: dict[SameValueFeature, bool]   # Using the fact that dictionaries are Ordered
     union_find: UnionFind
     token_to_feature: dict[Cell, SameValueFeature]
     grid: grid
@@ -198,6 +198,8 @@ class _SameValueSharedData:
     def __init__(self,  grid: Grid):
         self.union_find = UnionFind()
         self.token_to_feature = {}
+        # self.features is really intended as a set, but dictionaries remember the order in which things are
+        # added, so we just ignore the value.
         self.features = {}
         self.grid = grid
 
@@ -205,7 +207,7 @@ class _SameValueSharedData:
         self.colors = deque(self.COLORS)
 
     @staticmethod
-    def get(grid: Grid) -> _SameValueSharedData:
+    def get_singleton(grid: Grid) -> _SameValueSharedData:
         key = _SameValueSharedData
         shared_data = grid.get(key)
         if not shared_data:
@@ -216,7 +218,7 @@ class _SameValueSharedData:
         cell0 = feature.cells[0]
         for i in range(1, len(feature.cells)):
             self.union_find.union(cell0, feature.cells[i])
-        self.features[feature] = 0
+        self.features[feature] = True  # Add ourselves to what is actually an ordered set
         self.token_to_feature[self.union_find.find(cell0)] = feature
         self.__fixup()
 
@@ -239,7 +241,7 @@ class _SameValueSharedData:
                 old_name = str(prev_feature)
                 neighbors = feature.cells[0].neighbors | prev_feature.cells[0].neighbors
                 prev_feature.set_all_neighbors(neighbors)
-                prev_feature.cells = list(unique_everseen(itertools.chain(prev_feature.cells, feature.cells)))
+                prev_feature.cells = list(unique_concat(itertools.chain(prev_feature.cells, feature.cells)))
                 print(f'...Merging {feature} into {old_name} yielding {prev_feature}')
                 deletions.append(feature)
         for feature in deletions:
@@ -266,12 +268,9 @@ class _SameValueSharedData:
             nodes -= cells
 
 
-def unique_everseen(iterable):
+def unique_concat(iterable):
     seen = set()
     seen_add = seen.add
     for element in itertools.filterfalse(seen.__contains__, iterable):
         seen_add(element)
         yield element
-
-
-
