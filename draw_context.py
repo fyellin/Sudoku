@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-from collections import UserDict
-from collections.abc import Sequence
-from typing import Any, TYPE_CHECKING
+from collections import Sequence, UserDict
+from typing import Any, Optional, TYPE_CHECKING
 
 import numpy as np
 from matplotlib.axes import Axes
-from matplotlib.patches import FancyBboxPatch, Circle, Rectangle
+from matplotlib.patches import Circle, FancyBboxPatch, Rectangle
 
 from cell import House
 
@@ -52,8 +51,10 @@ class DrawContext(UserDict):
     def plot(self, xs, ys, **args: Any):
         self._axis.plot(xs, ys, **args)
 
-    def draw_arrow(self, x: float, y: float, dx: float, dy: float, **args: Any):
-        self._axis.arrow(x, y, dx, dy, **args)
+    def draw_arrow(self, x: float, y: float, dx: float, dy: float, *, color: Optional[str] = None):
+        self._axis.annotate('', xytext=(x, y), xy=(x + dx, y + dy),
+                            arrowprops=dict(arrowstyle="->", color=color))
+        # self._axis.arrow(x, y, dx, dy, **args)
 
     def add_fancy_bbox(self, center, width, height, **args: Any):
         self._axis.add_patch(FancyBboxPatch(center, width=width, height=height, **args))
@@ -65,17 +66,17 @@ class DrawContext(UserDict):
         if htype == House.Type.ROW:
             if not is_right:
                 self.draw_text(.9 - padding, row_or_column + .5, str(value),
-                               verticalalignment='center', horizontalalignment='right', **args)
+                               va='center', ha='right', **args)
             else:
                 self.draw_text(10.1 + padding, row_or_column + .5, str(value),
-                               verticalalignment='center', horizontalalignment='left', **args)
+                               va='center', ha='left', **args)
         else:
             if not is_right:
                 self.draw_text(row_or_column + .5, .9 - padding, str(value),
-                               verticalalignment='bottom', horizontalalignment='center', **args)
+                               va='bottom', ha='center', **args)
             else:
                 self.draw_text(row_or_column + .5, 10.1 + padding, str(value),
-                               verticalalignment='top', horizontalalignment='center', **args)
+                               va='top', ha='center', **args)
 
     def draw_outline(self, squares: Sequence[Square], *, inset: float = .1, **args: Any) -> None:
         args = {'color': 'black', 'linewidth': 2, 'linestyle': "dotted", **args}
@@ -98,13 +99,14 @@ class DrawContext(UserDict):
                 row, column, ahead_dr, ahead_dc = current_wall  # square, and direction of wall from center
                 right_dr, right_dc = ahead_dc, -ahead_dr  # The direction if we turned right
 
-                # Three possible next walls, in order of preference.  We are facing the wall:
-                #  1) The wall makes a right turn, staying with the current square
-                #  2) The wall continues in its direction, going into the square to our right
+                # Three possible next walls, in order of preference.  We are facing the wall.
+                # We scan the wall from left to right, and then see where it goes next:
+                #  1) The wall makes a right turn, staying with the current square.
+                next1 = (row, column, right_dr, right_dc)
+                #  2) The wall continues in its direction, going into the square on the right.
+                next2 = (row + right_dr, column + right_dc, ahead_dr, ahead_dc)
                 #  3) The wall makes a left turn, continuing in the square diagonally ahead to the right.
-                next1 = (row, column, right_dr, right_dc)  # right
-                next2 = (row + right_dr, column + right_dc, ahead_dr, ahead_dc)  # straight
-                next3 = (row + right_dr + ahead_dr, column + right_dc + ahead_dc, -right_dr, -right_dc)  # left
+                next3 = (row + right_dr + ahead_dr, column + right_dc + ahead_dc, -right_dr, -right_dc)
 
                 # It is possible for next1 and next3 to both be in walls if we have two squares touching diagonally.
                 # In that case, we prefer to stay within the same cell, so we prefer next1 to next3.

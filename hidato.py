@@ -2,12 +2,11 @@ from __future__ import annotations
 
 import datetime
 import itertools
-from collections import defaultdict
-from collections.abc import Sequence, Mapping
+from collections import Mapping, Sequence, defaultdict
 from typing import Any, NamedTuple, Optional
 
 import numpy as np
-from matplotlib import pyplot as plt, patches
+from matplotlib import patches, pyplot as plt
 from matplotlib.pyplot import arrow
 
 

@@ -2,12 +2,11 @@ from __future__ import annotations
 
 import abc
 import atexit
-from collections import defaultdict, deque
-from collections.abc import Iterable, Sequence, Callable
+from collections import Callable, Iterable, Sequence, defaultdict, deque
 from itertools import product, zip_longest
-from typing import ClassVar, Union, cast, Optional
+from typing import ClassVar, Optional, Union, cast
 
-from cell import Cell, House, CellValue
+from cell import Cell, CellValue, House
 from draw_context import DrawContext
 from grid import Grid
 

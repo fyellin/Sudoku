@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 import itertools
-from collections import deque
-from collections.abc import Iterable, Iterator, Sequence, Mapping
+from collections import Iterable, Iterator, Mapping, Sequence, deque
 from enum import Enum, auto
 from typing import NamedTuple
 
-from cell import CellValue, Cell
+from cell import Cell, CellValue
 from color import Color
 
 

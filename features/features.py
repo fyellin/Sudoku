@@ -2,14 +2,13 @@ from __future__ import annotations
 
 import abc
 import functools
-from collections import defaultdict, Callable
-from collections.abc import Iterable, Sequence, Mapping
-from itertools import permutations, product, tee, groupby, combinations_with_replacement
-from typing import Optional, ClassVar, Any, Union
+from collections import Callable, Iterable, Mapping, Sequence, defaultdict
+from itertools import combinations_with_replacement, groupby, permutations, product, tee
+from typing import Any, ClassVar, Optional, Union
 
 from cell import Cell, House, SmallIntSet
 from draw_context import DrawContext
-from feature import Feature, Square, MultiFeature, SquaresParseable
+from feature import Feature, MultiFeature, Square, SquaresParseable
 from features.possibilities_feature import PossibilitiesFeature
 from features.same_value_feature import SameValueFeature
 from grid import Grid
@@ -316,7 +315,7 @@ class XVFeature(AdjacentRelationshipFeature):
             (r1, c1), (r2, c2) = self.squares
             character = 'X' if self.total == 10 else 'XV' if self.total == 15 else 'V'
             context.draw_text((c1 + c2 + 1) / 2, (r1 + r2 + 1) / 2, character,
-                              verticalalignment='center', horizontalalignment='center', **args)
+                              va='center', ha='center', **args)
 
     @classmethod
     def setup(cls, *,
@@ -437,7 +436,7 @@ class KillerCageFeature(PossibilitiesFeature):
         context.draw_outline(self.squares)
         row, column = min(self.squares)
         context.draw_text(column + .2, row + .2, str(self.total),
-                          verticalalignment='top', horizontalalignment='left', fontsize=10, weight='bold')
+                          va='top', ha='left', fontsize=10, weight='bold')
 
 
 class ArrowSumFeature(PossibilitiesFeature):
@@ -460,8 +459,7 @@ class ArrowSumFeature(PossibilitiesFeature):
         context.draw_circle((x + .5, y+.5), radius=.35, fill=False, color='gray')
         context.draw_line(self.squares)
         (y0, x0), (y1, x1) = self.squares[-2], self.squares[-1]
-        context.draw_arrow(x0 + .5, y0 + .5, x1 - x0, y1 - y0, length_includes_head=True,
-                           head_width=.2, head_length=.2)
+        context.draw_arrow(x0 + .5, y0 + .5, x1 - x0, y1 - y0)
 
 
 class ExtremeEndpointsFeature(PossibilitiesFeature):
@@ -588,11 +586,8 @@ class LittleKillerFeature(PossibilitiesFeature):
     def draw(self, context: DrawContext) -> None:
         (y, x), (dy, dx) = self.squares[0], self.direction
         context.draw_text(x - dx + .5, y - dy + .5, str(self.total),
-                          verticalalignment='center', horizontalalignment='center',
-                          fontsize=25, color='black', weight='light')
-        context.draw_arrow(x - dx + .5, y - dy + .5, .5 * dx, .5 * dy,
-                           length_includes_head=True,
-                           head_width=.2, head_length=.2)
+                          va='center', ha='center', fontsize=25, color='black', weight='light')
+        context.draw_arrow(x - dx + .5, y - dy + .5, .5 * dx, .5 * dy)
 
 
 class ValuesAroundIntersectionFeature(PossibilitiesFeature):
@@ -618,8 +613,7 @@ class ValuesAroundIntersectionFeature(PossibilitiesFeature):
         if len(self.values) >= 3:
             text = text[0:3] + '\n' + text[4:]
         context.draw_text(x + 1, y + 1, text,
-                          fontsize=10, color='black',
-                          verticalalignment='center', horizontalalignment='center')
+                          fontsize=10, color='black', va='center', ha='center')
 
 
 class RenbanFeature(PossibilitiesFeature):
@@ -662,8 +656,7 @@ class MessageFeature:
     def draw_function(cls, context: DrawContext, mapping: dict[str, list[Square]], feature: Feature) -> None:
         for letter, squares in mapping.items():
             for y, x in squares:
-                context.draw_text(x, y, letter, weight='bold', fontsize=10,
-                                  verticalalignment='top', horizontalalignment='left')
+                context.draw_text(x, y, letter, weight='bold', fontsize=10, va='top', ha='left')
         if context.done and context.result:
             # Print the values of the letters in numeric order
             value_map = {feature @ squares[0]: letter for letter, squares in mapping.items()}

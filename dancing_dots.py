@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 import itertools
-from collections import deque
-from collections.abc import Sequence
+from collections import Sequence, deque
 from enum import Enum
 
 from matplotlib import pyplot as plt
@@ -22,7 +21,7 @@ class RowOrColumn(Enum):
 
 
 class DancingDots:
-    grid: Sequence[Sequence[str]]
+    grid: list[list[str]]
 
     def solve(self, puzzle: str) -> None:
         from tools.dancing_links import DancingLinks
@@ -105,7 +104,7 @@ class DancingDots:
         self.draw_grid2(initial_grid)
 
     @staticmethod
-    def get_initial_grid(puzzle: str) -> Sequence[Sequence[str]]:
+    def get_initial_grid(puzzle: str) -> list[list[str]]:
         lines = [list(line) for line in puzzle.splitlines() if line]
         assert len(lines) == 10
         assert all(len(line) == 10 for line in lines)
@@ -162,8 +161,7 @@ class DancingDots:
                 continue
             for column in range(10):
                 args = given if self.grid[index][column] != '.' else found
-                axes.text(column + .5, index + .5, solution[column],
-                          verticalalignment='center', horizontalalignment='center', **args)
+                axes.text(column + .5, index + .5, solution[column], va='center', ha='center', **args)
         plt.show()
 
     def draw_grid2(self, initial_grid) -> None:
@@ -187,8 +185,7 @@ class DancingDots:
             value = self.grid[row][column]
             if value != '.':
                 args = given if (row, column) in initial_grid else found
-                axes.text(column + .5, row + .5, value,
-                          verticalalignment='center', horizontalalignment='center', **args)
+                axes.text(column + .5, row + .5, value, va='center', ha='center', **args)
         plt.show()
 
 

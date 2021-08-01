@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-from collections import deque
-from collections.abc import Sequence, Mapping
-from typing import Any, Optional, ClassVar, Union, TYPE_CHECKING
+from collections import Mapping, Sequence, deque
+from typing import Any, ClassVar, Optional, TYPE_CHECKING, Union
 
-from cell import House, CellValue, Cell
+from cell import Cell, CellValue, House
 from chain import Chain, Chains
 from color import Color
 

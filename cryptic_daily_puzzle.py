@@ -1,21 +1,20 @@
 ﻿import datetime
 import itertools
-from collections.abc import Sequence, Iterable
+from collections import Iterable, Sequence
 from typing import Optional, cast
 
 from cell import Cell, House, SmallIntSet
 from draw_context import DrawContext
 from feature import Feature, Square
-from features.chess_move import LittlePrincessFeature, KnightsMoveFeature, KingsMoveFeature, QueensMoveFeature
-from features.features import MagicSquareFeature, AlternativeBoxesFeature, BoxOfNineFeature, \
-    AdjacentRelationshipFeature, LimitedValuesFeature, XVFeature, AdjacentNotConsecutiveFeature, SimonSaysFeature, \
-    OddsAndEvensFeature, ValuesAroundIntersectionFeature, RenbanFeature, KillerCageFeature, ExtremeEndpointsFeature, \
-    ArrowSumFeature
+from features.chess_move import KingsMoveFeature, KnightsMoveFeature, LittlePrincessFeature, QueensMoveFeature
+from features.features import AdjacentNotConsecutiveFeature, AdjacentRelationshipFeature, AlternativeBoxesFeature, \
+    ArrowSumFeature, BoxOfNineFeature, ExtremeEndpointsFeature, KillerCageFeature, LimitedValuesFeature, \
+    MagicSquareFeature, OddsAndEvensFeature, RenbanFeature, SimonSaysFeature, ValuesAroundIntersectionFeature, XVFeature
 from features.possibilities_feature import GroupedPossibilitiesFeature, PossibilitiesFeature
 from features.same_value_as_mate_feature import SameValueAsMateFeature
 from features.sandwich_feature import SandwichFeature, SandwichXboxFeature
 from features.skyscraper_feature import SkyscraperFeature
-from features.thermometer import ThermometerFeature, SlowThermometerFeature
+from features.thermometer import SlowThermometerFeature, ThermometerFeature
 from grid import Grid
 from human_sudoku import Sudoku
 
@@ -467,8 +466,7 @@ def puzzle_09_05() -> tuple[str, Sequence[Feature]]:
         def draw(self, context: DrawContext) -> None:
             (r1, c1), (r2, c2) = self.squares
             context.draw_text((c1 + c2 + 1)/2, (r1 + r2 + 1)/2, str(self.delta),
-                              verticalalignment='center', horizontalalignment='center',
-                              fontsize=15, weight='bold', color='red')
+                              va='center', ha='center', fontsize=15, weight='bold', color='red')
 
         def match(self, digit1: int, digit2: int) -> bool:
             return abs(digit1 - digit2) == self.delta

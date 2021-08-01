@@ -3,8 +3,8 @@ from __future__ import annotations
 import abc
 import datetime
 import itertools
-from collections.abc import Sequence, Mapping
-from typing import ClassVar, Any
+from collections import Mapping, Sequence
+from typing import Any, ClassVar
 
 from matplotlib import pyplot as plt
 from matplotlib.patches import FancyBboxPatch
@@ -78,7 +78,7 @@ class Sudoku:
         for row, column, value in results:
             args = given if (row, column) in self.initial_grid else found
             axes.text(column + .5, row + .5, str(value),
-                      verticalalignment='center', horizontalalignment='center', **args)
+                      va='center', ha='center', **args)
 
         for feature in self.features:
             feature.post_print(results)

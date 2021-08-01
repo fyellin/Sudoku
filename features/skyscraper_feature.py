@@ -1,5 +1,5 @@
 import itertools
-from collections.abc import Sequence, Iterable
+from collections import Iterable, Sequence
 from typing import Optional, cast
 
 from cell import House

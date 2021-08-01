@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-from collections import deque, defaultdict
-from collections.abc import Sequence, Mapping
-from itertools import product, combinations, permutations
+from collections import Mapping, Sequence, defaultdict, deque
+from itertools import combinations, permutations, product
 
 from matplotlib import pyplot as plt
 
-from cell import House, Cell, SmallIntSet, CellValue
+from cell import Cell, CellValue, House, SmallIntSet
 from chain import Chains
 from draw_context import DrawContext
 from feature import Feature
@@ -515,8 +514,7 @@ class Sudoku:
             cell = self.grid.matrix[row, column]
             if cell.known_value:
                 args = given if (row, column) in self.initial_grid else found
-                axes.text(column + .5, row + .5, cell.known_value,
-                          verticalalignment='center', horizontalalignment='center', **args)
+                axes.text(column + .5, row + .5, cell.known_value, va='center', ha='center', **args)
 
         if self.guides > 0:
             if self.guides == 1:
@@ -534,8 +532,7 @@ class Sudoku:
                 for value in cell.possible_values:
                     y, x = divmod(value - 1, 3)
                     axes.text(column + .5 + (x - 1) * digit_width, row + .5 + (y - 1) * digit_width, str(value),
-                              verticalalignment='center', horizontalalignment='center',
-                              fontsize=8, color='blue', weight='light')
+                              va='center', ha='center', fontsize=8, color='blue', weight='light')
 
     def __fill_in_grid_simple(self, axes) -> None:
         corner_args = dict(fontsize=8, color='blue', weight='light')
@@ -545,7 +542,7 @@ class Sudoku:
             if not cell.known_value:
                 if len(cell.possible_values) <= 8:
                     axes.text(column + .5, row + .5, ''.join(str(x) for x in sorted(cell.possible_values)),
-                              verticalalignment='center', horizontalalignment='center', **corner_args)
+                              va='center', ha='center', **corner_args)
 
         for house in self.grid.houses:
             if house.house_type != House.Type.BOX:
@@ -562,15 +559,10 @@ class Sudoku:
                 row, column = cell.index
                 for i, value in enumerate(sorted(values)):
                     if i == 0:
-                        axes.text(column + .1, row + .1, str(value),
-                                  verticalalignment='top', horizontalalignment='left', **corner_args)
+                        axes.text(column + .1, row + .1, str(value), va='top', ha='left', **corner_args)
                     elif i == 1:
-                        axes.text(column + .9, row + .1, str(value),
-                                  verticalalignment='top', horizontalalignment='right', **corner_args)
+                        axes.text(column + .9, row + .1, str(value), va='top', ha='right', **corner_args)
                     elif i == 2:
-                        axes.text(column + .1, row + .9, str(value),
-                                  verticalalignment='bottom', horizontalalignment='left', **corner_args)
+                        axes.text(column + .1, row + .9, str(value), va='bottom', ha='left', **corner_args)
                     else:
-                        axes.text(column + .9, row + .9, str(value),
-                                  verticalalignment='bottom', horizontalalignment='right', **corner_args)
-
+                        axes.text(column + .9, row + .9, str(value), va='bottom', ha='right', **corner_args)

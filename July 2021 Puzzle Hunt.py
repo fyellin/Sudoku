@@ -4,13 +4,12 @@ from typing import Sequence, cast
 from cell import House
 from draw_context import DrawContext
 from feature import Feature, Square
-from features.features import BoxOfNineFeature, OddsAndEvensFeature, PalindromeFeature, XVFeature, \
-    AdjacentNotConsecutiveFeature, KillerCageFeature, \
-    LittleKillerFeature, KropkeDotFeature, ArrowSumFeature, ExtremeEndpointsFeature, \
-    LocalMinOrMaxFeature, ValuesAroundIntersectionFeature
+from features.chess_move import KingsMoveFeature, KnightsMoveFeature
+from features.features import AdjacentNotConsecutiveFeature, ArrowSumFeature, BoxOfNineFeature, ExtremeEndpointsFeature, \
+    KillerCageFeature, KropkeDotFeature, LittleKillerFeature, LocalMinOrMaxFeature, OddsAndEvensFeature, \
+    PalindromeFeature, ValuesAroundIntersectionFeature, XVFeature
 from features.same_value_feature import SameValueFeature
 from features.sandwich_feature import SandwichFeature
-from features.chess_move import KnightsMoveFeature, KingsMoveFeature
 from features.thermometer import ThermometerFeature
 from human_sudoku import Sudoku
 
@@ -28,7 +27,7 @@ class DrawCircleFeature(Feature):
         if all(self.grid.matrix[square].is_known for square in self.squares):
             value = ''.join(str(self.grid.matrix[square].known_value) for square in self.squares)
             print('Value =', value)
-            context.draw_text(5.5, 0, value, fontsize=25, verticalalignment='center', horizontalalignment='center')
+            context.draw_text(5.5, 0, value, fontsize=25, va='center', ha='center')
 
 
 def puzzle_1() -> tuple[str, Sequence[Feature]]:

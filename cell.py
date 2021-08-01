@@ -3,9 +3,9 @@ from __future__ import annotations
 import functools
 import itertools
 import operator
-from collections.abc import Sequence, Iterable, Iterator
+from collections import Iterable, Iterator, Sequence
 from enum import Enum, auto
-from typing import Optional, Final, TYPE_CHECKING, NamedTuple, Union, AbstractSet
+from typing import AbstractSet, Final, NamedTuple, Optional, TYPE_CHECKING, Union
 
 from color import Color
 

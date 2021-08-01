@@ -1,14 +1,14 @@
 import datetime
 import itertools
-from typing import Sequence, cast, Iterable, Optional
+from typing import Iterable, Optional, Sequence, cast
 
-from cell import House, Cell
+from cell import Cell, House
 from cryptic_daily_puzzle import puzzle_2021_07_10
 from draw_context import DrawContext
 from feature import Feature, Square, SquaresParseable
-from features.chess_move import KnightsMoveFeature, KingsMoveFeature, QueensMoveFeature, TaxicabFeature
-from features.features import BoxOfNineFeature, AlternativeBoxesFeature, \
-    XVFeature, KillerCageFeature, CloneBoxFeature, MessageFeature, PalindromeFeature, AdjacentNotConsecutiveFeature
+from features.chess_move import KingsMoveFeature, KnightsMoveFeature, QueensMoveFeature, TaxicabFeature
+from features.features import AdjacentNotConsecutiveFeature, AlternativeBoxesFeature, BoxOfNineFeature, CloneBoxFeature, \
+    KillerCageFeature, MessageFeature, PalindromeFeature, XVFeature
 from features.possibilities_feature import PossibilitiesFeature
 from features.sandwich_feature import SandwichFeature
 from features.thermometer import Thermometer2Feature, ThermometerAsLessThanFeature
@@ -29,9 +29,7 @@ class FakeKillerCageFeature(Feature):
             total = sum((self @ square).known_value for square in self.squares)
             row, column = min(self.squares)
             context.draw_text(column + .2, row + .2, str(total),
-                              verticalalignment='top', horizontalalignment='left',
-                              color='blue',
-                              fontsize=10, weight='bold')
+                              va='top', ha='left', color='blue', fontsize=10, weight='bold')
             if context.done:
                 print(f'KillerCageFeature({total}, {self.squares})')
 
@@ -61,9 +59,7 @@ class QKillerCageFeature(PossibilitiesFeature):
         context.draw_outline(self.squares)
         row, column = min(self.squares)
         context.draw_text(column + .2, row + .2, str(self.total),
-                          verticalalignment='top', horizontalalignment='left',
-                          color='blue',
-                          fontsize=10, weight='bold')
+                          va='top', ha='left', color='blue', fontsize=10, weight='bold')
         if context.done and all((self @ square).is_known for square in self.squares):
             real_total = sum((self @ square).known_value for square in self.squares)
             symbol = '✓' if self.total == real_total else '❌'
@@ -232,7 +228,7 @@ def act_4_runner():
     for box1, box2 in boxes:
         grid, features = act_4(box1, box2)
         try:
-            result = Sudoku().solve(grid, features=features, draw_verbose=False)
+            result = Sudoku().solve(grid, features=features)
         except AssertionError:
             result = False
 
