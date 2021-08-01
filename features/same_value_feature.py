@@ -220,33 +220,41 @@ class _SameValueSharedData:
             self.union_find.union(cell0, feature.cells[i])
         self.features[feature] = True  # Add ourselves to what is actually an ordered set
         self.token_to_feature[self.union_find.find(cell0)] = feature
-        self.__fixup()
+        self.__reassign_tokens_to_features_as_necessary()
 
     def cell_to_feature(self, cell: Cell) -> Optional[SameValueFeature]:
+        """Get the feature to which a cell belongs.  Or None"""
         token = self.union_find.find(cell)
         return self.token_to_feature.get(token)
 
     def get_next_color(self):
         return self.colors.popleft()
 
-    def __fixup(self):
+    def __reassign_tokens_to_features_as_necessary(self):
         deletions = []
         self.token_to_feature.clear()
+        # We go through the features in the order that they were created
         for feature in self.features:
+            # Find the token associated with this feature
             token = self.union_find.find(feature.cells[0])
+            # Does a previous feature already claim that token?
             prev_feature = self.token_to_feature.get(token)
             if not prev_feature:
+                # No, claim it as our own
                 self.token_to_feature[token] = feature
             else:
+                # feature and prev_feature have been united.  Merge feature into prev_feature
                 old_name = str(prev_feature)
                 neighbors = feature.cells[0].neighbors | prev_feature.cells[0].neighbors
                 prev_feature.set_all_neighbors(neighbors)
                 prev_feature.cells = list(unique_concat(itertools.chain(prev_feature.cells, feature.cells)))
                 print(f'...Merging {feature} into {old_name} yielding {prev_feature}')
+                # Delete us once we're through iterating through the dict
                 deletions.append(feature)
         for feature in deletions:
             self.features.pop(feature)
             if feature.color:
+                # We can re-use its color, if we really start to run low
                 self.colors.append(feature.color)
         if self.VERIFY:
             self.__verify()

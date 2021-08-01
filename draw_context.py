@@ -1,12 +1,14 @@
+from __future__ import annotations
+
 from collections import UserDict
 from collections.abc import Sequence
 from typing import Any, TYPE_CHECKING
 
+import numpy as np
 from matplotlib.axes import Axes
 from matplotlib.patches import FancyBboxPatch, Circle, Rectangle
-from cell import House
 
-import numpy as np
+from cell import House
 
 if TYPE_CHECKING:
     from feature import Square
@@ -50,13 +52,13 @@ class DrawContext(UserDict):
     def plot(self, xs, ys, **args: Any):
         self._axis.plot(xs, ys, **args)
 
-    def arrow(self, x: float, y: float, dx: float, dy: float, **args: Any):
+    def draw_arrow(self, x: float, y: float, dx: float, dy: float, **args: Any):
         self._axis.arrow(x, y, dx, dy, **args)
 
     def add_fancy_bbox(self, center, width, height, **args: Any):
         self._axis.add_patch(FancyBboxPatch(center, width=width, height=height, **args))
 
-    def draw_outside(self, value: Any, htype: 'House.Type', row_or_column: int, *,
+    def draw_outside(self, value: Any, htype: House.Type, row_or_column: int, *,
                      is_right: bool = False, padding: float = 0, **args: Any):
         args = {'fontsize': 20, 'weight': 'bold', **args}
 
@@ -75,8 +77,7 @@ class DrawContext(UserDict):
                 self.draw_text(row_or_column + .5, 10.1 + padding, str(value),
                                verticalalignment='top', horizontalalignment='center', **args)
 
-    def draw_outline(self, squares: Sequence['Square'], *,
-                     inset: float = .1, **args: Any) -> None:
+    def draw_outline(self, squares: Sequence[Square], *, inset: float = .1, **args: Any) -> None:
         args = {'color': 'black', 'linewidth': 2, 'linestyle': "dotted", **args}
         squares_set = set(squares)
 
@@ -97,7 +98,7 @@ class DrawContext(UserDict):
                 row, column, ahead_dr, ahead_dc = current_wall  # square, and direction of wall from center
                 right_dr, right_dc = ahead_dc, -ahead_dr  # The direction if we turned right
 
-                # Three possible next walls, in order of preference.
+                # Three possible next walls, in order of preference.  We are facing the wall:
                 #  1) The wall makes a right turn, staying with the current square
                 #  2) The wall continues in its direction, going into the square to our right
                 #  3) The wall makes a left turn, continuing in the square diagonally ahead to the right.

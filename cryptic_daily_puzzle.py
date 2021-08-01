@@ -9,7 +9,8 @@ from feature import Feature, Square
 from features.chess_move import LittlePrincessFeature, KnightsMoveFeature, KingsMoveFeature, QueensMoveFeature
 from features.features import MagicSquareFeature, AlternativeBoxesFeature, BoxOfNineFeature, \
     AdjacentRelationshipFeature, LimitedValuesFeature, XVFeature, AdjacentNotConsecutiveFeature, SimonSaysFeature, \
-    OddsAndEvensFeature, ValuesAroundIntersectionFeature, RenbanFeature, KillerCageFeature, ExtremeEndpointsFeature
+    OddsAndEvensFeature, ValuesAroundIntersectionFeature, RenbanFeature, KillerCageFeature, ExtremeEndpointsFeature, \
+    ArrowSumFeature
 from features.possibilities_feature import GroupedPossibilitiesFeature, PossibilitiesFeature
 from features.same_value_as_mate_feature import SameValueAsMateFeature
 from features.sandwich_feature import SandwichFeature, SandwichXboxFeature
@@ -654,11 +655,32 @@ def puzzle_2021_07_11() -> tuple[str, Sequence[Feature]]:
     ]
     return BLANK_GRID, features
 
+def puzzle_2021_07_31() -> tuple[str, Sequence[Feature]]:
+    features = [
+        BoxOfNineFeature.major_diagonal(),
+        BoxOfNineFeature.minor_diagonal(),
+        ArrowSumFeature("27,NW,W,W"),
+        ArrowSumFeature("32,SW,S,S"),
+        ArrowSumFeature("78,NE,N,N"),
+        ArrowSumFeature("83,SE,E"),
+        KillerCageFeature(5, "13,S"),
+        KillerCageFeature(13, "24,E,SW"),
+        KillerCageFeature(9, "38,S,W"),
+        KillerCageFeature(22, "42,E,SW"),
+        KillerCageFeature(10, "45,E,S"),
+        KillerCageFeature(15, "54,S,E"),
+        KillerCageFeature(24, "58,S,W"),
+        KillerCageFeature(12, "62,E,SW"),
+        KillerCageFeature(18, "76,S,W"),
+        KillerCageFeature(5, "87,s")
+    ]
+    grid = 'XXXX-.9.-XX-..X1-'.replace('X', '---').replace('-', '...')
+    return grid, features
 
 def main():
     start = datetime.datetime.now()
-    grid, features = puzzle_2021_07_10()
-    Sudoku().solve(grid, features=features, initial_only=False, draw_verbose=False)
+    grid, features = puzzle_2021_07_31()
+    Sudoku().solve(grid, features=features, initial_only=False, guides=0)
     end = datetime.datetime.now()
     print(end - start)
 

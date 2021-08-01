@@ -19,17 +19,17 @@ class Sudoku:
     grid: Grid
     features: list[Feature]
     initial_grid: Mapping[tuple[int, int], int]
-    draw_verbose: bool
+    guides: int
     __check_hidden_singles_cache: dict[House, list[int]]
     checking_features: list[Feature]
 
     def solve(self, puzzle: str, *, features: Sequence[Feature] = (),
               initial_only: bool = False,
               medusa: bool = False,
-              draw_verbose: bool = False) -> bool:
+              guides: int = 1) -> bool:
         self.features = list(features)
         self.grid = grid = Grid(features)
-        self.draw_verbose = draw_verbose
+        self.guides = guides
         grid.start()
         self.initial_grid = {(row, column): int(letter)
                              for (row, column), letter in zip(product(range(1, 10), repeat=2), puzzle)
@@ -449,7 +449,7 @@ class Sudoku:
                             fixers = {CellValue(cell, value1) for cell in cell1.joint_neighbors(cell4)
                                       if value1 in cell.possible_values}
                         else:
-                            # If they are approriately neighborly, value1 can't be in cell4 and value4 can't be in
+                            # If they are appropriately neighborly, value1 can't be in cell4 and value4 can't be in
                             # cell1, since then both statements would be false.
                             if value1 in cell4.possible_values and cell1.is_neighbor_for_value(cell4, value1):
                                 fixers.append(CellValue(cell4, value1))
@@ -508,24 +508,29 @@ class Sudoku:
             axes.plot([x, x], [1, 10], linewidth=width, color='black')
             axes.plot([1, 10], [x, x], linewidth=width, color='black')
 
-        if self.draw_verbose:
-            self.__fill_in_grid_verbose(axes)
-        else:
-            self.__fill_in_grid_simple(axes)
-
-        plt.show()
-
-    def __fill_in_grid_verbose(self, axes) -> None:
+        # fill in the known squares
         given = dict(fontsize=25, color='black', weight='heavy')
         found = dict(fontsize=25, color='blue', weight='bold')
-        digit_width = (7/8) / 3
         for row, column in product(range(1, 10), repeat=2):
             cell = self.grid.matrix[row, column]
             if cell.known_value:
                 args = given if (row, column) in self.initial_grid else found
                 axes.text(column + .5, row + .5, cell.known_value,
                           verticalalignment='center', horizontalalignment='center', **args)
+
+        if self.guides > 0:
+            if self.guides == 1:
+                self.__fill_in_grid_simple(axes)
             else:
+                self.__fill_in_grid_verbose(axes)
+
+        plt.show()
+
+    def __fill_in_grid_verbose(self, axes) -> None:
+        digit_width = (7/8) / 3
+        for row, column in product(range(1, 10), repeat=2):
+            cell = self.grid.matrix[row, column]
+            if not cell.known_value:
                 for value in cell.possible_values:
                     y, x = divmod(value - 1, 3)
                     axes.text(column + .5 + (x - 1) * digit_width, row + .5 + (y - 1) * digit_width, str(value),
@@ -533,17 +538,11 @@ class Sudoku:
                               fontsize=8, color='blue', weight='light')
 
     def __fill_in_grid_simple(self, axes) -> None:
-        given = dict(fontsize=25, color='black', weight='heavy')
-        found = dict(fontsize=25, color='blue', weight='bold')
         corner_args = dict(fontsize=8, color='blue', weight='light')
 
         for row, column in product(range(1, 10), repeat=2):
             cell = self.grid.matrix[row, column]
-            if cell.known_value:
-                args = given if (row, column) in self.initial_grid else found
-                axes.text(column + .5, row + .5, cell.known_value,
-                          verticalalignment='center', horizontalalignment='center', **args)
-            else:
+            if not cell.known_value:
                 if len(cell.possible_values) <= 8:
                     axes.text(column + .5, row + .5, ''.join(str(x) for x in sorted(cell.possible_values)),
                               verticalalignment='center', horizontalalignment='center', **corner_args)
@@ -574,3 +573,4 @@ class Sudoku:
                     else:
                         axes.text(column + .9, row + .9, str(value),
                                   verticalalignment='bottom', horizontalalignment='right', **corner_args)
+

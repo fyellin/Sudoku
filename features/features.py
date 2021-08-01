@@ -419,9 +419,12 @@ class KillerCageFeature(PossibilitiesFeature):
     """The values in the cage must all be different.  They must sum to the total"""
     total: int
 
-    def __init__(self, total: int, squares: SquaresParseable):
+    def __init__(self, total: int, squares: SquaresParseable, *, name: Optional[str] = None):
+        squares = self.parse_squares(squares)
+        r, c = squares[0]
+        name = name or f'KillerCage={total}@r{r}c{c}'
         self.total = total
-        super().__init__(squares)
+        super().__init__(squares, name=name)
 
     def get_possibilities(self) -> Iterable[tuple[int, ...]]:
         count = len(self.squares)
@@ -454,8 +457,11 @@ class ArrowSumFeature(PossibilitiesFeature):
 
     def draw(self, context: DrawContext) -> None:
         y, x = self.squares[0]
-        context.draw_circle((x + .5, y+.5), radius=.5, fill=False, color='black')
+        context.draw_circle((x + .5, y+.5), radius=.35, fill=False, color='gray')
         context.draw_line(self.squares)
+        (y0, x0), (y1, x1) = self.squares[-2], self.squares[-1]
+        context.draw_arrow(x0 + .5, y0 + .5, x1 - x0, y1 - y0, length_includes_head=True,
+                           head_width=.2, head_length=.2)
 
 
 class ExtremeEndpointsFeature(PossibilitiesFeature):
@@ -584,9 +590,9 @@ class LittleKillerFeature(PossibilitiesFeature):
         context.draw_text(x - dx + .5, y - dy + .5, str(self.total),
                           verticalalignment='center', horizontalalignment='center',
                           fontsize=25, color='black', weight='light')
-        context.arrow(x - dx + .5, y - dy + .5, .5 * dx, .5 * dy,
-                      length_includes_head=True,
-                      head_width=.2, head_length=.2)
+        context.draw_arrow(x - dx + .5, y - dy + .5, .5 * dx, .5 * dy,
+                           length_includes_head=True,
+                           head_width=.2, head_length=.2)
 
 
 class ValuesAroundIntersectionFeature(PossibilitiesFeature):

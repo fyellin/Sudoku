@@ -30,17 +30,20 @@ class PossibilitiesFeature(Feature, abc.ABC):
     @classmethod
     def create(cls, squares: SquaresParseable, *,
                possibility_function: Callable[[], Iterable[Possibility]],
-               name: Optional[str] = None, neighbors: bool = False,
+               name: Optional[str] = None, prefix: Optional[str] = None,
+               neighbors: bool = False,
                duplicates: bool = False) -> Sequence[PossibilitiesFeature]:
         return [
             PossibilitiesFeature(squares, possibility_function=possibility_function,
-                                 name=name, neighbors=neighbors, duplicates=duplicates)
+                                 name=name, prefix=prefix,
+                                 neighbors=neighbors, duplicates=duplicates)
         ]
 
     def __init__(self, squares: SquaresParseable, *,
                  possibility_function: Optional[Callable[[], Iterable[Possibility]]] = None,
-                 name: Optional[str] = None, neighbors: bool = False, duplicates: bool = False) -> None:
-        super().__init__(name=name)
+                 name: Optional[str] = None, prefix: Optional[str] = None,
+                 neighbors: bool = False, duplicates: bool = False) -> None:
+        super().__init__(name=name, prefix=prefix)
         self.squares = self.parse_squares(squares) if isinstance(squares, str) else squares
         self.possibility_function = possibility_function or self.get_possibilities
         self.handle_neighbors = neighbors
@@ -238,7 +241,6 @@ class _PossibilitiesSharedData:
     features: set[PossibilitiesFeature]
     grid: Grid
     added_features: list[PossibilitiesFeature]
-    creation_count: int
 
     @classmethod
     def get_singleton(cls, grid: Grid) -> _PossibilitiesSharedData:
@@ -252,7 +254,6 @@ class _PossibilitiesSharedData:
         self.features = set()
         self.grid = grid
         self.added_features = []
-        self.creation_count = 0
 
     def check_special(self) -> bool:
         def closeness(f1: PossibilitiesFeature, f2: PossibilitiesFeature) -> int:
@@ -288,18 +289,18 @@ class _PossibilitiesSharedData:
         def possibility_function() -> Iterable[Possibility]:
             return (p1 + p2 for p1, p2 in product(feature1.possibilities, feature2.possibilities))
 
-        self.creation_count += 1
         owner = self.owner
         result = PossibilitiesFeature(tuple(chain(feature1.squares, feature2.squares)),
-                                      name=f'Merged #{self.creation_count}',
-                                      possibility_function=possibility_function, neighbors=True)
+                                      prefix="Merge",
+                                      possibility_function=possibility_function,
+                                      neighbors=True)
         result.initialize(self.grid, synthetic=True)
         assert self.owner == owner
         result.start(True)
         length3 = len(result.possibilities)
         temp = length3 * 100 / (length1 * length2)
-        print(f'Merge {feature1.name} ({length1}) x {feature1.name} ({length2}) = '
-              f'{result.name} ({length3}) {temp:.2f}%')
+        print(f'Merge {feature1} ({length1}) x {feature2} ({length2}) = '
+              f'{result} ({length3}) {temp:.2f}%')
         result.check()
         result.check_special()
         result.simplify()
