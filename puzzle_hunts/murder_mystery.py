@@ -3,15 +3,15 @@ import itertools
 from typing import Iterable, Optional, Sequence, cast
 
 from cell import Cell, House
-from cryptic_daily_puzzle import puzzle_2021_07_10
 from draw_context import DrawContext
 from feature import Feature, Square, SquaresParseable
 from features.chess_move import KingsMoveFeature, KnightsMoveFeature, QueensMoveFeature, TaxicabFeature
-from features.features import AdjacentNotConsecutiveFeature, AlternativeBoxesFeature, BoxOfNineFeature, CloneBoxFeature, \
+from features.features import AdjacentNotConsecutiveFeature, AlternativeBoxesFeature, \
+    BoxOfNineFeature, CloneBoxFeature, \
     KillerCageFeature, MessageFeature, PalindromeFeature, XVFeature
 from features.possibilities_feature import PossibilitiesFeature
 from features.sandwich_feature import SandwichFeature
-from features.thermometer import Thermometer2Feature, ThermometerAsLessThanFeature
+from features.thermometer import ThermometerAsLessThanFeature, ThermometerFeature
 from human_sudoku import Sudoku
 
 
@@ -192,7 +192,7 @@ def act_2() -> tuple[str, Sequence[Feature]]:
     thermos = ("1,2,SW,S,SE",
                "1,4,SE,S,SW", "4,8,N,NE,NW,SW",
                "5,6,SW,W,NW,N", "8,1,NE,S,E", "8,6,NE,NE,S,S,E", "9,3,NE,E")
-    thermometers = [Thermometer2Feature(thermo) for thermo in thermos]
+    thermometers = [ThermometerFeature(thermo) for thermo in thermos]
     # thermometers[4:7] = [CombinedPossibilitiesFeature(thermometers[4:7])]
     # thermometers[0:3] = [CombinedPossibilitiesFeature(thermometers[0:3])]
     features = [
@@ -210,9 +210,9 @@ def act_2() -> tuple[str, Sequence[Feature]]:
 def act_3() -> tuple[str, Sequence[Feature]]:
     # KillerCageFeature(18, [(5, 3), (6, 3), (7, 2), (7, 3), (7, 4)]
     features = [
-        XVFeature.setup(across={5: "15, 22, 24, 32, 52", 10: "14, 41, 54, 56, 62"},
-                        down={5: "39", 10: "25, 33, 48"},
-                        all_listed=True),
+        *XVFeature.create(across={5: "15, 22, 24, 32, 52", 10: "14, 41, 54, 56, 62"},
+                          down={5: "39", 10: "25, 33, 48"},
+                          all_listed=True),
         KingsMoveFeature(),
         FakeKillerCageFeature("5,3,S,SW,E,E"),
         DumpResultFeature(),
@@ -425,13 +425,14 @@ def finale() -> tuple[str, Sequence[Feature]]:
 def main():
     start = datetime.datetime.now()
     puzzles = [
-        act_1,
-        act_2,
-        act_3, act_4, act_5, act_6, act_7, act_8,
-        act_9,
-        act_10,
-        finale,
-        puzzle_2021_07_10,
+        # act_1,
+        # act_2,
+        act_3,
+        # act_4, act_5, act_6, act_7, act_8,
+        # act_9,
+        # act_10,
+        # finale,
+        # puzzle_2021_07_10,
     ]
     for puzzle in puzzles:
         print('*************', puzzle, "*****************")

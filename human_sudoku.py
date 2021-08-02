@@ -95,6 +95,9 @@ class Sudoku:
         """Returns true if every square has a known value"""
         return self.grid.is_solved()
 
+    def get_grid(self) -> str:
+        return "".join(str(cell.known_value) if cell.is_known else '.' for cell in self.grid.cells)
+
     def check_naked_singles(self) -> bool:
         """
         Finds those squares which are forced because they only have one possible remaining value.

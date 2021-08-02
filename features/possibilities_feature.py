@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import abc
 from collections import defaultdict
-from itertools import combinations, product, chain
-from typing import Sequence, Mapping, Union, Optional, Iterable, Callable
+from itertools import chain, combinations, product
+from typing import Callable, Iterable, Mapping, Optional, Sequence, Union
 
-from cell import Cell, House, SmallIntSet, CellValue
+from cell import Cell, CellValue, House, SmallIntSet
 from feature import Feature, Square, SquaresParseable
 from grid import Grid
 from tools.union_find import Node
@@ -269,7 +269,7 @@ class _PossibilitiesSharedData:
                                  key=lambda f: len(f.possibilities))
         try:
             _count, m1, m2 = max(((closeness(f1, f2), f1, f2) for f1, f2 in combinations(sorted_features[:10], 2)
-                                 if len(f1.possibilities) * len(f2.possibilities) <= 10_000),
+                                 if len(f1.possibilities) * len(f2.possibilities) <= 10_000_000),
                                  key=lambda x: x[0])
         except ValueError:
             return False
@@ -331,7 +331,8 @@ class GroupedPossibilitiesFeature(Feature, abc.ABC):
         self.cells = [grid.matrix[square] for square in self.squares]
 
     @abc.abstractmethod
-    def get_possibilities(self) -> list[tuple[Union[SmallIntSet, Iterable[int], int], ...]]: ...
+    def get_possibilities(self) -> list[tuple[Union[SmallIntSet, Iterable[int], int], ...]]:
+        ...
 
     def start(self) -> None:
         def fixit_one(x: Union[SmallIntSet, Iterable[int], int]) -> SmallIntSet:

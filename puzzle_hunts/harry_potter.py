@@ -1,12 +1,12 @@
 import itertools
 import math
-from typing import Sequence, Tuple, List, Mapping, Iterable, Set, cast
+from typing import Iterable, List, Mapping, Optional, Sequence, Set, Tuple, cast
 
 from cell import Cell, House, SmallIntSet
 from draw_context import DrawContext
-from feature import Feature, Square
+from feature import Feature, Square, SquaresParseable
 from features.chess_move import KnightsMoveFeature
-from features.features import AllValuesPresentFeature, AdjacentRelationshipFeature, BoxOfNineFeature, \
+from features.features import AdjacentRelationshipFeature, AllValuesPresentFeature, BoxOfNineFeature, DrawOnlyFeature, \
     LimitedValuesFeature
 from features.possibilities_feature import GroupedPossibilitiesFeature
 from features.thermometer import ThermometerFeature
@@ -20,44 +20,21 @@ class MalvoloRingFeature:
 
     @classmethod
     def create(cls) -> Sequence[Feature]:
-        return [cls.SumToSquareCubeFeature(cls.SQUARES),
-                AllValuesPresentFeature(cls.SQUARES)]
-
-    class SumToSquareCubeFeature(AdjacentRelationshipFeature):
-        def __init__(self, squares: Sequence[Square]) -> None:
-            super().__init__(squares, name="Malvolo Ring", cyclic=True)
-
-        def match(self, digit1: int, digit2: int) -> bool:
-            return digit1 + digit2 in (4, 8, 9, 16)
-
-        def check_special(self) -> bool:
-            special = self @ (2, 4)
-            """A temporary hack that it's not worth writing the full logic for.  If we set this value to 4,
-               then it will start a cascade such that no variable on the ring can have a value of 2. """
-            if len(special.possible_values) == 2:
-                print("Danger, danger")
-                special.set_value_to(2)
-                return True
-            return False
-
-        def draw(self, context: DrawContext) -> None:
+        def draw(context: DrawContext):
             radius = math.hypot(2.5, 1.5)
             context.draw_circle((5.5, 5.5), radius=radius, fill=False, facecolor='black')
 
+        return [
+            AllValuesPresentFeature(cls.SQUARES),
+            *AdjacentRelationshipFeature.create(cls.SQUARES, cyclic=True, match=lambda i, j: i + j in (4, 8, 9, 16)),
+            DrawOnlyFeature(draw),
+        ]
 
-class GermanSnakeFeature(AdjacentRelationshipFeature):
-    """A sequence of squares that must differ by 5 or more"""
-    def __init__(self, name: str, snake:  Sequence[Square]):
-        super().__init__(snake, name=name)
-        self.snake = snake
 
-    def initialize(self, grid: Grid) -> None:
-        super().initialize(grid)
-        print("No Fives in a German Snake")
-        Cell.remove_values_from_cells(self.cells, {5}, show=False)
-
-    def match(self, digit1: int, digit2: int) -> bool:
-        return abs(digit1 - digit2) >= 5
+class GermanSnakeFeature:
+    @staticmethod
+    def create(squares: SquaresParseable, prefix: Optional[str] = None) -> Sequence[Feature]:
+        return AdjacentRelationshipFeature.create(squares, match=lambda i, j: abs(i - j) >= 5, prefix=prefix)
 
 
 class ContainsTextFeature(GroupedPossibilitiesFeature):
@@ -240,8 +217,9 @@ def puzzle4() -> None:
     info2 = tuple((row, 10-column) for (row, column) in info1)
     sudoku = Sudoku()
     sudoku.solve(puzzle, features=[
-        GermanSnakeFeature("Left", info1),
-        GermanSnakeFeature("Right", info2), KnightsMoveFeature()
+        *GermanSnakeFeature.create(info1, "Left"),
+        *GermanSnakeFeature.create(info2, "Right"),
+        KnightsMoveFeature()
     ])
 
 
@@ -304,14 +282,14 @@ def puzzle8() -> None:
 
 
 def main():
-    puzzle1()
-    puzzle2()
-    puzzle3()
+    # puzzle1()
+    # puzzle2()
+    # puzzle3()
     puzzle4()
-    puzzle5()
-    puzzle6()
-    puzzle7()
-    puzzle8()
+    # puzzle5()
+    # puzzle6()
+    # puzzle7()
+    # puzzle8()
 
 
 if __name__ == '__main__':

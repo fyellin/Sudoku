@@ -3,12 +3,12 @@ from __future__ import annotations
 import abc
 import functools
 from collections import Callable, Iterable, Mapping, Sequence, defaultdict
-from itertools import combinations_with_replacement, groupby, permutations, product, tee
+from itertools import chain, combinations_with_replacement, groupby, permutations, product, tee
 from typing import Any, ClassVar, Optional, Union
 
 from cell import Cell, House, SmallIntSet
 from draw_context import DrawContext
-from feature import Feature, MultiFeature, Square, SquaresParseable
+from feature import Feature, Square, SquaresParseable
 from features.possibilities_feature import PossibilitiesFeature
 from features.same_value_feature import SameValueFeature
 from grid import Grid
@@ -45,69 +45,31 @@ class AdjacentRelationshipFeature(Feature, abc.ABC):
     The squares have an order, so this relationship does not need to be symmetric.  (I.e. a thermometer)
     """
     squares: Sequence[Square]
-    cells: Sequence[Cell]
-    cyclic: bool
-    handle_reset: bool
-
-    triples: Sequence[tuple[Optional[Cell], Cell, Optional[Cell]]]
     color: Optional[str]
-    __check_cache: list[int]
 
-    def __init__(self, squares: SquaresParseable, *,
-                 name: Optional[str] = None, cyclic: bool = False, color: Optional[str] = 'gold'):
-        super().__init__(name=name)
-        self.squares = self.parse_squares(squares)
-        self.cyclic = cyclic
-        self.color = color
-        self.__check_cache = []
+    @classmethod
+    def create(cls, squares: SquaresParseable, *,
+               match: Callable[[int, int], bool],
+               prefix: Optional[str] = None,
+               cyclic: bool = False, color: Optional[str] = None):
+        squares = cls.parse_squares(squares)
 
-    def initialize(self, grid: Grid) -> None:
-        super().initialize(grid)
-        self.cells = [grid.matrix[x] for x in self.squares]
-        self.triples = [
-            ((self.cells[-1] if self.cyclic else None), self.cells[0], self.cells[1]),
-            *[(self.cells[i - 1], self.cells[i], self.cells[i + 1]) for i in range(1, len(self.cells) - 1)],
-            (self.cells[-2], self.cells[-1], (self.cells[0] if self.cyclic else None))]
+        features: list[Feature]
+        if len(squares) == 2 and not cyclic:
+            pairs = [(i, j) for i, j in product(range(1, 10), repeat=2) if match(i, j)]
+            features = [PossibilitiesFeature(squares, prefix=prefix, possibility_function=lambda: pairs,
+                                             neighbors=True)]
+        else:
+            x_squares = squares if not cyclic else list(chain(squares, squares[0:2]))
+            triples = [(i, j, k) for i, j, k in product(range(1, 10), repeat=3) if match(i, j) and match(j, k)]
+            features = [PossibilitiesFeature(x_squares[i:i+3], prefix=prefix, possibility_function=lambda: triples,
+                                             neighbors=True)
+                        for i in range(0, len(x_squares) - 2)]
 
-    @abc.abstractmethod
-    def match(self, digit1: int, digit2: int) -> bool: ...
-
-    def check(self) -> bool:
-        if not self.cells_changed_since_last_invocation(self.__check_cache, self.cells):
-            return False
-
-        for previous_cell, cell, next_cell in self.triples:
-            if cell.is_known:
-                continue
-            impossible_values = {value for value in cell.possible_values
-                                 if self.__is_impossible_value(value, previous_cell, cell, next_cell)}
-            if impossible_values:
-                print(f"{self}: No appropriate value in adjacent cells")
-                Cell.remove_values_from_cells([cell], impossible_values)
-                return True
-        return False
-
-    def __is_impossible_value(self, value: int,
-                              previous_cell: Optional[Cell], cell: Cell, next_cell: Optional[Cell]) -> bool:
-        previous_match = next_match = set(range(1, 10))
-        if previous_cell:
-            previous_match = {value2 for value2 in previous_cell.possible_values if self.match(value2, value)}
-            if cell.is_neighbor(previous_cell):
-                previous_match.discard(value)
-        if next_cell:
-            next_match = {value2 for value2 in next_cell.possible_values if self.match(value, value2)}
-            if cell.is_neighbor(next_cell):
-                next_match.discard(value)
-        if not previous_match or not next_match:
-            return True
-        elif previous_cell and next_cell and previous_cell.is_neighbor(next_cell) \
-                and len(previous_match) == 1 and len(next_match) == 1 and previous_match == next_match:
-            return True
-        return False
-
-    def draw(self, context: DrawContext) -> None:
-        if self.color:
-            context.draw_line(self.squares, closed=self.cyclic, color=self.color, linewidth=5)
+        if color:
+            features.append(DrawOnlyFeature(lambda context:
+                            context.draw_line(squares, closed=cyclic, color=color, linewidth=5)))
+        return features
 
 
 class AllValuesPresentFeature(Feature):
@@ -152,7 +114,7 @@ class BoxOfNineFeature(Feature):
 
     squares: Sequence[Square]
 
-    def __init__(self, squares: Union[str, Sequence[Square]], *,
+    def __init__(self, squares: SquaresParseable, *,
                  show: bool = True, line: bool = True, color: Optional[str] = None):
         super().__init__()
         self.squares = self.parse_squares(squares)
@@ -235,7 +197,7 @@ class AlternativeBoxesFeature(Feature):
     """Don't use the regular nine boxes, but instead use 9 alternative boxes"""
     house_squares: Sequence[Sequence[Square]]
 
-    def __init__(self, pattern: Union[str, Sequence[str]]) -> None:
+    def __init__(self, pattern: Union[str, Sequence[SquaresParseable]]) -> None:
         super().__init__()
         if isinstance(pattern, str):
             # We can use a string of 81 characters, each one 1-9, identifying the box it belongs to
@@ -293,125 +255,91 @@ class CloneBoxFeature:
         return [SameValueFeature(pair) for pair in zip(squares1, squares2)]
 
 
-class XVFeature(AdjacentRelationshipFeature):
-    total: Optional[int]
-    non_total: Optional[set[int]]
-
-    def __init__(self, squares: tuple[Square, Square], *,
-                 total: Optional[int] = None, non_total: Optional[set[int]] = None):
-        super().__init__(squares, name=f'{squares[0]}/{squares[1]}')
-        self.total = total
-        self.non_total = non_total
-
-    def match(self, digit1: int, digit2: int) -> bool:
-        if self.total:
-            return digit1 + digit2 == self.total
-        else:
-            return digit1 + digit2 not in self.non_total
-
-    def draw(self, context: DrawContext) -> None:
-        if self.total:
-            args = {}
-            (r1, c1), (r2, c2) = self.squares
-            character = 'X' if self.total == 10 else 'XV' if self.total == 15 else 'V'
-            context.draw_text((c1 + c2 + 1) / 2, (r1 + r2 + 1) / 2, character,
-                              va='center', ha='center', **args)
-
+class XVFeature:
     @classmethod
-    def setup(cls, *,
-              across: Mapping[int, SquaresParseable],
-              down: Mapping[int, SquaresParseable],
-              all_listed: bool = True,
-              all_values: Optional[set[int]] = None) -> MultiFeature:
-        across = {total: cls.parse_squares(squares) for total, squares in across.items()}
-        down = {total: cls.parse_squares(squares) for total, squares in down.items()}
-        features = []
-        features.extend(XVFeature(((row, column), (row, column + 1)), total=total)
-                        for total, squares in across.items()
-                        for row, column in squares)
-        features.extend(XVFeature(((row, column), (row + 1, column)), total=total)
-                        for total, squares in down.items()
-                        for row, column in squares)
+    def create(cls, *,
+               across: Mapping[int, SquaresParseable],
+               down: Mapping[int, SquaresParseable],
+               all_listed: bool = True,
+               all_values: Optional[set[int]] = None) -> Sequence[Feature]:
+        across = {total: Feature.parse_squares(squares) for total, squares in across.items()}
+        down = {total: Feature.parse_squares(squares) for total, squares in down.items()}
+
+        values = {((row, column), (row, column + 1)): total
+                  for total, squares in across.items() for row, column in squares}
+        values |= {((row, column), (row + 1, column)): total
+                   for total, squares in down.items() for row, column in squares}
+
+        features_list = [cls._create(squares, total=total) for squares, total in values.items()]
         if all_listed:
             if all_values is None:
-                all_values = set(across.keys()).union(set(down.keys()))
-            acrosses_seen = {square for total, squares in across.items() for square in squares}
-            downs_seen = {square for total, squares in down.items() for square in squares}
-            features.extend(XVFeature(((row, column), (row, column + 1)), non_total=all_values)
-                            for row, column in product(range(1, 10), range(1, 9))
-                            if (row, column) not in acrosses_seen)
-            features.extend(XVFeature(((row, column), (row + 1, column)), non_total=all_values)
-                            for row, column in product(range(1, 9), range(1, 10))
-                            if (row, column) not in downs_seen)
-        return MultiFeature(features)
+                all_values = frozenset(across.keys()) | frozenset(down.keys())
+            features_list.extend(cls._create_not(pair, non_total=all_values)
+                                 for row, column in product(range(1, 10), range(1, 9))
+                                 for pair in [((row, column), (row, column + 1))]
+                                 if pair not in values)
+            features_list.extend(cls._create_not(pair, non_total=all_values)
+                                 for row, column in product(range(1, 9), range(1, 10))
+                                 for pair in [((row, column), (row + 1, column))]
+                                 if pair not in values)
+        features = list(chain(*features_list))
 
-    def __str__(self) -> str:
-        if self.total:
-            return f'<{self.squares[0]}+{self.squares[1]}={self.total}>'
-        else:
-            return f'<{self.squares[0]}+{self.squares[1]}!={self.non_total}>'
+        features.append(DrawOnlyFeature(lambda context: cls.draw(context, values)))
+        return features
+
+    @classmethod
+    def _create(cls, squares: tuple[Square, Square], total: int) -> Sequence[Feature]:
+        return AdjacentRelationshipFeature.create(squares, match=lambda i, j: i + j == total)
+
+    @classmethod
+    def _create_not(cls, squares: tuple[Square, Square], non_total: frozenset[int]) -> Sequence[Feature]:
+        return AdjacentRelationshipFeature.create(squares, match=lambda i, j: i + j not in non_total)
+
+    @classmethod
+    def draw(cls, context: DrawContext, values: dict[tuple[Square, Square], int]) -> None:
+        for ((y1, x1), (y2, x2)), total in values.items():
+            character = 'X' if total == 10 else 'XV' if total == 15 else 'V'
+            context.draw_text((x1 + x2 + 1) / 2, (y1 + y2 + 1) / 2, character, va='center', ha='center')
 
 
 class KropkeDotFeature:
     @classmethod
-    def create(cls, squares: Union[str, tuple[Square]], *, color: str) -> Sequence[Feature]:
+    def create(cls, squares: SquaresParseable, *, color: str) -> Sequence[Feature]:
         assert color == 'white' or color == 'black'
-        is_black = color == 'black'
         squares = Feature.parse_squares(squares)
-        chunks = [tuple(items) for _, items in groupby(squares, Feature.box_for_square)]
-        prev = None
-        features = []
-        for chunk in chunks:
-            if prev:
-                features.append(cls._KropkeInBoxFeature((prev, chunk[0]), black=is_black))
-            if len(chunk) > 1:
-                features.append(cls._KropkeInBoxFeature(chunk, black=is_black))
-            prev = chunk[-1]
-        return features
+        is_black = (color == 'black')
 
-    class _KropkeInBoxFeature(PossibilitiesFeature):
-        is_black: bool
-
-        def __init__(self, squares: [tuple[Square]], *, black) -> None:
-            (r0, c0), (r1, c1) = squares[0], squares[-1]
-            super().__init__(squares, name=f'Kropke r{r0}c{c0}-r{r1}c{c1}')
-            self.is_black = black
-
-        def get_possibilities(self) -> list[tuple[int, ...]]:
-            count = len(self.squares)
-            assert count >= 2
-            if not self.is_black or count >= 3:
-                items = (1, 2, 4, 8) if self.is_black else list(range(1, 10))
-                for i in range(len(items) - count + 1):
-                    yield items[i:i + count]
-                    yield items[i:i + count][::-1]
+        def match(i: int, j: int) -> bool:
+            if is_black:
+                return i == 2 * j or j == 2 * i
             else:
-                for i in (1, 2, 3, 4):
-                    yield i, 2 * i
-                    yield 2 * i, i
+                return abs(i - j) == 1
 
-        def draw(self, context: DrawContext) -> None:
-            (iter1, iter2) = tee(self.squares)
+        def draw(context: DrawContext) -> None:
+            (iter1, iter2) = tee(squares)
             next(iter2, None)
             for (y1, x1), (y2, x2) in zip(iter1, iter2):
-                context.draw_circle(((x1 + x2 + 1) / 2, (y1 + y2 + 1) / 2),
-                                    radius=.2, fill=self.is_black, color='black')
+                context.draw_circle(((x1 + x2 + 1) / 2, (y1 + y2 + 1) / 2), radius=.2, fill=is_black, color='black')
 
+        return [
+            *AdjacentRelationshipFeature.create(squares, prefix="Kropke", match=match),
+            DrawOnlyFeature(draw)
+        ]
 
 class AdjacentNotConsecutiveFeature:
     @classmethod
     def create(cls) -> Sequence[Feature]:
-        return [cls._NotConsecutiveRowOrColumn(Feature.get_house_squares(htype, i), name=f'{htype.name} #{i}')
-                for htype in [House.Type.ROW, House.Type.COLUMN]
-                for i in range(1, 10)]
+        feature_list_list = [
+            AdjacentRelationshipFeature.create(
+                Feature.get_house_squares(htype, i), prefix=f'{htype.name} #{i}', match=cls.match)
+            for htype in (House.Type.ROW, House.Type.COLUMN)
+            for i in range(1, 10)
+        ]
+        return list(chain(*feature_list_list))
 
-    class _NotConsecutiveRowOrColumn(AdjacentRelationshipFeature):
-        def __init__(self, squares: Sequence[Square], *, name: str):
-            # color = None so we don't need to override draw
-            super().__init__(squares, name=name, color=None)
-
-        def match(self, digit1: int, digit2: int) -> bool:
-            return abs(digit1 - digit2) != 1
+    @staticmethod
+    def match(digit1: int, digit2: int) -> bool:
+        return abs(digit1 - digit2) != 1
 
 
 class KillerCageFeature(PossibilitiesFeature):
@@ -497,7 +425,7 @@ class ExtremeEndpointsFeature(PossibilitiesFeature):
 class LocalMinOrMaxFeature:
     """Reds must be larger than all of its neighbors.  Greens must be smaller than all of its neighbors"""
     @classmethod
-    def create(cls, *, reds: Union[str, Sequence[Square]] = (), greens: Union[str, Sequence[Square]] = ()) ->\
+    def create(cls, *, reds: SquaresParseable = (), greens: SquaresParseable = ()) ->\
             Sequence[Feature]:
         reds = Feature.parse_squares(reds)
         greens = Feature.parse_squares(greens)

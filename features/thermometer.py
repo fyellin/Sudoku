@@ -1,42 +1,21 @@
-from itertools import combinations
-from typing import Union, Sequence, Optional, Iterable
+from itertools import combinations, combinations_with_replacement
+from typing import Iterable, Optional, Sequence, Union
 
 from draw_context import DrawContext
-from feature import Square
-from features.features import AdjacentRelationshipFeature
+from feature import Feature, Square, SquaresParseable
 from features.chess_move import _draw_thermometer
-from features.possibilities_feature import PossibilitiesFeature, GroupedPossibilitiesFeature
+from features.features import AdjacentRelationshipFeature, DrawOnlyFeature
+from features.possibilities_feature import GroupedPossibilitiesFeature, PossibilitiesFeature
 
 
-class Thermometer1Feature(AdjacentRelationshipFeature):
-    """
-    A sequence of squares that must monotonically increase.
-
-    If slow is set, then this is a "slow" thermometer, and two adjacent numbers can be the same.  Typically,
-    thermometers must be strictly monotonic.
-
-    This implementation uses "adjacency"
-    """
-    def __init__(self, thermometer: Union[Sequence[Square], str], *,
-                 name: Optional[str] = None, color: str = 'lightgrey') -> None:
-        super().__init__(thermometer, name=name, color=color)
-
-    def match(self, digit1: int, digit2: int) -> bool:
-        return digit1 < digit2
-
-    def draw(self, context: DrawContext) -> None:
-        _draw_thermometer(self.squares, self.color, context)
-
-
-class Thermometer2Feature(PossibilitiesFeature):
+class ThermometerFeature(PossibilitiesFeature):
     """
     A sequence of squares that must monotonically increase.
     This is implemented as a subclass of Possibilities Feature.  Not sure which implementation is better.
     """
     color: str
 
-    def __init__(self, thermometer: Union[Sequence[Square], str], *,
-                 name: Optional[str] = None, color: str = 'lightgrey'):
+    def __init__(self, thermometer: SquaresParseable, *, name: Optional[str] = None, color: str = 'lightgrey'):
         super().__init__(thermometer, name=name)
         self.color = color
 
@@ -47,7 +26,7 @@ class Thermometer2Feature(PossibilitiesFeature):
         return combinations(range(1, 10), len(self.squares))
 
 
-class Thermometer3Feature(GroupedPossibilitiesFeature):
+class OldThermometerFeature(GroupedPossibilitiesFeature):
     """
     A sequence of squares that must monotonically increase.
     This is implemented as a subclass of Possibilities Feature.  Not sure which implementation is better.
@@ -74,10 +53,6 @@ class Thermometer3Feature(GroupedPossibilitiesFeature):
                 yield {i}, set(range(i + 1, 10))
 
 
-class ThermometerFeature(Thermometer3Feature):
-    pass
-
-
 class ThermometerAsLessThanFeature(ThermometerFeature):
     """A Thermometer of two squares, where we draw a < sign between them"""
     def __init__(self, thermometer: Union[Sequence[Square], str], *, name: Optional[str] = None) -> None:
@@ -95,7 +70,26 @@ class ThermometerAsLessThanFeature(ThermometerFeature):
                           fontsize=20, weight='bold')
 
 
-class SlowThermometerFeature(Thermometer1Feature):
-    """A thermometer in which the digits only need to be ≤ rather than <"""
-    def match(self, digit1: int, digit2: int) -> bool:
-        return digit1 <= digit2
+class TestSlowThermometerFeature:
+    @classmethod
+    def create(cls, squares: SquaresParseable, *, color: str = 'lightgrey') -> Sequence[Feature]:
+        squares = Feature.parse_squares(squares)
+        return [
+            *AdjacentRelationshipFeature.create(squares, match=lambda i, j: i <= j, prefix="Slow Thermometer"),
+            DrawOnlyFeature(lambda context: _draw_thermometer(squares, color, context)),
+        ]
+
+
+class SlowThermometerFeature(PossibilitiesFeature):
+    def __init__(self, thermometer: Union[Sequence[Square], str], *,
+                 name: Optional[str] = None, color: str = 'lightgrey'):
+        super().__init__(thermometer, name=name, neighbors=True)
+        self.color = color
+
+    def draw(self, context: DrawContext) -> None:
+        _draw_thermometer(self.squares, self.color, context)
+
+    def get_possibilities(self) -> Iterable[tuple[int, ...]]:
+        return combinations_with_replacement(range(1, 10), len(self.squares))
+
+

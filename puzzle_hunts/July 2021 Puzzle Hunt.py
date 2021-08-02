@@ -5,9 +5,9 @@ from cell import House
 from draw_context import DrawContext
 from feature import Feature, Square
 from features.chess_move import KingsMoveFeature, KnightsMoveFeature
-from features.features import AdjacentNotConsecutiveFeature, ArrowSumFeature, BoxOfNineFeature, ExtremeEndpointsFeature, \
-    KillerCageFeature, KropkeDotFeature, LittleKillerFeature, LocalMinOrMaxFeature, OddsAndEvensFeature, \
-    PalindromeFeature, ValuesAroundIntersectionFeature, XVFeature
+from features.features import AdjacentNotConsecutiveFeature, ArrowSumFeature, \
+    BoxOfNineFeature, ExtremeEndpointsFeature, KillerCageFeature, KropkeDotFeature, LittleKillerFeature, \
+    LocalMinOrMaxFeature, OddsAndEvensFeature, PalindromeFeature, ValuesAroundIntersectionFeature, XVFeature
 from features.same_value_feature import SameValueFeature
 from features.sandwich_feature import SandwichFeature
 from features.thermometer import ThermometerFeature
@@ -248,7 +248,7 @@ def puzzle_15() -> tuple[str, Sequence[Feature]]:
 
     features = [
         DrawCircleFeature(circles),
-        XVFeature.setup(across=all_across, down=all_down, all_listed=False)
+        *XVFeature.create(across=all_across, down=all_down, all_listed=False)
     ]
     return puzzle, features
 
@@ -369,12 +369,13 @@ def puzzle_20() -> tuple[str, Sequence[Feature]]:
 def run() -> None:
     puzzles = [
         # puzzle_1, puzzle_2, puzzle_3, puzzle_4, puzzle_5, puzzle_6, puzzle_7, puzzle_8,
-        puzzle_9,
-        puzzle_10,
-        puzzle_11, puzzle_12,
-        puzzle_13,
-        puzzle_14, puzzle_15,
-        puzzle_16, puzzle_17, puzzle_18, puzzle_19, puzzle_20,
+        # puzzle_9,
+        # puzzle_10,
+        # puzzle_11, puzzle_12,
+        # puzzle_13,
+        # puzzle_14, puzzle_15,
+        puzzle_16,
+        # puzzle_17, puzzle_18, puzzle_19, puzzle_20,
         ]
     for puzzle in puzzles:
         grid, features = puzzle()

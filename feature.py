@@ -112,10 +112,16 @@ class Feature(abc.ABC):
                 assert 1 <= row <= 9 and 1 <= column <= 9
                 squares.append((row, column))
             else:
-                dr, dc = descriptors[pieces.popleft().upper()]
-                row, column = squares[-1]
-                assert 1 <= row + dr <= 9 and 1 <= column + dc <= 9
-                squares.append((row + dr, column + dc))
+                piece = pieces.popleft().upper()
+                if piece == 'R':
+                    squares = [(col, 10 - row) for row, col in squares]
+                elif piece == 'T':
+                    squares = [(col, row) for row, col in squares]
+                else:
+                    dr, dc = descriptors[piece]
+                    row, column = squares[-1]
+                    assert 1 <= row + dr <= 9 and 1 <= column + dc <= 9
+                    squares.append((row + dr, column + dc))
         return squares
 
     @staticmethod
@@ -183,41 +189,6 @@ def print_counters():
     if total > 0:
         elision = 100.0 * Feature.check_elided / total
         print(f'Method feature.check() called {total} times; {Feature.check_elided} ({elision:.2f}%) were elided')
-
-
-class MultiFeature(Feature):
-    features: Sequence[Feature]
-
-    def __init__(self, features: Sequence[Feature]):
-        super().__init__()
-        self.features = features
-
-    def initialize(self, grid: Grid) -> None:
-        super().initialize(grid)
-        for feature in self.features:
-            feature.initialize(grid)
-
-    def start(self) -> None:
-        for feature in self.features:
-            feature.start()
-
-    def get_neighbors(self, cell: Cell) -> Iterable[Cell]:
-        for feature in self.features:
-            yield from feature.get_neighbors(cell)
-
-    def get_neighbors_for_value(self, cell: Cell, value: int) -> Iterable[Cell]:
-        for feature in self.features:
-            yield from feature.get_neighbors_for_value(cell, value)
-
-    def check(self) -> bool:
-        return any(feature.check() for feature in self.features)
-
-    def check_special(self) -> bool:
-        return any(feature.check_special() for feature in self.features)
-
-    def draw(self, context: DrawContext) -> None:
-        for feature in self.features:
-            feature.draw(context)
 
 
 if __name__ == '__main__':

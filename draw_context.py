@@ -19,12 +19,15 @@ class DrawContext(UserDict):
     result: bool
     draw_normal_boxes: bool
 
+    width: int
+
     def __init__(self, axis, *, done: bool, result: bool) -> None:
         super().__init__()
         self._axis = axis
         self.done = done
         self.result = result
         self.draw_normal_boxes = True
+        self.width = 4
 
     def draw_circle(self, center: tuple[float, float], radius: float, **args: Any) -> None:
         self._axis.add_patch(Circle(center, radius=radius, **args))
@@ -53,7 +56,8 @@ class DrawContext(UserDict):
 
     def draw_arrow(self, x: float, y: float, dx: float, dy: float, *, color: Optional[str] = None):
         self._axis.annotate('', xytext=(x, y), xy=(x + dx, y + dy),
-                            arrowprops=dict(arrowstyle="->", color=color))
+                            arrowprops=dict(arrowstyle=f"->, head_width=.3, head_length=.3",
+                                            color=color))
         # self._axis.arrow(x, y, dx, dy, **args)
 
     def add_fancy_bbox(self, center, width, height, **args: Any):
