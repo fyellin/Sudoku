@@ -326,6 +326,7 @@ class KropkeDotFeature:
             DrawOnlyFeature(draw)
         ]
 
+
 class AdjacentNotConsecutiveFeature:
     @classmethod
     def create(cls) -> Sequence[Feature]:

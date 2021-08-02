@@ -1,6 +1,6 @@
 import datetime
 import itertools
-from typing import Sequence, Tuple, Iterable, Set, Optional, cast
+from typing import Iterable, Optional, Sequence, Set, Tuple, cast
 
 from cell import House
 from draw_context import DrawContext

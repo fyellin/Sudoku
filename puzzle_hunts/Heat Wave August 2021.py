@@ -1,7 +1,8 @@
 import datetime
 import itertools
 import re
-from typing import Sequence, Union
+from collections.abc import Sequence
+from typing import Union
 
 from draw_context import DrawContext
 from feature import Feature, Square

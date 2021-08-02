@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import abc
+import math
 from collections import defaultdict
 from itertools import chain, combinations, product
 from typing import Callable, Iterable, Mapping, Optional, Sequence, Union
@@ -256,6 +257,7 @@ class _PossibilitiesSharedData:
         self.added_features = []
 
     def check_special(self) -> bool:
+        p_log = {feature: math.log(len(feature.possibilities)) for feature in self.features}
         def closeness(f1: PossibilitiesFeature, f2: PossibilitiesFeature) -> int:
             count = 0
             for cell in f2.cells:
@@ -263,7 +265,7 @@ class _PossibilitiesSharedData:
                     count += 9
                 else:
                     count += len(cell.neighbors & f1.cells_as_set)
-            return count
+            return count - p_log[f1] - p_log[f2]
 
         sorted_features = sorted((x for x in self.features if len(x.possibilities) > 1),
                                  key=lambda f: len(f.possibilities))
@@ -287,20 +289,28 @@ class _PossibilitiesSharedData:
         length1, length2 = len(feature1.possibilities), len(feature2.possibilities)
 
         def possibility_function() -> Iterable[Possibility]:
-            return (p1 + p2 for p1, p2 in product(feature1.possibilities, feature2.possibilities))
+            index = {cell : index for index, cell in enumerate(feature1.cells)}
+            result = (p1 + p2 for p1, p2 in product(feature1.possibilities, feature2.possibilities))
+            # A simplified version of handling neighbors, since we only need to cross check between the features.
+            for index2, cell2 in enumerate(feature2.cells, start=len(feature1.cells)):
+                if (index1 := index.get(cell2)) is not None:
+                    result = [possibility for possibility in result if possibility[index1] == possibility[index2]]
+                else:
+                    for cell1 in feature1.cells_as_set & cell2.neighbors:
+                        index1 = index[cell1]
+                        result = [possibility for possibility in result if possibility[index1] != possibility[index2]]
+            length3 = len(result)
+            temp = length3 * 100.0 / (length1 * length2)
+            print(f'Merge {feature1} ({length1}) x {feature2} ({length2}) = {length1 * length2} '
+                  f'--> {length3} {temp:.2f}%')
+            return result
 
         owner = self.owner
         result = PossibilitiesFeature(tuple(chain(feature1.squares, feature2.squares)),
-                                      prefix="Merge",
-                                      possibility_function=possibility_function,
-                                      neighbors=True)
+                                      prefix="Merge", possibility_function=possibility_function)
         result.initialize(self.grid, synthetic=True)
         assert self.owner == owner
         result.start(True)
-        length3 = len(result.possibilities)
-        temp = length3 * 100 / (length1 * length2)
-        print(f'Merge {feature1} ({length1}) x {feature2} ({length2}) = '
-              f'{result} ({length3}) {temp:.2f}%')
         result.check()
         result.check_special()
         result.simplify()
