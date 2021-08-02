@@ -3,7 +3,7 @@ from __future__ import annotations
 import abc
 import datetime
 import itertools
-from collections import Mapping, Sequence
+from collections.abc import Mapping, Sequence
 from typing import Any, ClassVar
 
 from matplotlib import pyplot as plt

@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import datetime
 import itertools
-from collections import Mapping, Sequence, defaultdict
+from collections import defaultdict
+from collections.abc import Mapping, Sequence
 from typing import Any, NamedTuple, Optional
 
 import numpy as np

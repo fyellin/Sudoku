@@ -1,5 +1,5 @@
-from collections import Hashable, Iterable
-from typing import TypeVar, Generic
+from collections.abc import Hashable, Iterable
+from typing import Generic, TypeVar
 
 Node = TypeVar('Node', bound=Hashable)
 

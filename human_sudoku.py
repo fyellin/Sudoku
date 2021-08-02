@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from collections import Mapping, Sequence, defaultdict, deque
+from collections import defaultdict, deque
+from collections.abc import Mapping, Sequence
 from itertools import combinations, permutations, product
 
 from matplotlib import pyplot as plt

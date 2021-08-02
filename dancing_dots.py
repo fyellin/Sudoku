@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import itertools
-from collections import Sequence, deque
+from collections import deque
+from collections.abc import Sequence
 from enum import Enum
 
 from matplotlib import pyplot as plt

@@ -3,7 +3,7 @@ from __future__ import annotations
 import functools
 import itertools
 import operator
-from collections import Iterable, Iterator, Sequence
+from collections.abc import Iterable, Iterator, Sequence
 from enum import Enum, auto
 from typing import AbstractSet, Final, NamedTuple, Optional, TYPE_CHECKING, Union
 

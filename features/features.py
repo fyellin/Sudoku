@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import abc
 import functools
-from collections import Callable, Iterable, Mapping, Sequence, defaultdict
+from collections import defaultdict
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from itertools import chain, combinations_with_replacement, groupby, permutations, product, tee
 from typing import Any, ClassVar, Optional, Union
 

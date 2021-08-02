@@ -2,8 +2,8 @@ import collections
 import copy
 import random
 import sys
-from collections import Hashable, Iterator
-from typing import Optional, Callable, Sequence, Any, TypeVar, Generic, TextIO
+from collections.abc import Hashable, Iterator
+from typing import Any, Callable, Generic, Optional, Sequence, TextIO, TypeVar
 
 Row = TypeVar('Row', bound=Hashable)
 Constraint = TypeVar('Constraint', bound=Hashable)

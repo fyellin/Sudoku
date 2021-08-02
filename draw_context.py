@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections import Sequence, UserDict
+from collections.abc import Sequence, UserDict
 from typing import Any, Optional, TYPE_CHECKING
 
 import numpy as np

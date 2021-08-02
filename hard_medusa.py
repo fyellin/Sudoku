@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from collections import Mapping, Sequence, deque
+from collections import deque
+from collections.abc import Mapping, Sequence
 from typing import Any, ClassVar, Optional, TYPE_CHECKING, Union
 
 from cell import Cell, CellValue, House

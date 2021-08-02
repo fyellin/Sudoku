@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import abc
 import atexit
-from collections import Callable, Iterable, Sequence, defaultdict, deque
+from collections import defaultdict, deque
+from collections.abc import Callable, Iterable, Sequence
 from itertools import product, zip_longest
 from typing import ClassVar, Optional, Union, cast
 

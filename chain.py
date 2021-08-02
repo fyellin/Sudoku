@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import itertools
-from collections import Iterable, Iterator, Mapping, Sequence, deque
+from collections import deque
+from collections.abc import Iterable, Iterator, Mapping, Sequence
 from enum import Enum, auto
 from typing import NamedTuple
 

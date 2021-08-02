@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from collections import Iterable, Sequence, UserDict
+from collections import UserDict
+from collections.abc import Iterable, Sequence
 from typing import TYPE_CHECKING
 
 from cell import Cell, House
