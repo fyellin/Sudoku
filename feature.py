@@ -24,7 +24,7 @@ class Feature(abc.ABC):
 
     def __init__(self, *, name: Optional[str] = None, prefix: Optional[str] = None) -> None:
         if not name:
-            prefix = prefix or self.__class__.__name__.removesuffix("Feature")
+            prefix = prefix or self.__class__.__name__.removesuffix("Feature").removeprefix("_")
             self.__prefix_count[prefix] += 1
             name = f'{prefix} #{self.__prefix_count[prefix]}'
         self.name = name

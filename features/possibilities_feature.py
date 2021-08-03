@@ -7,6 +7,7 @@ from itertools import chain, combinations, product
 from typing import Callable, Iterable, Mapping, Optional, Sequence, Union
 
 from cell import Cell, CellValue, House, SmallIntSet
+from draw_context import DrawContext
 from feature import Feature, Square, SquaresParseable
 from grid import Grid
 from tools.union_find import Node
@@ -193,7 +194,8 @@ class PossibilitiesFeature(Feature, abc.ABC):
                                   if cell not in self.cells_as_set
                                   if not cell.possible_values.isdisjoint(locked_values)}
                 if affected_cells:
-                    print(f'Values {locked_values} locked into {self} in {house}')
+                    plural = "s" if len(locked_values) != 1 else ""
+                    print(f'Value{plural} {locked_values} locked into {self} in {house}')
                     Cell.remove_values_from_cells(affected_cells, locked_values)
                     change = True
         return change
@@ -258,6 +260,7 @@ class _PossibilitiesSharedData:
 
     def check_special(self) -> bool:
         p_log = {feature: math.log(len(feature.possibilities)) for feature in self.features}
+
         def closeness(f1: PossibilitiesFeature, f2: PossibilitiesFeature) -> int:
             count = 0
             for cell in f2.cells:
@@ -289,21 +292,21 @@ class _PossibilitiesSharedData:
         length1, length2 = len(feature1.possibilities), len(feature2.possibilities)
 
         def possibility_function() -> Iterable[Possibility]:
-            index = {cell : index for index, cell in enumerate(feature1.cells)}
-            result = (p1 + p2 for p1, p2 in product(feature1.possibilities, feature2.possibilities))
+            index = {cell: index for index, cell in enumerate(feature1.cells)}
+            results = (p1 + p2 for p1, p2 in product(feature1.possibilities, feature2.possibilities))
             # A simplified version of handling neighbors, since we only need to cross check between the features.
             for index2, cell2 in enumerate(feature2.cells, start=len(feature1.cells)):
                 if (index1 := index.get(cell2)) is not None:
-                    result = [possibility for possibility in result if possibility[index1] == possibility[index2]]
+                    results = [possibility for possibility in results if possibility[index1] == possibility[index2]]
                 else:
                     for cell1 in feature1.cells_as_set & cell2.neighbors:
                         index1 = index[cell1]
-                        result = [possibility for possibility in result if possibility[index1] != possibility[index2]]
-            length3 = len(result)
+                        results = [possibility for possibility in results if possibility[index1] != possibility[index2]]
+            length3 = len(results)
             temp = length3 * 100.0 / (length1 * length2)
             print(f'Merge {feature1} ({length1}) x {feature2} ({length2}) = {length1 * length2} '
                   f'--> {length3} {temp:.2f}%')
-            return result
+            return results
 
         owner = self.owner
         result = PossibilitiesFeature(tuple(chain(feature1.squares, feature2.squares)),
@@ -410,3 +413,19 @@ class GroupedPossibilitiesFeature(Feature, abc.ABC):
                 #  We're not sure if this works or not
                 possibilities = [p for p in possibilities if p[index1] == p[index2]]
         return possibilities
+
+    def to_possibility_feature(self):
+        parent = self
+
+        class ChildPossibilityFeature(PossibilitiesFeature):
+            def __init__(self):
+                super().__init__(parent.squares, name=parent.name, neighbors=True, duplicates=True)
+
+            def draw(self, context: DrawContext):
+                parent.draw(context)
+
+            def get_possibilities(self) -> Iterable[tuple[int, ...]]:
+                for element in parent.get_possibilities():
+                    yield from product(*element)
+
+        return ChildPossibilityFeature()

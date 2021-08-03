@@ -9,8 +9,8 @@ from feature import Feature, Square, SquaresParseable
 from features.chess_move import KingsMoveFeature, KnightsMoveFeature, LittlePrincessFeature, QueensMoveFeature
 from features.features import AdjacentNotConsecutiveFeature, AdjacentRelationshipFeature, AlternativeBoxesFeature, \
     ArrowSumFeature, BoxOfNineFeature, DrawOnlyFeature, ExtremeEndpointsFeature, KillerCageFeature, \
-    LimitedValuesFeature, \
-    MagicSquareFeature, OddsAndEvensFeature, RenbanFeature, SimonSaysFeature, ValuesAroundIntersectionFeature, XVFeature
+    LimitedValuesFeature, MagicSquareFeature, RenbanFeature, SimonSaysFeature, \
+    ValuesAroundIntersectionFeature, XVFeature
 from features.possibilities_feature import GroupedPossibilitiesFeature, PossibilitiesFeature
 from features.same_value_as_mate_feature import SameValueAsMateFeature
 from features.sandwich_feature import SandwichFeature, SandwichXboxFeature
@@ -70,6 +70,8 @@ class DrawCircleFeature(Feature):
 
 
 class DoubleSumFeature(GroupedPossibilitiesFeature):
+    """The first two items in the row/column are indices, and the values they point at must total to ptotal.
+    If total is also given, then the first two values must sum to this"""
     row_column: int
     htype: House.Type
     total: Optional[int]
@@ -218,22 +220,22 @@ def double_sum_puzzle() -> tuple[str, Sequence[Feature]]:
             return False
 
     features = [
-        DoubleSumFeature(House.Type.ROW, 1, 6),
-        DoubleSumFeature(House.Type.ROW, 4, 10, 10),
-        DoubleSumFeature(House.Type.ROW, 5, 10, 9),
-        DoubleSumFeature(House.Type.ROW, 6, 10, 10),
-        DoubleSumFeature(House.Type.ROW, 7, 10, 10),
-        DoubleSumFeature(House.Type.ROW, 9, 9, 11),
+        DoubleSumFeature(House.Type.ROW, 1, 6).to_possibility_feature(),
+        DoubleSumFeature(House.Type.ROW, 4, 10, 10).to_possibility_feature(),
+        DoubleSumFeature(House.Type.ROW, 5, 10, 9).to_possibility_feature(),
+        DoubleSumFeature(House.Type.ROW, 6, 10, 10).to_possibility_feature(),
+        DoubleSumFeature(House.Type.ROW, 7, 10, 10).to_possibility_feature(),
+        DoubleSumFeature(House.Type.ROW, 9, 9, 11).to_possibility_feature(),
 
-        DoubleSumFeature(House.Type.COLUMN, 1, 16),
-        DoubleSumFeature(House.Type.COLUMN, 3, 13, 13),
-        DoubleSumFeature(House.Type.COLUMN, 4, 12, 11),
-        DoubleSumFeature(House.Type.COLUMN, 5, 9),
-        DoubleSumFeature(House.Type.COLUMN, 6, 10, 10),
-        DoubleSumFeature(House.Type.COLUMN, 7, 11, 15),
+        DoubleSumFeature(House.Type.COLUMN, 1, 16).to_possibility_feature(),
+        DoubleSumFeature(House.Type.COLUMN, 3, 13, 13).to_possibility_feature(),
+        DoubleSumFeature(House.Type.COLUMN, 4, 12, 11).to_possibility_feature(),
+        DoubleSumFeature(House.Type.COLUMN, 5, 9).to_possibility_feature(),
+        DoubleSumFeature(House.Type.COLUMN, 6, 10, 10).to_possibility_feature(),
+        DoubleSumFeature(House.Type.COLUMN, 7, 11, 15).to_possibility_feature(),
         DoubleSumFeature(House.Type.COLUMN, 8, 11, 9),
 
-        *[[] if True else [CheckSpecialFeature()]]
+        *([] if True else [CheckSpecialFeature()]),
     ]
     return BLANK_GRID, features
 
@@ -633,7 +635,7 @@ def puzzle_2021_07_10() -> tuple[str, Sequence[Feature]]:
 
 def puzzle_2021_07_11() -> tuple[str, Sequence[Feature]]:
     features = [
-        *OddsAndEvensFeature.create(evens=[(1, 4), (2, 2), (2, 9), (8, 1), (8, 1), (8, 8), (9, 6)]),
+        *LimitedValuesFeature.odds_and_evens(evens=[(1, 4), (2, 2), (2, 9), (8, 1), (8, 1), (8, 8), (9, 6)]),
         BoxOfNineFeature("7,1,NE,E,NE,E,E,NE,E,NE"),
         BoxOfNineFeature("1,3,S,SE,SE,S,S,SE,SE,S"),
         ValuesAroundIntersectionFeature(top_left=(1, 1), values=(2, 3)),
@@ -677,7 +679,7 @@ def puzzle_2021_07_31() -> tuple[str, Sequence[Feature]]:
 
 def main():
     start = datetime.datetime.now()
-    grid, features = puzzle_08_26()
+    grid, features = double_sum_puzzle()
     Sudoku().solve(grid, features=features, initial_only=False, guides=0)
     end = datetime.datetime.now()
     print(end - start)

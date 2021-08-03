@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import abc
 import functools
 from collections import defaultdict
 from collections.abc import Callable, Iterable, Mapping, Sequence
@@ -39,7 +38,7 @@ class MagicSquareFeature(PossibilitiesFeature):
         context.draw_rectangles(self.squares, facecolor=self.color)
 
 
-class AdjacentRelationshipFeature(Feature, abc.ABC):
+class AdjacentRelationshipFeature:
     """
     Adjacent squares must fulfill some relationship.
 
@@ -49,11 +48,9 @@ class AdjacentRelationshipFeature(Feature, abc.ABC):
     color: Optional[str]
 
     @classmethod
-    def create(cls, squares: SquaresParseable, *,
-               match: Callable[[int, int], bool],
-               prefix: Optional[str] = None,
-               cyclic: bool = False, color: Optional[str] = None):
-        squares = cls.parse_squares(squares)
+    def create(cls, squares: SquaresParseable, *, match: Callable[[int, int], bool],
+               prefix: Optional[str] = None, cyclic: bool = False, color: Optional[str] = None):
+        squares = Feature.parse_squares(squares)
 
         features: list[Feature]
         if len(squares) == 2 and not cyclic:
@@ -116,8 +113,9 @@ class BoxOfNineFeature(Feature):
     squares: Sequence[Square]
 
     def __init__(self, squares: SquaresParseable, *,
+                 name: Optional[str] = None, prefix: Optional[str] = None,
                  show: bool = True, line: bool = True, color: Optional[str] = None):
-        super().__init__()
+        super().__init__(name=name, prefix=prefix)
         self.squares = self.parse_squares(squares)
         assert len(self.squares) == 9
         self.show = show
@@ -126,11 +124,11 @@ class BoxOfNineFeature(Feature):
 
     @staticmethod
     def major_diagonal(**kwargs: Any) -> BoxOfNineFeature:
-        return BoxOfNineFeature([(i, i) for i in range(1, 10)], **kwargs)
+        return BoxOfNineFeature([(i, i) for i in range(1, 10)], name="Major Diagonal", **kwargs)
 
     @staticmethod
     def minor_diagonal(**kwargs: Any) -> BoxOfNineFeature:
-        return BoxOfNineFeature([(10 - i, i) for i in range(1, 10)], **kwargs)
+        return BoxOfNineFeature([(10 - i, i) for i in range(1, 10)], name="Minor Diagonal", **kwargs)
 
     @staticmethod
     def disjoint_groups() -> Sequence[BoxOfNineFeature]:
@@ -160,11 +158,29 @@ class LimitedValuesFeature(Feature):
     color: Optional[str]
 
     def __init__(self, squares: SquaresParseable, values: Sequence[int], *,
-                 color: Optional[str] = None):
-        super().__init__()
+                 name: Optional[str] = None, prefix: Optional[str] = None, color: Optional[str] = None):
+        super().__init__(name=name, prefix=prefix)
         self.squares = self.parse_squares(squares)
         self.values = SmallIntSet(values)
         self.color = color
+
+    @classmethod
+    def odds_and_evens(cls, *, odds: SquaresParseable = (), evens: SquaresParseable = ()) -> Sequence[Feature]:
+        odds = cls.parse_squares(odds)
+        evens = cls.parse_squares(evens)
+
+        def draw_function(context):
+            for row, column in evens:
+                context.draw_rectangle((column + .1, row + .1), width=.8, height=.8, color='lightgray', fill=True)
+            for row, column in odds:
+                context.draw_circle((column + .5, row + .5), radius=.4, color='lightgray', fill=True)
+
+        temp = [
+            *([LimitedValuesFeature(odds, (1, 3, 5, 7, 9), name="Odds")] if odds else []),
+            *([LimitedValuesFeature(evens, (2, 4, 6, 8), name="Evens")] if evens else []),
+            DrawOnlyFeature(draw_function),
+        ]
+        return temp
 
     def start(self) -> None:
         cells = [self @ x for x in self.squares]
@@ -173,25 +189,6 @@ class LimitedValuesFeature(Feature):
     def draw(self, context: DrawContext) -> None:
         if self.color:
             context.draw_rectangles(self.squares, color=self.color)
-
-
-class OddsAndEvensFeature:
-    @classmethod
-    def create(cls, odds: SquaresParseable = (), evens: SquaresParseable = ()) -> Sequence[Feature]:
-        odds_feature = LimitedValuesFeature(odds, (1, 3, 5, 7, 9))
-        evens_feature = LimitedValuesFeature(evens, (2, 4, 6, 8))
-
-        def draw_function(context):
-            for row, column in evens_feature.squares:
-                context.draw_rectangle((column + .1, row + .1), width=.8, height=.8, color='lightgray', fill=True)
-            for row, column in odds_feature.squares:
-                context.draw_circle((column + .5, row + .5), radius=.4, color='lightgray', fill=True)
-
-        return [
-            odds_feature,
-            evens_feature,
-            DrawOnlyFeature(draw_function)
-        ]
 
 
 class AlternativeBoxesFeature(Feature):
@@ -427,8 +424,7 @@ class ExtremeEndpointsFeature(PossibilitiesFeature):
 class LocalMinOrMaxFeature:
     """Reds must be larger than all of its neighbors.  Greens must be smaller than all of its neighbors"""
     @classmethod
-    def create(cls, *, reds: SquaresParseable = (), greens: SquaresParseable = ()) ->\
-            Sequence[Feature]:
+    def create(cls, *, reds: SquaresParseable = (), greens: SquaresParseable = ()) -> Sequence[Feature]:
         reds = Feature.parse_squares(reds)
         greens = Feature.parse_squares(greens)
 
@@ -438,18 +434,20 @@ class LocalMinOrMaxFeature:
                     context.draw_rectangle((x, y), width=1, height=1, color=color, fill=True)
 
         return [
-            *[cls._Comparer(square, high=True) for square in reds],
-            *[cls._Comparer(square, high=False) for square in greens],
+            *[cls._LocalMinMaxFeature(square, high=True) for square in reds],
+            *[cls._LocalMinMaxFeature(square, high=False) for square in greens],
             DrawOnlyFeature(draw_function)
         ]
 
-    class _Comparer(PossibilitiesFeature):
+    class _LocalMinMaxFeature(PossibilitiesFeature):
         high: bool
 
         def __init__(self, square: Square, high: bool):
-            squares = [square, *self._orthogonal_neighbors(square)]
+            squares = [square, *self.__orthogonal_neighbors(square)]
             self.high = high
-            super().__init__(squares, neighbors=True)
+            r, c = square
+            name = f'{"High" if high else "Low"}@r{r}c{c}'
+            super().__init__(squares, name=name, neighbors=True)
 
         def get_possibilities(self) -> list[tuple[int, ...]]:
             count = len(self.squares) - 1
@@ -459,14 +457,10 @@ class LocalMinOrMaxFeature:
                     yield center, *outside
 
         @staticmethod
-        def _orthogonal_neighbors(square):
+        def __orthogonal_neighbors(square):
             row, column = square
             return [(r, c) for r, c in ((row + 1, column), (row - 1, column), (row, column + 1), (row, column - 1))
                     if 1 <= r <= 9 and 1 <= c <= 9]
-
-        def __str__(self) -> str:
-            r, c = self.squares[0]
-            return f'<r{r}c{c} {"high" if self.high else "low"}>'
 
 
 class LittleKillerFeature(PossibilitiesFeature):

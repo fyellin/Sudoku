@@ -6,8 +6,8 @@ from draw_context import DrawContext
 from feature import Feature, Square
 from features.chess_move import KingsMoveFeature, KnightsMoveFeature
 from features.features import AdjacentNotConsecutiveFeature, ArrowSumFeature, \
-    BoxOfNineFeature, ExtremeEndpointsFeature, KillerCageFeature, KropkeDotFeature, LittleKillerFeature, \
-    LocalMinOrMaxFeature, OddsAndEvensFeature, PalindromeFeature, ValuesAroundIntersectionFeature, XVFeature
+    BoxOfNineFeature, ExtremeEndpointsFeature, KillerCageFeature, KropkeDotFeature, LimitedValuesFeature, \
+    LittleKillerFeature, LocalMinOrMaxFeature, PalindromeFeature, ValuesAroundIntersectionFeature, XVFeature
 from features.same_value_feature import SameValueFeature
 from features.sandwich_feature import SandwichFeature
 from features.thermometer import ThermometerFeature
@@ -124,7 +124,7 @@ def puzzle_9() -> tuple[str, Sequence[Feature]]:
     evens = [(r, c) for (r, c), letter in zip(itertools.product(range(1, 10), repeat=2), grid) if letter == 'e']
     features = [
         DrawCircleFeature(circles),
-        *OddsAndEvensFeature.create(odds, evens)
+        *LimitedValuesFeature.odds_and_evens(odds=odds, evens=evens)
     ]
     return puzzle, features
 
@@ -374,8 +374,10 @@ def run() -> None:
         # puzzle_11, puzzle_12,
         # puzzle_13,
         # puzzle_14, puzzle_15,
-        puzzle_16,
-        # puzzle_17, puzzle_18, puzzle_19, puzzle_20,
+        # puzzle_16,
+        # puzzle_17, puzzle_18,
+        puzzle_19,
+        # puzzle_20,
         ]
     for puzzle in puzzles:
         grid, features = puzzle()
