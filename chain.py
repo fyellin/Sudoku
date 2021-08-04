@@ -42,13 +42,13 @@ class Chain:
     @staticmethod
     def create(start: CellValue, medusa: bool) -> Chain:
         if not medusa:
-            def iterator(cell_value: CellValue) -> Iterator[CellValue]:
-                cell, value = cell_value
+            def iterator(cv: CellValue) -> Iterator[CellValue]:
+                cell, value = cv
                 for next_cell in cell.get_strong_pairs(value):
                     yield CellValue(next_cell, value)
         else:
-            def iterator(cell_value: CellValue) -> Iterator[CellValue]:
-                yield from cell_value.get_chain_pairs_extended()
+            def iterator(cv: CellValue) -> Iterator[CellValue]:
+                yield from cv.get_chain_pairs_extended()
 
         todo = deque([(start, 0)])
         seen = {start}

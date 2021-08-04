@@ -8,13 +8,11 @@ from typing import Iterable, Mapping, Optional, Sequence
 
 from cell import House, SmallIntSet
 from draw_context import DrawContext
-from features.possibilities_feature import PossibilitiesFeature
+from features.possibilities_feature import HousePossibilitiesFeature, PossibilitiesFeature
 
 
-class SandwichFeature(PossibilitiesFeature):
+class SandwichFeature(HousePossibilitiesFeature):
     """Specify the total sum of the squares between the 1 and the 9."""
-    htype: House.Type
-    row_column: int
     total: int
 
     @staticmethod
@@ -22,17 +20,12 @@ class SandwichFeature(PossibilitiesFeature):
         """Used to set sandwiches for an entire row or column.   A none indicates missing"""
         return [SandwichFeature(htype, rc, total) for rc, total in enumerate(totals, start=1) if total is not None]
 
-    def __init__(self, htype: House.Type, row_column: int, total: int):
-        name = f'Sandwich {htype.name.title()} #{row_column}'
-        squares = self.get_house_squares(htype, row_column)
-        self.htype = htype
-        self.row_column = row_column
+    def __init__(self, htype: House.Type, index: int, total: int):
+        super().__init__(htype, index, name="Sandwich")
         self.total = total
-        super().__init__(squares, name=name)
 
-    def get_possibilities(self) -> Iterable[tuple[int, ...]]:
-        result = permutations(range(1, 10))
-        return filter(lambda p: self.sandwich_sum(p) == self.total, result)
+    def match(self, permutation: tuple[int, ...]) -> bool:
+        return self.sandwich_sum(permutation) == self.total
 
     @classmethod
     def sandwich_sum(cls, permutation):
@@ -46,7 +39,7 @@ class SandwichFeature(PossibilitiesFeature):
     ONE_AND_NINE = SmallIntSet((1, 9))
 
     def draw(self, context: DrawContext) -> None:
-        context.draw_outside(self.total, self.htype, self.row_column, fontsize=20, weight='bold')
+        context.draw_outside(self.total, self.htype, self.index, fontsize=20, weight='bold')
         if not context.get(self.__class__):
             context[self.__class__] = True
             special = [square for square in self.all_squares()

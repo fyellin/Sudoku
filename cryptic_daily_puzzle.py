@@ -12,7 +12,7 @@ from features.features import AdjacentNotConsecutiveFeature, AdjacentRelationshi
     KillerCageFeature, \
     LimitedValuesFeature, MagicSquareFeature, PalindromeFeature, RenbanFeature, ValuesAroundIntersectionFeature, \
     XVFeature
-from features.possibilities_feature import GroupedPossibilitiesFeature, PossibilitiesFeature
+from features.possibilities_feature import HousePossibilitiesFeature, PossibilitiesFeature
 from features.same_value_as_mate_feature import SameValueAsMateFeature
 from features.sandwich_feature import SandwichFeature, SandwichXboxFeature
 from features.skyscraper_feature import SkyscraperFeature
@@ -70,7 +70,7 @@ class DrawCircleFeature(Feature):
             context.draw_circle((column + .5, row + .5), radius=.5, fill=False, color='blue')
 
 
-class DoubleSumFeature(PossibilitiesFeature):
+class DoubleSumFeature(HousePossibilitiesFeature):
     """The first two items in the row/column are indices, and the values they point at must total to ptotal.
     If total is also given, then the first two values must sum to this"""
     row_column: int
@@ -79,29 +79,21 @@ class DoubleSumFeature(PossibilitiesFeature):
     ptotal: int
 
     def __init__(self, htype: House.Type, row_column: int, ptotal: int, total: Optional[int] = None):
-        name = f'DoubleSum {htype.name.title()} #{row_column}'
-        squares = self.get_house_squares(htype, row_column)
-        self.row_column = row_column
-        self.htype = htype
+        super().__init__(htype, row_column, prefix="DoubleSum")
         self.total = total
         self.ptotal = ptotal
-        super().__init__(squares, name=name)
 
-    def get_possibilities(self) -> Iterable[tuple[int, ...]]:
-        total = self.total
-        ptotal = self.ptotal
-        results = itertools.permutations(range(1, 10))
-        if total:
-            results = filter(lambda p: p[0] + p[1] == total, results)
-        results = filter(lambda p: p[p[0] - 1] + p[p[1] - 1] == ptotal, results)
-        return results
+    def match(self, permutation: tuple[int, ...]) -> bool:
+        a, b = permutation[0], permutation[1]
+        return (self.total is None or a + b == self.total) and \
+            permutation[a - 1] + permutation[b - 1] == self.ptotal
 
     def draw(self, context: DrawContext) -> None:
         args = {'fontsize': '10'}
         if self.total:
-            context.draw_outside(f'{self.total}', self.htype, self.row_column, padding=.2,
+            context.draw_outside(f'{self.total}', self.htype, self.index, padding=.2,
                                  color='red', **args)
-        context.draw_outside(f'{self.ptotal}', self.htype, self.row_column, **args)
+        context.draw_outside(f'{self.ptotal}', self.htype, self.index, **args)
 
 
 def thermometer_magic() -> tuple[str, Sequence[Feature]]:
@@ -223,9 +215,8 @@ def puzzle_hunt() -> tuple[str, Sequence[Feature]]:
 
 def sandwich_07_28() -> tuple[str, Sequence[Feature]]:
     class LiarsSandwichFeature(SandwichFeature):
-        def get_possibilities(self) -> Iterable[tuple[set[int], ...]]:
-            result = itertools.permutations(range(1, 10))
-            return filter(lambda p: abs(self.sandwich_sum(p) - self.total) == 1, result)
+        def match(self, permutation: tuple[int, ...]) -> bool:
+            return abs(self.sandwich_sum(permutation) - self.total) == 1
 
     puzzle = "..6................1...........1.....4.........9...2.....................7......8"
     features = [
@@ -526,17 +517,16 @@ def puzzle_09_20() -> tuple[str, Sequence[Feature]]:
 
 
 def puzzle_09_21() -> tuple[str, Sequence[Feature]]:
-    class Multiplication(GroupedPossibilitiesFeature):
+    class Multiplication(PossibilitiesFeature):
         def __init__(self, row, column) -> None:
             squares = [(row, column), (row, column + 1), (row + 1, column), (row + 1, column + 1)]
             super().__init__(squares, name=f"Square{row}{column}", neighbors=True)
 
-        def get_possibilities(self) -> list[tuple[set[int], ...]]:
-            for x, y in itertools.product(range(1, 10), repeat=2):
-                if x <= y:
-                    z = x * y
-                    if z >= 11 and z % 10 != 0:
-                        yield [{x, y}, {x, y}, {z // 10}, {z % 10}]
+        def get_possibilities(self) -> list[tuple[int, ...]]:
+            for x, y in itertools.product(range(2, 10), repeat=2):
+                q, r = divmod(x * y, 10)
+                if 1 <= q <= 9 and 1 <= r <= 9:
+                    yield x, y, q, r
 
         def draw(self, context: DrawContext) -> None:
             context.draw_rectangles(self.squares, color='lightgray')
@@ -685,7 +675,8 @@ def puzzle_2021_08_03() -> tuple[str, Sequence[Feature]]:
 
 def main():
     start = datetime.datetime.now()
-    grid, features = sandwich_07_28()
+    grid, features = puzzle_09_21()
+    # grid, features = double_sum_puzzle()
     Sudoku().solve(grid, features=features, initial_only=False, guides=1)
     end = datetime.datetime.now()
     print(end - start)

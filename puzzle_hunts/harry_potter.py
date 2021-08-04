@@ -1,6 +1,6 @@
 import itertools
 import math
-from typing import Iterable, List, Mapping, Optional, Sequence, Set, Tuple, cast
+from typing import Iterable, List, Mapping, Optional, Sequence, Set, cast
 
 from cell import Cell, House, SmallIntSet
 from draw_context import DrawContext
@@ -8,7 +8,7 @@ from feature import Feature, Square, SquaresParseable
 from features.chess_move import KnightsMoveFeature
 from features.features import AdjacentRelationshipFeature, AllValuesPresentFeature, BoxOfNineFeature, DrawOnlyFeature, \
     LimitedValuesFeature
-from features.possibilities_feature import PossibilitiesFeature
+from features.possibilities_feature import HousePossibilitiesFeature
 from features.thermometer import ThermometerFeature
 from grid import Grid
 from human_sudoku import Sudoku
@@ -37,22 +37,22 @@ class GermanSnakeFeature:
         return AdjacentRelationshipFeature.create(squares, match=lambda i, j: abs(i - j) >= 5, prefix=prefix)
 
 
-class ContainsTextFeature(PossibilitiesFeature):
+class ContainsTextFeature(HousePossibilitiesFeature):
     text: Sequence[int]
+    text_length: int
 
     """A row that must contain certain digits consecutively"""
     def __init__(self, row: int, text: Sequence[int]) -> None:
-        super().__init__([(row, column) for column in range(1, 10)], name=f'Text Row {row}')
+        super().__init__(House.Type.ROW, row, prefix="Text Row")
         self.text = text
+        self.text_length = len(self.text)
 
-    def get_possibilities(self) -> Iterable[Tuple[int, ...]]:
-        return (x for x in itertools.permutations(range(1, 10)) if self.matches(x))
-
-    def matches(self, permutation: Sequence[int]) -> bool:
-        length = len(self.text)
-        text0 = self.text[0]
+    def match(self, permutation: Sequence[int]) -> bool:
+        text, text_length = self.text, self.text_length
+        text0 = text[0]
         index = permutation.index(text0)
-        return index <= 9 - length and all(permutation[index + i] == self.text[i] for i in range(1, length))
+        return index <= 9 - text_length and \
+            all(permutation[index + i] == text[i] for i in range(1, text_length))
 
 
 class SnakesEggFeature(Feature):

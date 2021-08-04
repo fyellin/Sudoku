@@ -4,7 +4,7 @@ import abc
 import itertools
 import math
 from collections import defaultdict
-from itertools import chain, combinations, product
+from itertools import chain, combinations, permutations, product
 from typing import Callable, Iterable, Mapping, Optional, Sequence, Union
 
 from cell import Cell, CellValue, House, SmallIntSet
@@ -340,6 +340,26 @@ class _PossibilitiesSharedData:
         result.check_special()
         result.simplify()
         return result
+
+
+class HousePossibilitiesFeature(PossibilitiesFeature, abc.ABC):
+    htype: House.Type
+    index: int
+
+    def __init__(self, htype: House.Type, index: int, *,
+                 name: Optional[str] = None, prefix: Optional[str] = None):
+        if not name and prefix:
+            name = f'{prefix} {htype.name} #{index}'
+        super().__init__(self.get_house_squares(htype, index), name=name)
+        self.htype = htype
+        self.index = index
+
+    def get_possibilities(self) -> Iterable[tuple[int, ...]]:
+        return filter(self.match, permutations(range(1, 10)))
+
+    @abc.abstractmethod
+    def match(self, permutation: tuple[int, ...]) -> bool:
+        ...
 
 
 class GroupedPossibilitiesFeature(Feature, abc.ABC):
