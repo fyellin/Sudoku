@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import abc
+import itertools
 import math
 from collections import defaultdict
 from itertools import chain, combinations, product
@@ -10,6 +11,7 @@ from cell import Cell, CellValue, House, SmallIntSet
 from draw_context import DrawContext
 from feature import Feature, Square, SquaresParseable
 from grid import Grid
+from tools.itertool_recipes import all_equal
 from tools.union_find import Node
 
 Possibility = tuple[int, ...]
@@ -123,7 +125,7 @@ class PossibilitiesFeature(Feature, abc.ABC):
         cell, value = cell_value
         if self in self.shared_data.features and cell in self.cells_as_set:
             index = self.cells.index(cell)
-            # A weak pair says both conditions can't simultaneously be true.  Assume the cell has the indicated index
+            # A weak pair says both conditions can't simultaneously be true.  Assume the cell has the indicated value
             # and see which values in other cells are no longer possibilities that had been before.
             possibilities = [possibility for possibility in self.possibilities if possibility[index] == value]
             for index2, cell2 in enumerate(self.cells):
@@ -137,6 +139,26 @@ class PossibilitiesFeature(Feature, abc.ABC):
         if self.shared_data.owner == self:
             for feature in self.shared_data.added_features:
                 yield from feature.get_weak_pairs(cell_value)
+
+    def get_strong_pairs(self, cell_value: CellValue) -> Iterable[CellValue]:
+        cell, value = cell_value
+        if self in self.shared_data.features and cell in self.cells_as_set:
+            # A strong pair says both conditions can't simultaneously be false.  Assume the cell doesn't have the
+            # indicated value and see which values in other cells are forced.
+            index = self.cells.index(cell)
+            iterators = itertools.tee((pos for pos in self.possibilities if pos[index] != value),
+                                      len(self.cells))
+            one_possibility = next(iterators[index])
+
+            for index2, cell2 in enumerate(self.cells):
+                if index2 == index or cell2.is_known:
+                    continue
+                if all_equal(possibility[index2] for possibility in iterators[index2]):
+                    yield CellValue(cell2, one_possibility[index2])
+
+        if self.shared_data.owner == self:
+            for feature in self.shared_data.added_features:
+                yield from feature.get_strong_pairs(cell_value)
 
     def simplify(self):
         seen = set()
@@ -155,7 +177,6 @@ class PossibilitiesFeature(Feature, abc.ABC):
         self.squares = trim(self.squares)
         self.possibilities = list(map(trim, self.possibilities))
         self.__finish_initialize()
-
 
     def __update_cells_for_possibilities(self, show: bool = True) -> bool:
         changed = False

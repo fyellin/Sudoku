@@ -4,12 +4,13 @@ import functools
 import itertools
 import operator
 from collections import deque
-from typing import Optional, ClassVar, Sequence
+from typing import ClassVar, Optional, Sequence
 
 from cell import Cell
 from draw_context import DrawContext
 from feature import Feature, Square, SquaresParseable
 from grid import Grid
+from tools.itertool_recipes import all_equal, unique_everseen
 from tools.union_find import UnionFind
 
 
@@ -37,7 +38,7 @@ class SameValueFeature(Feature):
 
         shared_data = _SameValueSharedData.get_singleton(grid)
         features = [shared_data.cell_to_feature(cell) for cell in cells]
-        if features[0] is not None and all(features[0] == feature for feature in features):
+        if features[0] is not None and all_equal(features):
             return None, False
 
         result = SameValueFeature('', name=name, prefix=prefix, cells=cells)
@@ -247,7 +248,7 @@ class _SameValueSharedData:
                 old_name = str(prev_feature)
                 neighbors = feature.cells[0].neighbors | prev_feature.cells[0].neighbors
                 prev_feature.set_all_neighbors(neighbors)
-                prev_feature.cells = list(unique_concat(itertools.chain(prev_feature.cells, feature.cells)))
+                prev_feature.cells = list(unique_everseen(itertools.chain(prev_feature.cells, feature.cells)))
                 print(f'...Merging {feature} into {old_name} yielding {prev_feature}')
                 # Delete us once we're through iterating through the dict
                 deletions.append(feature)
@@ -274,11 +275,3 @@ class _SameValueSharedData:
             cells = set(feature.cells)
             assert cells <= nodes
             nodes -= cells
-
-
-def unique_concat(iterable):
-    seen = set()
-    seen_add = seen.add
-    for element in itertools.filterfalse(seen.__contains__, iterable):
-        seen_add(element)
-        yield element

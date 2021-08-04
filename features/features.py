@@ -4,7 +4,7 @@ import functools
 import re
 from collections import defaultdict
 from collections.abc import Callable, Iterable, Mapping, Sequence
-from itertools import chain, combinations_with_replacement, groupby, permutations, product, tee
+from itertools import chain, combinations_with_replacement, groupby, permutations, product
 from typing import Any, ClassVar, Optional, Union
 
 from cell import Cell, House, SmallIntSet
@@ -13,6 +13,7 @@ from feature import Feature, Square, SquaresParseable
 from features.possibilities_feature import PossibilitiesFeature
 from features.same_value_feature import SameValueFeature
 from grid import Grid
+from tools.itertool_recipes import pairwise
 
 
 class MagicSquareFeature(PossibilitiesFeature):
@@ -315,9 +316,7 @@ class KropkeDotFeature:
                 return abs(i - j) == 1
 
         def draw(context: DrawContext) -> None:
-            (iter1, iter2) = tee(squares)
-            next(iter2, None)
-            for (y1, x1), (y2, x2) in zip(iter1, iter2):
+            for (y1, x1), (y2, x2) in pairwise(squares):
                 context.draw_circle(((x1 + x2 + 1) / 2, (y1 + y2 + 1) / 2), radius=.2, fill=is_black, color='black')
 
         return [
@@ -609,10 +608,11 @@ class ArithmeticFeature:
 
     @classmethod
     def get_possibilities(cls, total: Optional[int], operation: str) -> Iterable[tuple[int, ...]]:
-        op = { '+': lambda a, b: a + b,
-               'x': lambda a, b: a * b,
-               '-': lambda a, b: abs(a - b),
-               '/': lambda a, b: max(a, b) // min(a, b) if max(a, b) % min(a, b) == 0 else None }[operation]
+        op = {'+': lambda x, y: x + y,
+              'x': lambda x, y: x * y,
+              '-': lambda x, y: abs(x - y),
+              '/': lambda x, y: max(x, y) // min(x, y) if max(x, y) % min(x, y) == 0 else None,
+              }[operation]
         for a, b, c, d in product(range(1, 10), repeat=4):
             if a != b and c != d and a != c and b != d:
                 value1, value2 = op(a, d), op(b, c)
@@ -624,7 +624,6 @@ class ArithmeticFeature:
         y, x = square
         context.draw_circle((x + 1, y + 1), radius=.3, fill=False)
         context.draw_text(x + 1, y + 1, info, fontsize=12, color='black', weight='bold', va='center', ha='center')
-
 
 
 class DrawOnlyFeature(Feature):

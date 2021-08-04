@@ -10,8 +10,7 @@ from features.chess_move import KingsMoveFeature, KnightsMoveFeature, LittlePrin
 from features.features import AdjacentNotConsecutiveFeature, AdjacentRelationshipFeature, AlternativeBoxesFeature, \
     ArithmeticFeature, ArrowSumFeature, BoxOfNineFeature, DrawOnlyFeature, ExtremeEndpointsFeature, \
     KillerCageFeature, \
-    LimitedValuesFeature, MagicSquareFeature, RenbanFeature, SimonSaysFeature, \
-    ValuesAroundIntersectionFeature, XVFeature
+    LimitedValuesFeature, MagicSquareFeature, RenbanFeature, ValuesAroundIntersectionFeature, XVFeature
 from features.possibilities_feature import GroupedPossibilitiesFeature, PossibilitiesFeature
 from features.same_value_as_mate_feature import SameValueAsMateFeature
 from features.sandwich_feature import SandwichFeature, SandwichXboxFeature
@@ -70,7 +69,7 @@ class DrawCircleFeature(Feature):
             context.draw_circle((column + .5, row + .5), radius=.5, fill=False, color='blue')
 
 
-class DoubleSumFeature(GroupedPossibilitiesFeature):
+class DoubleSumFeature(PossibilitiesFeature):
     """The first two items in the row/column are indices, and the values they point at must total to ptotal.
     If total is also given, then the first two values must sum to this"""
     row_column: int
@@ -85,32 +84,22 @@ class DoubleSumFeature(GroupedPossibilitiesFeature):
         self.htype = htype
         self.total = total
         self.ptotal = ptotal
-        super().__init__(squares, name=name, compressed=True)
+        super().__init__(squares, name=name)
 
-    def get_possibilities(self) -> Iterable[tuple[set[int], ...]]:
+    def get_possibilities(self) -> Iterable[tuple[int, ...]]:
         total = self.total
         ptotal = self.ptotal
-        for item1, item2 in itertools.permutations(range(1, 10), 2):
-            if total and item1 + item2 != total:
-                continue
-            item3_possibilities = [item1] if item1 == 1 else [item2] if item1 == 2 \
-                else [x for x in range(1, 10) if x not in {item1, item2}]
-            for item3 in item3_possibilities:
-                item4_possibilities = [item1] if item2 == 1 else [item2] if item2 == 2 \
-                    else [x for x in range(1, 10) if x not in {item1, item2, item3}]
-                item4 = ptotal - item3
-                if item4 not in item4_possibilities:
-                    continue
-                other_values = set(range(1, 10)) - {item1, item2, item3, item4}
-                temp = [{item1}, {item2}] + [other_values] * 7
-                temp[item1 - 1] = {item3}
-                temp[item2 - 1] = {item4}
-                yield tuple(temp)
+        results = itertools.permutations(range(1, 10))
+        if total:
+            results = filter(lambda p: p[0] + p[1] == total, results)
+        results = filter(lambda p: p[p[0] - 1] + p[p[1] - 1] == ptotal, results)
+        return results
 
     def draw(self, context: DrawContext) -> None:
-        args = {'fontsize': '15'}
+        args = {'fontsize': '10'}
         if self.total:
-            context.draw_outside(f'{self.total}', self.htype, self.row_column, padding=.6, **args)
+            context.draw_outside(f'{self.total}', self.htype, self.row_column, padding=.2,
+                                 color='red', **args)
         context.draw_outside(f'{self.ptotal}', self.htype, self.row_column, **args)
 
 
@@ -206,37 +195,21 @@ def thermometer_07_23() -> tuple[str, Sequence[Feature]]:
 
 
 def double_sum_puzzle() -> tuple[str, Sequence[Feature]]:
-    class CheckSpecialFeature(SimonSaysFeature):
-        cells: Sequence[Cell]
-
-        def initialize(self, grid: Grid) -> None:
-            super().initialize(grid)
-            self.cells = [grid.matrix[1, 6], grid.matrix[2, 6]]
-
-        def check_special(self) -> bool:
-            if len(self.cells[0].possible_values) == 4:
-                print("Danger.  Danger")
-                Cell.keep_values_for_cell(self.cells, {3, 7})
-                return True
-            return False
-
     features = [
-        DoubleSumFeature(House.Type.ROW, 1, 6).to_possibility_feature(),
-        DoubleSumFeature(House.Type.ROW, 4, 10, 10).to_possibility_feature(),
-        DoubleSumFeature(House.Type.ROW, 5, 10, 9).to_possibility_feature(),
-        DoubleSumFeature(House.Type.ROW, 6, 10, 10).to_possibility_feature(),
-        DoubleSumFeature(House.Type.ROW, 7, 10, 10).to_possibility_feature(),
-        DoubleSumFeature(House.Type.ROW, 9, 9, 11).to_possibility_feature(),
+        DoubleSumFeature(House.Type.ROW, 1, 6),
+        DoubleSumFeature(House.Type.ROW, 4, 10, 10),
+        DoubleSumFeature(House.Type.ROW, 5, 10, 9),
+        DoubleSumFeature(House.Type.ROW, 6, 10, 10),
+        DoubleSumFeature(House.Type.ROW, 7, 10, 10),
+        DoubleSumFeature(House.Type.ROW, 9, 9, 11),
 
-        DoubleSumFeature(House.Type.COLUMN, 1, 16).to_possibility_feature(),
-        DoubleSumFeature(House.Type.COLUMN, 3, 13, 13).to_possibility_feature(),
-        DoubleSumFeature(House.Type.COLUMN, 4, 12, 11).to_possibility_feature(),
-        DoubleSumFeature(House.Type.COLUMN, 5, 9).to_possibility_feature(),
-        DoubleSumFeature(House.Type.COLUMN, 6, 10, 10).to_possibility_feature(),
-        DoubleSumFeature(House.Type.COLUMN, 7, 11, 15).to_possibility_feature(),
+        DoubleSumFeature(House.Type.COLUMN, 1, 16),
+        DoubleSumFeature(House.Type.COLUMN, 3, 13, 13),
+        DoubleSumFeature(House.Type.COLUMN, 4, 12, 11),
+        DoubleSumFeature(House.Type.COLUMN, 5, 9),
+        DoubleSumFeature(House.Type.COLUMN, 6, 10, 10),
+        DoubleSumFeature(House.Type.COLUMN, 7, 11, 15),
         DoubleSumFeature(House.Type.COLUMN, 8, 11, 9),
-
-        *([] if True else [CheckSpecialFeature()]),
     ]
     return BLANK_GRID, features
 
@@ -696,8 +669,8 @@ def puzzle_2021_08_03() -> tuple[str, Sequence[Feature]]:
 
 def main():
     start = datetime.datetime.now()
-    grid, features = puzzle_2021_08_03()
-    Sudoku().solve(grid, features=features, initial_only=False, guides=1)
+    grid, features = double_sum_puzzle()
+    Sudoku().solve(grid, features=features, initial_only=True, guides=1)
     end = datetime.datetime.now()
     print(end - start)
 

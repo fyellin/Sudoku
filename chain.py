@@ -41,6 +41,15 @@ class Chain:
 
     @staticmethod
     def create(start: CellValue, medusa: bool) -> Chain:
+        if not medusa:
+            def iterator(cell_value: CellValue) -> Iterator[CellValue]:
+                cell, value = cell_value
+                for next_cell in cell.get_strong_pairs(value):
+                    yield CellValue(next_cell, value)
+        else:
+            def iterator(cell_value: CellValue) -> Iterator[CellValue]:
+                yield from cell_value.get_chain_pairs_extended()
+
         todo = deque([(start, 0)])
         seen = {start}
         one: list[CellValue] = []
@@ -48,15 +57,7 @@ class Chain:
         while todo:
             cell_value, depth = todo.popleft()
             (one if depth % 2 == 0 else two).append(cell_value)
-            (this_cell, this_value) = cell_value
-            for next_cell, _ in this_cell.get_strong_pairs(this_value):
-                next_cell_value = CellValue(next_cell, this_value)
-                if next_cell_value not in seen:
-                    seen.add(next_cell_value)
-                    todo.append((next_cell_value, depth + 1))
-            if medusa and len(this_cell.possible_values) == 2:
-                next_value = (this_cell.possible_values - {this_value}).unique()
-                next_cell_value = CellValue(this_cell, next_value)
+            for next_cell_value in iterator(cell_value):
                 if next_cell_value not in seen:
                     seen.add(next_cell_value)
                     todo.append((next_cell_value, depth + 1))
