@@ -8,7 +8,8 @@ from draw_context import DrawContext
 from feature import Feature, Square, SquaresParseable
 from features.chess_move import KingsMoveFeature, KnightsMoveFeature, LittlePrincessFeature, QueensMoveFeature
 from features.features import AdjacentNotConsecutiveFeature, AdjacentRelationshipFeature, AlternativeBoxesFeature, \
-    ArrowSumFeature, BoxOfNineFeature, DrawOnlyFeature, ExtremeEndpointsFeature, KillerCageFeature, \
+    ArithmeticFeature, ArrowSumFeature, BoxOfNineFeature, DrawOnlyFeature, ExtremeEndpointsFeature, \
+    KillerCageFeature, \
     LimitedValuesFeature, MagicSquareFeature, RenbanFeature, SimonSaysFeature, \
     ValuesAroundIntersectionFeature, XVFeature
 from features.possibilities_feature import GroupedPossibilitiesFeature, PossibilitiesFeature
@@ -677,10 +678,26 @@ def puzzle_2021_07_31() -> tuple[str, Sequence[Feature]]:
     return grid, features
 
 
+def puzzle_2021_08_03() -> tuple[str, Sequence[Feature]]:
+    features = [
+        *ArithmeticFeature.create("14", "6-"),
+        *ArithmeticFeature.create("15", "11+"),
+        *ArithmeticFeature.create("16", "2"),
+        *ArithmeticFeature.create("22", "4-"),
+        *ArithmeticFeature.create("37", "2/"),
+        *ArithmeticFeature.create("61", "13+"),
+        *ArithmeticFeature.create("63", "?/"),
+        *ArithmeticFeature.create("66", "?x"),
+        *ArithmeticFeature.create("68", "7+"),
+        *ArithmeticFeature.create("73", "359"),
+        ]
+    return BLANK_GRID, features
+
+
 def main():
     start = datetime.datetime.now()
-    grid, features = double_sum_puzzle()
-    Sudoku().solve(grid, features=features, initial_only=False, guides=0)
+    grid, features = puzzle_2021_08_03()
+    Sudoku().solve(grid, features=features, initial_only=False, guides=1)
     end = datetime.datetime.now()
     print(end - start)
 

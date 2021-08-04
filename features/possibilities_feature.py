@@ -156,6 +156,7 @@ class PossibilitiesFeature(Feature, abc.ABC):
         self.possibilities = list(map(trim, self.possibilities))
         self.__finish_initialize()
 
+
     def __update_cells_for_possibilities(self, show: bool = True) -> bool:
         changed = False
         for index, cell in enumerate(self.cells):

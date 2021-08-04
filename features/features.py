@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import functools
+import re
 from collections import defaultdict
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from itertools import chain, combinations_with_replacement, groupby, permutations, product, tee
@@ -586,6 +587,44 @@ class MessageFeature:
             value_map = {feature @ squares[0]: letter for letter, squares in mapping.items()}
             pieces = [f'{value}={value_map[value]}' for value in sorted(value_map)]
             print('Message:', ', '.join(pieces))
+
+
+class ArithmeticFeature:
+    @classmethod
+    def create(cls, square: Union[Square, str], info: str) -> Sequence[Feature]:
+        square = (r, c) = Feature.parse_square(square)
+        match = re.match(r'([?]|\d+)([-+x/]|)', info)
+        digits, symbol = match.groups()
+        if not symbol:
+            values = [int(x) for x in digits]
+            return [ValuesAroundIntersectionFeature(top_left=square, values=values)]
+        total = None if digits == '?' else int(digits)
+        squares = ((r, c), (r, c + 1), (r + 1, c), (r + 1, c + 1))
+        return [
+            *PossibilitiesFeature.create(squares, name=f'{info}@r{r}c{c}',
+                                         possibility_function=lambda: cls.get_possibilities(total, symbol),
+                                         neighbors=True, duplicates=True),
+            DrawOnlyFeature(lambda context: cls.draw(context, square, info))
+        ]
+
+    @classmethod
+    def get_possibilities(cls, total: Optional[int], operation: str) -> Iterable[tuple[int, ...]]:
+        op = { '+': lambda a, b: a + b,
+               'x': lambda a, b: a * b,
+               '-': lambda a, b: abs(a - b),
+               '/': lambda a, b: max(a, b) // min(a, b) if max(a, b) % min(a, b) == 0 else None }[operation]
+        for a, b, c, d in product(range(1, 10), repeat=4):
+            if a != b and c != d and a != c and b != d:
+                value1, value2 = op(a, d), op(b, c)
+                if value1 == value2 and value1 is not None and (total is None or total == value1):
+                    yield a, b, c, d
+
+    @staticmethod
+    def draw(context: DrawContext, square: Square, info: str):
+        y, x = square
+        context.draw_circle((x + 1, y + 1), radius=.3, fill=False)
+        context.draw_text(x + 1, y + 1, info, fontsize=12, color='black', weight='bold', va='center', ha='center')
+
 
 
 class DrawOnlyFeature(Feature):
