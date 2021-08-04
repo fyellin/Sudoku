@@ -10,12 +10,13 @@ from features.chess_move import KingsMoveFeature, KnightsMoveFeature, LittlePrin
 from features.features import AdjacentNotConsecutiveFeature, AdjacentRelationshipFeature, AlternativeBoxesFeature, \
     ArithmeticFeature, ArrowSumFeature, BoxOfNineFeature, DrawOnlyFeature, ExtremeEndpointsFeature, \
     KillerCageFeature, \
-    LimitedValuesFeature, MagicSquareFeature, RenbanFeature, ValuesAroundIntersectionFeature, XVFeature
+    LimitedValuesFeature, MagicSquareFeature, PalindromeFeature, RenbanFeature, ValuesAroundIntersectionFeature, \
+    XVFeature
 from features.possibilities_feature import GroupedPossibilitiesFeature, PossibilitiesFeature
 from features.same_value_as_mate_feature import SameValueAsMateFeature
 from features.sandwich_feature import SandwichFeature, SandwichXboxFeature
 from features.skyscraper_feature import SkyscraperFeature
-from features.thermometer import SlowThermometerFeature, ThermometerFeature
+from features.thermometer import SlowThermometerFeature, ThermometerAsLessThanFeature, ThermometerFeature
 from grid import Grid
 from human_sudoku import Sudoku
 
@@ -223,8 +224,8 @@ def puzzle_hunt() -> tuple[str, Sequence[Feature]]:
 def sandwich_07_28() -> tuple[str, Sequence[Feature]]:
     class LiarsSandwichFeature(SandwichFeature):
         def get_possibilities(self) -> Iterable[tuple[set[int], ...]]:
-            yield from self._get_possibilities(self.total - 1)
-            yield from self._get_possibilities(self.total + 1)
+            result = itertools.permutations(range(1, 10))
+            return filter(lambda p: abs(self.sandwich_sum(p) - self.total) == 1, result)
 
     puzzle = "..6................1...........1.....4.........9...2.....................7......8"
     features = [
@@ -651,7 +652,7 @@ def puzzle_2021_07_31() -> tuple[str, Sequence[Feature]]:
     return grid, features
 
 
-def puzzle_2021_08_03() -> tuple[str, Sequence[Feature]]:
+def puzzle_2021_08_02() -> tuple[str, Sequence[Feature]]:
     features = [
         *ArithmeticFeature.create("14", "6-"),
         *ArithmeticFeature.create("15", "11+"),
@@ -667,10 +668,25 @@ def puzzle_2021_08_03() -> tuple[str, Sequence[Feature]]:
     return BLANK_GRID, features
 
 
+def puzzle_2021_08_03() -> tuple[str, Sequence[Feature]]:
+    features = [
+        ThermometerFeature("33,E,E,E,E"),
+        ThermometerFeature("77,N,N,N"),
+        KillerCageFeature(21, "11,E,S,W"),
+        KillerCageFeature(18, "18,E,S,W"),
+        KillerCageFeature(30, "88,E,S,W"),
+        KillerCageFeature(7, "83,S"),
+        ThermometerAsLessThanFeature("91,92"),
+        *PalindromeFeature.create("73,N,N,N,N,E,E,E,E"),
+        *PalindromeFeature.create("74,E,E,E,N,N,N")
+        ]
+    return BLANK_GRID, features
+
+
 def main():
     start = datetime.datetime.now()
-    grid, features = double_sum_puzzle()
-    Sudoku().solve(grid, features=features, initial_only=True, guides=1)
+    grid, features = sandwich_07_28()
+    Sudoku().solve(grid, features=features, initial_only=False, guides=1)
     end = datetime.datetime.now()
     print(end - start)
 

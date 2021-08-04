@@ -8,7 +8,7 @@ from feature import Feature, Square, SquaresParseable
 from features.chess_move import KnightsMoveFeature
 from features.features import AdjacentRelationshipFeature, AllValuesPresentFeature, BoxOfNineFeature, DrawOnlyFeature, \
     LimitedValuesFeature
-from features.possibilities_feature import GroupedPossibilitiesFeature
+from features.possibilities_feature import PossibilitiesFeature
 from features.thermometer import ThermometerFeature
 from grid import Grid
 from human_sudoku import Sudoku
@@ -37,7 +37,7 @@ class GermanSnakeFeature:
         return AdjacentRelationshipFeature.create(squares, match=lambda i, j: abs(i - j) >= 5, prefix=prefix)
 
 
-class ContainsTextFeature(GroupedPossibilitiesFeature):
+class ContainsTextFeature(PossibilitiesFeature):
     text: Sequence[int]
 
     """A row that must contain certain digits consecutively"""
@@ -45,13 +45,14 @@ class ContainsTextFeature(GroupedPossibilitiesFeature):
         super().__init__([(row, column) for column in range(1, 10)], name=f'Text Row {row}')
         self.text = text
 
-    def get_possibilities(self) -> Iterable[Tuple[Set[int], ...]]:
-        unused_digits = {digit for digit in range(1, 10) if digit not in self.text}
-        text_template = [{v} for v in self.text]
-        template = [unused_digits] * len(unused_digits)
-        for text_position in range(0, len(unused_digits) + 1):
-            line = (*template[0:text_position], *text_template, *template[text_position:])
-            yield line
+    def get_possibilities(self) -> Iterable[Tuple[int, ...]]:
+        return (x for x in itertools.permutations(range(1, 10)) if self.matches(x))
+
+    def matches(self, permutation: Sequence[int]) -> bool:
+        length = len(self.text)
+        text0 = self.text[0]
+        index = permutation.index(text0)
+        return index <= 9 - length and all(permutation[index + i] == self.text[i] for i in range(1, length))
 
 
 class SnakesEggFeature(Feature):
@@ -282,10 +283,10 @@ def puzzle8() -> None:
 
 
 def main():
-    # puzzle1()
+    puzzle1()
     # puzzle2()
     # puzzle3()
-    puzzle4()
+    # puzzle4()
     # puzzle5()
     # puzzle6()
     # puzzle7()

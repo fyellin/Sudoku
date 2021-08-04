@@ -2,16 +2,16 @@ from __future__ import annotations
 
 import datetime
 import functools
-from collections import deque, defaultdict
-from itertools import combinations, permutations
-from typing import Sequence, Optional, Iterable, Mapping
+from collections import defaultdict
+from itertools import permutations
+from typing import Iterable, Mapping, Optional, Sequence
 
 from cell import House, SmallIntSet
 from draw_context import DrawContext
-from features.possibilities_feature import GroupedPossibilitiesFeature, PossibilitiesFeature
+from features.possibilities_feature import PossibilitiesFeature
 
 
-class SandwichFeature(GroupedPossibilitiesFeature):
+class SandwichFeature(PossibilitiesFeature):
     """Specify the total sum of the squares between the 1 and the 9."""
     htype: House.Type
     row_column: int
@@ -28,22 +28,20 @@ class SandwichFeature(GroupedPossibilitiesFeature):
         self.htype = htype
         self.row_column = row_column
         self.total = total
-        super().__init__(squares, name=name, compressed=True)
+        super().__init__(squares, name=name)
 
-    def get_possibilities(self) -> Iterable[tuple[set[int], ...]]:
-        return self._get_possibilities(self.total)
+    def get_possibilities(self) -> Iterable[tuple[int, ...]]:
+        result = permutations(range(1, 10))
+        return filter(lambda p: self.sandwich_sum(p) == self.total, result)
 
     @classmethod
-    def _get_possibilities(cls, total: int) -> Iterable[tuple[set[int], ...]]:
-        for length in range(0, 8):
-            for values in combinations((2, 3, 4, 5, 6, 7, 8), length):
-                if sum(values) == total:
-                    non_values = set(range(2, 9)) - set(values)
-                    non_values_length = 7 - length
-                    temp = deque([{1, 9}, *([set(values)] * length), {1, 9}, *([non_values] * non_values_length)])
-                    for i in range(0, non_values_length + 1):
-                        yield tuple(temp)
-                        temp.rotate(1)
+    def sandwich_sum(cls, permutation):
+        index1 = permutation.index(1)
+        index2 = permutation.index(9)
+        if index1 < index2:
+            return sum(permutation[i] for i in range(index1 + 1, index2))
+        else:
+            return sum(permutation[i] for i in range(index2 + 1, index1))
 
     ONE_AND_NINE = SmallIntSet((1, 9))
 
