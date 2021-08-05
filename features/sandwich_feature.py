@@ -16,9 +16,11 @@ class SandwichFeature(HousePossibilitiesFeature):
     total: int
 
     @staticmethod
-    def all(htype: House.Type, totals: Sequence[Optional[int]]) -> Sequence[SandwichFeature]:
+    def create_all(htype: House.Type, totals: Sequence[Optional[int]]) -> Sequence[SandwichFeature]:
         """Used to set sandwiches for an entire row or column.   A none indicates missing"""
-        return [SandwichFeature(htype, rc, total) for rc, total in enumerate(totals, start=1) if total is not None]
+        return [SandwichFeature(htype, rc, total)
+                for rc, total in enumerate(totals, start=1)
+                if total is not None]
 
     def __init__(self, htype: House.Type, index: int, total: int):
         super().__init__(htype, index, name="Sandwich")

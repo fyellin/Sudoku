@@ -293,8 +293,8 @@ def act_6() -> tuple[str, Sequence[Feature]]:
 def act_7() -> tuple[str, Sequence[Feature]]:
     # KillerCageFeature(29, [(7, 5), (7, 6), (8, 5), (9, 5), (9, 6)])
     features = [
-        *SandwichFeature.all(House.Type.ROW, (0, 2, None, None, None, 21, None, 8, 9)),
-        *SandwichFeature.all(House.Type.COLUMN, (7, None, 9, 11, 11, 4, 11, 6, 35)),
+        *SandwichFeature.create_all(House.Type.ROW, (0, 2, None, None, None, 21, None, 8, 9)),
+        *SandwichFeature.create_all(House.Type.COLUMN, (7, None, 9, 11, 11, 4, 11, 6, 35)),
         FakeKillerCageFeature("75,76,85,95,96"),
         DumpResultFeature(),
     ]

@@ -228,8 +228,8 @@ def puzzle_14() -> tuple[str, Sequence[Feature]]:
     circles = [(r, c) for (r, c), letter in zip(itertools.product(range(1, 10), repeat=2), grid) if letter == 'O']
     print(circles)
     features = [
-        *SandwichFeature.all(House.Type.COLUMN, [4, None, 18, None, 20, None, 19, None, 2]),
-        *SandwichFeature.all(House.Type.ROW, [11, None, 10, None, 8, None, 32, None, 22]),
+        *SandwichFeature.create_all(House.Type.COLUMN, [4, None, 18, None, 20, None, 19, None, 2]),
+        *SandwichFeature.create_all(House.Type.ROW, [11, None, 10, None, 8, None, 32, None, 22]),
         DrawCircleFeature(circles),
     ]
     return puzzle, features
