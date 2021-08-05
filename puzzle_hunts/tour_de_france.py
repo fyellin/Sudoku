@@ -1,39 +1,31 @@
 import datetime
 import itertools
-from typing import Iterable, Optional, Sequence, Set, Tuple, cast
+from typing import Iterable, Sequence, Set, Tuple, cast
 
 from cell import House
 from draw_context import DrawContext
 from feature import Feature, Square
-from features.possibilities_feature import GroupedPossibilitiesFeature
+from features.possibilities_feature import GroupedPossibilitiesFeature, HousePossibilitiesFeature
 from human_sudoku import Sudoku
 
 
-class LocateOneFeature(GroupedPossibilitiesFeature):
-    row_or_column: int
-    htype: House.Type
-    total: Optional[int]
+class LocateOneFeature(HousePossibilitiesFeature):
+    """Both edges gives the location of the 1 in the row or column"""
+    def __init__(self, htype: House.Type, index: int):
+        super().__init__(htype, index, prefix="Location1")
 
-    def __init__(self, htype: House.Type, row_column: int):
-        name = f'Locate1 {htype.name.title()} #{row_column}'
-        squares = self.get_house_squares(htype, row_column)
-        self.row_column = row_column
-        self.htype = htype
-        super().__init__(squares, name=name, compressed=True)
-
-    def get_possibilities(self) -> Iterable[Tuple[Set[int], ...]]:
-        for location in (1, 2, 3, 4, 6, 7, 8, 9):
-            items = set(range(1, 10)) - {1, location, 10 - location}
-            if len(items) == 7:
-                yield {location}, *[items] * 7, {10 - location}
-            else:
-                yield {location}, *[items] * (location - 2), {1}, *[items] * (8 - location), {10 - location}
+    def match(self, permutation: tuple[int, ...]) -> bool:
+        return permutation[0] + permutation[8] == 10 and permutation[permutation[0] - 1] == 1
 
     def draw(self, context: DrawContext) -> None:
         context.draw_rectangles([self.squares[0], self.squares[8]])
 
 
 class PainInTheButtFeature(GroupedPossibilitiesFeature):
+    """Tour de France Puzzle 2.
+    For the values 1, 2, and 3 in row 8.
+    In rows 7 and 6, the 1 must be 1 up and 1 right.  The 2 must be 1 up and 2 right.  The 3, etc.
+    """
     value: int
 
     def __init__(self, value: int):
@@ -61,6 +53,9 @@ class PainInTheButtFeature(GroupedPossibilitiesFeature):
 
 
 class PainInTheButtFeatureX(GroupedPossibilitiesFeature):
+    """Like PainInTheButt.
+    There is a diagonal of three ones going up and to the right somewhere in rows 2,3,4,5
+    """
     def __init__(self) -> None:
         squares = [(row, column) for row in range(2, 6) for column in range(1, 10)]
         super().__init__(squares, name=f"PainX", neighbors=True)
@@ -111,7 +106,7 @@ def merge(p1: str, p2: str) -> str:
     return ''.join(result)
 
 
-def tour_puzzle_one() -> None:
+def tour_puzzle_one() -> tuple[str, Sequence[Feature]]:
     features = [
         *(LocateOneFeature(House.Type.ROW, i) for i in range(2, 9)),
         *(LocateOneFeature(House.Type.COLUMN, i) for i in range(2, 9)),
@@ -119,20 +114,21 @@ def tour_puzzle_one() -> None:
                            (6, 2), (8, 1), (9, 6,), (9, 8)))
     ]
     puzzle = '.......................9.......5.3.....4.37....3.8.......36...........5..........'
-    Sudoku().solve(puzzle, features=features)
+    return puzzle, features
 
 
-def tour_puzzle_two() -> None:
+def tour_puzzle_two() -> tuple[str, Sequence[Feature]]:
     previous = ".4.8.............7................9..85...76..7................4.............4.7."
     puzzle = "X,,6--XXXXX--6...5.--".replace('X', '---').replace('-', '...')
     puzzle = merge(previous, puzzle)
     features: list[Feature] = [PainInTheButtFeature(i) for i in range(1, 4)]
     features.append(PainInTheButtFeatureX())
-    Sudoku().solve(puzzle, features=features)
+    return puzzle, features
 
 
 if __name__ == '__main__':
     start = datetime.datetime.now()
-    tour_puzzle_one()
+    grid, features = tour_puzzle_two()
+    Sudoku().solve(grid, features=features)
     end = datetime.datetime.now()
     print(end - start)

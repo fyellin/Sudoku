@@ -51,24 +51,20 @@ class AdjacentRelationshipFeature:
 
     @classmethod
     def create(cls, squares: SquaresParseable, *, match: Callable[[int, int], bool],
-               prefix: Optional[str] = None, cyclic: bool = False, color: Optional[str] = None):
+               prefix: Optional[str] = None, cyclic: bool = False):
         squares = Feature.parse_squares(squares)
 
         features: list[Feature]
         if len(squares) == 2 and not cyclic:
             pairs = [(i, j) for i, j in product(range(1, 10), repeat=2) if match(i, j)]
-            features = [PossibilitiesFeature(squares, prefix=prefix, possibility_function=lambda: pairs,
-                                             neighbors=True)]
+            features = [PossibilitiesFeature(squares, prefix=prefix, neighbors=True,
+                                             possibility_function=lambda: pairs)]
         else:
             x_squares = squares if not cyclic else list(chain(squares, squares[0:2]))
             triples = [(i, j, k) for i, j, k in product(range(1, 10), repeat=3) if match(i, j) and match(j, k)]
-            features = [PossibilitiesFeature(x_squares[i:i+3], prefix=prefix, possibility_function=lambda: triples,
-                                             neighbors=True)
+            features = [PossibilitiesFeature(x_squares[i:i+3], prefix=prefix, neighbors=True,
+                                             possibility_function=lambda: triples)
                         for i in range(0, len(x_squares) - 2)]
-
-        if color:
-            features.append(DrawOnlyFeature(lambda context:
-                            context.draw_line(squares, closed=cyclic, color=color, linewidth=5)))
         return features
 
 
@@ -177,12 +173,11 @@ class LimitedValuesFeature(Feature):
             for row, column in odds:
                 context.draw_circle((column + .5, row + .5), radius=.4, color='lightgray', fill=True)
 
-        temp = [
+        return [
             *([LimitedValuesFeature(odds, (1, 3, 5, 7, 9), name="Odds")] if odds else []),
             *([LimitedValuesFeature(evens, (2, 4, 6, 8), name="Evens")] if evens else []),
             DrawOnlyFeature(draw_function),
         ]
-        return temp
 
     def start(self) -> None:
         cells = [self @ x for x in self.squares]

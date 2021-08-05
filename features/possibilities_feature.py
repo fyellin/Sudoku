@@ -343,6 +343,12 @@ class _PossibilitiesSharedData:
 
 
 class HousePossibilitiesFeature(PossibilitiesFeature, abc.ABC):
+    """
+    A simplified method of generating a Possibilities Feature when we know that the item
+    takes up an entire house.  The user overrides generator() [which defaults to generating all
+    permutations of 1..9], and match() which determines if a permutation should be included.  9! is
+    smaller than it used to be.
+    """
     htype: House.Type
     index: int
 
@@ -355,11 +361,14 @@ class HousePossibilitiesFeature(PossibilitiesFeature, abc.ABC):
         self.index = index
 
     def get_possibilities(self) -> Iterable[tuple[int, ...]]:
-        return filter(self.match, permutations(range(1, 10)))
+        return filter(self.match, self.generator())
 
     @abc.abstractmethod
     def match(self, permutation: tuple[int, ...]) -> bool:
         ...
+
+    def generator(self):
+        return permutations(range(1, 10))
 
 
 class GroupedPossibilitiesFeature(Feature, abc.ABC):

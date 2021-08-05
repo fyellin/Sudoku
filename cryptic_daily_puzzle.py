@@ -371,9 +371,13 @@ def puzzle_08_15() -> tuple[str, Sequence[Feature]]:
 
 
 def puzzle_08_26() -> tuple[str, Sequence[Feature]]:
+    PRIMES = {2, 3, 5, 7, 11, 13, 17}
     def create_prime_ring(squares: SquaresParseable) -> Sequence[Square]:
-        return AdjacentRelationshipFeature.create(squares, prefix="Prime", cyclic=True, color='red',
-                                                  match=lambda i, j: i + j in {2, 3, 5, 7, 11, 13, 17})
+        return [
+            *AdjacentRelationshipFeature.create(squares, prefix="Prime", cyclic=True,
+                                                match=lambda i, j: i + j in PRIMES),
+            DrawOnlyFeature(lambda context: context.draw_line(squares, closed=True, color='red', linewidth=5)),
+        ]
 
     columns = (21, 25, 11, 0, 35, 23, 13, 4, 18)
     rows = (13, 13, 6, 9, 0, 29, 2, 13, 2)
@@ -509,8 +513,8 @@ def puzzle_09_20() -> tuple[str, Sequence[Feature]]:
     # noinspection SpellCheckingInspection
     puzzle = "XXXXX-1..-XXX".replace("X", "---").replace("-", "...")
     features = [
-        *SandwichFeature.all(House.Type.ROW, [10, 19, 25, 28, 17, 3, 23, 6, 7]),
-        *SandwichFeature.all(House.Type.COLUMN, [18, 8, 21, 18, 13, 27, 25, 13, 3]),
+        *SandwichFeature.create_all(House.Type.ROW, [10, 19, 25, 28, 17, 3, 23, 6, 7]),
+        *SandwichFeature.create_all(House.Type.COLUMN, [18, 8, 21, 18, 13, 27, 25, 13, 3]),
         KnightsMoveFeature()
     ]
     return puzzle, features
@@ -523,7 +527,7 @@ def puzzle_09_21() -> tuple[str, Sequence[Feature]]:
             super().__init__(squares, name=f"Square{row}{column}", neighbors=True)
 
         def get_possibilities(self) -> list[tuple[int, ...]]:
-            for x, y in itertools.product(range(2, 10), repeat=2):
+            for x, y in itertools.product(range(2, 10), repeat=2):  # we now x,y ≠ 1
                 q, r = divmod(x * y, 10)
                 if 1 <= q <= 9 and 1 <= r <= 9:
                     yield x, y, q, r
@@ -675,9 +679,8 @@ def puzzle_2021_08_03() -> tuple[str, Sequence[Feature]]:
 
 def main():
     start = datetime.datetime.now()
-    grid, features = puzzle_09_21()
-    # grid, features = double_sum_puzzle()
-    Sudoku().solve(grid, features=features, initial_only=False, guides=1)
+    grid, features = puzzle_2021_08_03()
+    Sudoku().solve(grid, features=features, initial_only=False, medusa=True, guides=1)
     end = datetime.datetime.now()
     print(end - start)
 
