@@ -679,9 +679,8 @@ def puzzle_2021_08_03() -> tuple[str, Sequence[Feature]]:
 
 def main():
     start = datetime.datetime.now()
-    grid, features = puzzle_09_21()
-    # grid, features = double_sum_puzzle()
-    Sudoku().solve(grid, features=features, initial_only=False, guides=1)
+    grid, features = puzzle_2021_08_03()
+    Sudoku().solve(grid, features=features, initial_only=False, medusa=True, guides=1)
     end = datetime.datetime.now()
     print(end - start)
 

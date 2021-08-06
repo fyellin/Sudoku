@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import abc
-import itertools
 import math
 from collections import defaultdict
 from itertools import chain, combinations, permutations, product
@@ -11,7 +10,6 @@ from cell import Cell, CellValue, House, SmallIntSet
 from draw_context import DrawContext
 from feature import Feature, Square, SquaresParseable
 from grid import Grid
-from tools.itertool_recipes import all_equal
 from tools.union_find import Node
 
 Possibility = tuple[int, ...]
@@ -123,18 +121,27 @@ class PossibilitiesFeature(Feature, abc.ABC):
 
     def get_weak_pairs(self, cell_value: CellValue) -> Iterable[CellValue]:
         cell, value = cell_value
-        if self in self.shared_data.features and cell in self.cells_as_set:
-            index = self.cells.index(cell)
+        if self in self.shared_data.features and cell not in self.cells_as_set:
             # A weak pair says both conditions can't simultaneously be true.  Assume the cell has the indicated value
             # and see which values in other cells are no longer possibilities that had been before.
-            possibilities = [possibility for possibility in self.possibilities if possibility[index] == value]
-            for index2, cell2 in enumerate(self.cells):
-                if index2 == index or cell2.is_known:
-                    continue
-                legal_values = SmallIntSet(values[index2] for values in possibilities)
-                for value2 in cell2.possible_values - legal_values:
-                    # By setting cell=value, it is no longer possible that cell2=value2
-                    yield CellValue(cell2, value2)
+            index = self.cells.index(cell)
+            iterator = (possibility for possibility in self.possibilities if possibility[index] == value)
+            hopefuls = {index2: cell2.possible_values for index2, cell2 in enumerate(self.cells)
+                        if cell2 != cell and not cell2.is_known}
+            deletions = set()
+            for possibility in iterator:
+                deletions.clear()
+                for index2, pvs in hopefuls.items():
+                    pvs.remove(possibility[index2])
+                    if not pvs:
+                        deletions.add(index2)
+                for index2 in deletions:
+                    hopefuls.pop(index2)
+                if not hopefuls:
+                    break
+            yield from (CellValue(self.cells[index2], value2)
+                        for index2, values2 in hopefuls.items()
+                        for value2 in values2)
 
         if self.shared_data.owner == self:
             for feature in self.shared_data.added_features:
@@ -146,15 +153,21 @@ class PossibilitiesFeature(Feature, abc.ABC):
             # A strong pair says both conditions can't simultaneously be false.  Assume the cell doesn't have the
             # indicated value and see which values in other cells are forced.
             index = self.cells.index(cell)
-            iterators = itertools.tee((pos for pos in self.possibilities if pos[index] != value),
-                                      len(self.cells))
-            one_possibility = next(iterators[index])
-
-            for index2, cell2 in enumerate(self.cells):
-                if index2 == index or cell2.is_known:
-                    continue
-                if all_equal(possibility[index2] for possibility in iterators[index2]):
-                    yield CellValue(cell2, one_possibility[index2])
+            iterator = (possibility for possibility in self.possibilities if possibility[index] != value)
+            first = next(iterator)
+            hopefuls = {index2: first[index2] for index2, cell2 in enumerate(self.cells)
+                        if cell2 != cell and not cell2.is_known}
+            deletions = set()
+            for possibility in iterator:
+                deletions.clear()
+                for index2, value2 in hopefuls.items():
+                    if value2 != possibility[index2]:
+                        deletions.add(index2)
+                for index2 in deletions:
+                    hopefuls.pop(index2)
+                if not hopefuls:
+                    break
+            yield from (CellValue(self.cells[index2], values2) for index2, values2 in hopefuls.items())
 
         if self.shared_data.owner == self:
             for feature in self.shared_data.added_features:
