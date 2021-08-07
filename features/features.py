@@ -83,9 +83,8 @@ class AllValuesPresentFeature(Feature):
         assert len(squares) >= 9
         self.squares = squares
 
-    def initialize(self, grid: Grid) -> None:
-        super().initialize(grid)
-        self.cells = [grid.matrix[x] for x in self.squares]
+    def start(self) -> None:
+        self.cells = [self @ x for x in self.squares]
 
     def check(self) -> bool:
         known_cell_values = {cell.known_value for cell in self.cells if cell.is_known}
@@ -135,7 +134,7 @@ class BoxOfNineFeature(Feature):
 
     def initialize(self, grid: Grid) -> None:
         super().initialize(grid)
-        cells = [grid.matrix[square] for square in self.squares]
+        cells = [self @ square for square in self.squares]
         grid.houses.append(House(House.Type.EXTRA, 0, cells))
 
     def draw(self, context: DrawContext) -> None:

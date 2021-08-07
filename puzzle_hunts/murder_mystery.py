@@ -437,7 +437,7 @@ def main():
         # puzzle_2021_07_10,
     ]
     for puzzle in puzzles:
-        print('*************', puzzle, "*****************")
+        print('*************', puzzle.__name__, "*****************")
         grid, features = puzzle()
         result = Sudoku().solve(grid, features=features, medusa=False)
         assert result

@@ -202,7 +202,8 @@ class Sudoku:
 
         # Let n = len(values) and k = len(house.unknown_values) - n
         # We've discovered that n cells only contain a subset of n values.  But that means that the remaining
-        # k values only occur in the remaining k cells.  Both same the same thing.   We can look at what we're about
+        # k values only occur in the remaining k cells.  Both say
+        # the same thing.   We can look at what we're about
         # to do as either
         #     (1) The n values can only occur in those n cells, and must be deleted from all other cells or
         #     (2) The remaining k values must occur in those k cells, and all other digits can be deleted.
@@ -436,8 +437,9 @@ class Sudoku:
                         cell4, value4 = cv4
 
                         def print_tower():
-                            print(f'Tower: {cv1.to_string(False)} → {cv2.to_string(True)} → {cv3.to_string(False)} → '
-                                  f'{cv4.to_string(True)}. So {cv1.to_string(True)} or {cv4.to_string(True)}.')
+                            print(f'Extended Tower: {cv1.to_string(False)} → {cv2.to_string(True)} → '
+                                  f'{cv3.to_string(False)} → {cv4.to_string(True)}. '
+                                  f'So {cv1.to_string(True)} or {cv4.to_string(True)}.')
 
                         # At least one of cell1 == value1 or cell4 == value4 is True
                         if cell1 == cell4:  # The cell must have one of the other two values

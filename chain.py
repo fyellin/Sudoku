@@ -48,7 +48,8 @@ class Chain:
                     yield CellValue(next_cell, value)
         else:
             def iterator(cv: CellValue) -> Iterator[CellValue]:
-                yield from cv.get_chain_pairs_extended()
+                for cell_value, _house in cv.get_chain_pairs_extended():
+                    yield cell_value
 
         todo = deque([(start, 0)])
         seen = {start}

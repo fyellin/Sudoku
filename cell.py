@@ -53,6 +53,9 @@ class SmallIntSet:
         assert len(items) == 1
         return items[0]
 
+    def copy(self):
+        return SmallIntSet(self.bits)
+
     @classmethod
     def union(cls, *other_sets: SmallIntSet) -> SmallIntSet:
         values = functools.reduce(operator.__or__, (x.bits for x in other_sets), 0)

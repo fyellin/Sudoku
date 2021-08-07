@@ -54,16 +54,24 @@ class PossibilitiesFeature(Feature, abc.ABC):
         self.__check_cache = []
         self.__verified_cells = set()
 
-    def initialize(self, grid: Grid, synthetic: bool = False) -> None:
-        super().initialize(grid)
-        self.cells = [grid.matrix[square] for square in self.squares]
-        self.shared_data = _PossibilitiesSharedData.get_singleton(grid)
+    def start(self, *, verbose: bool = False, synthetic: bool = False) -> None:
+        self.cells = [self @ square for square in self.squares]
+        self.shared_data = _PossibilitiesSharedData.get_singleton(self.grid)
         if not synthetic:
             self.shared_data.owner = self
         self.shared_data.features.add(self)
-        self.__finish_initialize()
+        self.__set_helper_fields()
 
-    def __finish_initialize(self):
+        possibilities = list(self.possibility_function())
+        if self.handle_duplicates:
+            possibilities = list(set(possibilities))
+        if self.handle_neighbors:
+            possibilities = self.__remove_bad_neighbors(possibilities)
+        print(f'{self} has {len(possibilities)} possibilities')
+        self.possibilities = possibilities
+        self.__update_cells_for_possibilities(verbose)
+
+    def __set_helper_fields(self):
         self.cells_as_set = set(self.cells)
         house_to_indexes = defaultdict(list)
         for index, cell in enumerate(self.cells):
@@ -73,16 +81,6 @@ class PossibilitiesFeature(Feature, abc.ABC):
 
     def get_possibilities(self) -> Iterable[tuple[int, ...]]:
         return ()
-
-    def start(self, verbose: bool = False) -> None:
-        possibilities = list(self.possibility_function())
-        if self.handle_duplicates:
-            possibilities = list(set(possibilities))
-        if self.handle_neighbors:
-            possibilities = self.__remove_bad_neighbors(possibilities)
-        print(f'{self} has {len(possibilities)} possibilities')
-        self.possibilities = possibilities
-        self.__update_cells_for_possibilities(verbose)
 
     def check(self) -> bool:
         if self in self.shared_data.features and \
@@ -121,27 +119,28 @@ class PossibilitiesFeature(Feature, abc.ABC):
 
     def get_weak_pairs(self, cell_value: CellValue) -> Iterable[CellValue]:
         cell, value = cell_value
-        if self in self.shared_data.features and cell not in self.cells_as_set:
+        if self in self.shared_data.features and cell in self.cells_as_set:
             # A weak pair says both conditions can't simultaneously be true.  Assume the cell has the indicated value
             # and see which values in other cells are no longer possibilities that had been before.
             index = self.cells.index(cell)
             iterator = (possibility for possibility in self.possibilities if possibility[index] == value)
-            hopefuls = {index2: cell2.possible_values for index2, cell2 in enumerate(self.cells)
+            hopefuls = {index2: cell2.possible_values.copy() for index2, cell2 in enumerate(self.cells)
                         if cell2 != cell and not cell2.is_known}
             deletions = set()
             for possibility in iterator:
                 deletions.clear()
-                for index2, pvs in hopefuls.items():
-                    pvs.remove(possibility[index2])
-                    if not pvs:
+                for index2, possible_values2 in hopefuls.items():
+                    possible_values2.discard(possibility[index2])
+                    if not possible_values2:
                         deletions.add(index2)
                 for index2 in deletions:
                     hopefuls.pop(index2)
                 if not hopefuls:
                     break
-            yield from (CellValue(self.cells[index2], value2)
-                        for index2, values2 in hopefuls.items()
-                        for value2 in values2)
+            else:
+                yield from (CellValue(self.cells[index2], value2)
+                            for index2, possible_values2 in hopefuls.items()
+                            for value2 in possible_values2)
 
         if self.shared_data.owner == self:
             for feature in self.shared_data.added_features:
@@ -167,7 +166,8 @@ class PossibilitiesFeature(Feature, abc.ABC):
                     hopefuls.pop(index2)
                 if not hopefuls:
                     break
-            yield from (CellValue(self.cells[index2], values2) for index2, values2 in hopefuls.items())
+            else:
+                yield from (CellValue(self.cells[index2], values2) for index2, values2 in hopefuls.items())
 
         if self.shared_data.owner == self:
             for feature in self.shared_data.added_features:
@@ -189,7 +189,7 @@ class PossibilitiesFeature(Feature, abc.ABC):
         self.cells = trim(self.cells)
         self.squares = trim(self.squares)
         self.possibilities = list(map(trim, self.possibilities))
-        self.__finish_initialize()
+        self.__set_helper_fields()
 
     def __update_cells_for_possibilities(self, show: bool = True) -> bool:
         changed = False
@@ -346,9 +346,9 @@ class _PossibilitiesSharedData:
         owner = self.owner
         result = PossibilitiesFeature(tuple(chain(feature1.squares, feature2.squares)),
                                       prefix="Merge", possibility_function=possibility_function)
-        result.initialize(self.grid, synthetic=True)
+        result.initialize(self.grid)
         assert self.owner == owner
-        result.start(True)
+        result.start(verbose=True, synthetic=True)
         result.check()
         result.check_special()
         result.simplify()
@@ -403,15 +403,13 @@ class GroupedPossibilitiesFeature(Feature, abc.ABC):
         self.compressed = compressed
         self.__check_cache = []
 
-    def initialize(self, grid: Grid) -> None:
-        super().initialize(grid)
-        self.cells = [grid.matrix[square] for square in self.squares]
-
     @abc.abstractmethod
     def get_possibilities(self) -> list[tuple[Union[SmallIntSet, Iterable[int], int], ...]]:
         ...
 
     def start(self) -> None:
+        self.cells = [self@square for square in self.squares]
+
         def fixit_one(x: Union[SmallIntSet, Iterable[int], int]) -> SmallIntSet:
             if isinstance(x, int):
                 return SmallIntSet([x])

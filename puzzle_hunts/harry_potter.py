@@ -14,7 +14,7 @@ from grid import Grid
 from human_sudoku import Sudoku
 
 
-class MalvoloRingFeature:
+class  MalvoloRingFeature:
     SQUARES = ((2, 4), (2, 5), (2, 6), (3, 7), (4, 8), (5, 8), (6, 8), (7, 7),
                (8, 6), (8, 5), (8, 4), (7, 3), (6, 2), (5, 2), (4, 2), (3, 3))
 
@@ -82,7 +82,7 @@ class SnakesEggFeature(Feature):
 
     def initialize(self, grid: Grid) -> None:
         super().initialize(grid)
-        eggs = [self.Egg(i, [grid.matrix[square] for square in self.squares[i]]) for i in range(1, 9)]
+        eggs = [self.Egg(i, [self @ square for square in self.squares[i]]) for i in range(1, 9)]
         grid.houses.extend(eggs)
 
     def draw(self, context: DrawContext) -> None:
@@ -284,13 +284,13 @@ def puzzle8() -> None:
 
 def main():
     puzzle1()
-    # puzzle2()
-    # puzzle3()
-    # puzzle4()
-    # puzzle5()
-    # puzzle6()
-    # puzzle7()
-    # puzzle8()
+    puzzle2()
+    puzzle3()
+    puzzle4()
+    puzzle5()
+    puzzle6()
+    puzzle7()
+    puzzle8()
 
 
 if __name__ == '__main__':

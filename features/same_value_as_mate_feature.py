@@ -1,10 +1,9 @@
 import abc
-from typing import Sequence, Iterable
+from typing import Iterable, Sequence
 
 from cell import Cell, SmallIntSet
 from feature import Feature, Square
 from features.chess_move import KnightsMoveFeature
-from grid import Grid
 
 
 class AbstractMateFeature(Feature, abc.ABC):
@@ -18,8 +17,7 @@ class AbstractMateFeature(Feature, abc.ABC):
         super().__init__()
         self.this_square = square
 
-    def initialize(self, grid: Grid) -> None:
-        super().initialize(grid)
+    def start(self) -> None:
         self.this_cell = self @ self.this_square
         self.possible_mates = list(self.get_mates(self.this_cell))
         self.done = False
