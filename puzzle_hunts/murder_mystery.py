@@ -434,7 +434,6 @@ def main():
         act_9,
         act_10,
         finale,
-        # puzzle_2021_07_10,
     ]
     for puzzle in puzzles:
         print('*************', puzzle.__name__, "*****************")

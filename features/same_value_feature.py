@@ -4,84 +4,61 @@ import functools
 import itertools
 import operator
 from collections import deque
-from typing import ClassVar, Optional, Sequence
+from dataclasses import dataclass, field
+from typing import Optional, Sequence
 
-from cell import Cell
+from cell import Cell, SmallIntSet
 from draw_context import DrawContext
 from feature import Feature, Square, SquaresParseable
 from grid import Grid
-from tools.itertool_recipes import all_equal, unique_everseen
+from tools.itertool_recipes import pairwise, unique_everseen
 from tools.union_find import UnionFind
 
 
 class SameValueFeature(Feature):
-    VERIFY: ClassVar[bool] = False
-
-    squares: list[Square]
-    cells: list[Cell]
-    color: Optional[str]
-    is_assigned: bool
+    squares: Sequence[Square]
     has_real_name: bool
 
-    shared_data: _SameValueSharedData
-    __check_cache: list[int]
-
-    @classmethod
-    def already_paired(cls, grid: Grid, cell1, cell2: Cell):
-        shared_data = _SameValueSharedData.get_singleton(grid)
-        feature1 = shared_data.cell_to_feature(cell1)
-        return feature1 is not None and feature1 == shared_data.cell_to_feature(cell2)
-
-    @classmethod
-    def create(cls, grid: Grid, cells: Sequence[Cell], *, name: Optional[str] = None, prefix: Optional[str] = None) -> \
-            tuple[Optional[SameValueFeature], bool]:
-
-        shared_data = _SameValueSharedData.get_singleton(grid)
-        features = [shared_data.cell_to_feature(cell) for cell in cells]
-        if features[0] is not None and all_equal(features):
-            return None, False
-
-        result = SameValueFeature('', name=name, prefix=prefix, cells=cells)
-        result.initialize(grid)
-        result.start()
-        if result in shared_data.features:
-            return result, True
-        else:
-            return None, True
-
-    def __init__(self, squares: SquaresParseable, name: Optional[str] = None, *, prefix: Optional[str] = None,
-                 cells: Sequence[Cell] = ()) -> None:
-        if cells:
-            assert not squares
-            self.squares = []
-            self.cells = list(cells)
-        else:
-            self.squares = list(self.parse_squares(squares))
-            self.cells = []
-        self.color = None
-        self.is_assigned = False
-        self.__check_cache = []
-        self.has_real_name = name is not None or prefix is not None
+    def __init__(self, squares: SquaresParseable, name: Optional[str] = None, *, prefix: Optional[str] = None) -> None:
+        self.squares = self.parse_squares(squares)
+        if not name and not prefix:
+            name = '='.join(f'r{r}c{c}' for r, c in self.squares)
         super().__init__(name=name, prefix=prefix)
+        self.has_real_name = name is not None or prefix is not None
 
-    def initialize(self, grid: Grid) -> None:
-        super().initialize(grid)
-        if not self.cells:
-            self.cells = [self @ square for square in self.squares]
-        self.shared_data = _SameValueSharedData.get_singleton(grid)
-        self.shared_data.owner = self.shared_data.owner or self
+    def start(self):
+        cells = [self @ square for square in self.squares]
+        equivalence = Equivalence(grid=self.grid, cells=cells, name=self.name)
+        self.grid.same_value_handler.add_equivalence(equivalence)
 
-    def start(self) -> None:
+
+@dataclass(eq=False)
+class Equivalence:
+    grid: Grid
+    cells: list[Cell]
+    name: str
+    color: Optional[str] = None
+    is_assigned: bool = False
+    __check_cache: list[int] = field(default_factory=list)
+
+    def __post_init__(self):
         neighbors = frozenset.union(*(cell.neighbors for cell in self.cells))
         self.set_all_neighbors(neighbors)
-        self.shared_data.add_feature(self)
+
+    def set_all_neighbors(self, neighbors: frozenset[Cell]):
+        assert neighbors.isdisjoint(self.cells)
+        for cell in self.cells:
+            cell.neighbors = neighbors
+        cells_as_set = set(self.cells)
+        for cell in neighbors:
+            cell.neighbors |= cells_as_set
 
     def check(self) -> bool:
-        if not self.is_assigned and self in self.shared_data.features:
-            if self.cells_changed_since_last_invocation(self.__check_cache, self.cells):
-                if self.__check():
-                    return True
-        return False
+        if self.is_assigned:
+            return False
+        if not Feature.cells_changed_since_last_invocation(self.__check_cache, self.cells):
+            return False
+        return self.__check()
 
     def __check(self):
         result = functools.reduce(operator.__and__, (cell.possible_values for cell in self.cells))
@@ -97,19 +74,19 @@ class SameValueFeature(Feature):
                 [cell.set_value_to(value) for cell in cells_to_update]
                 print(f'  {", ".join(str(cell) for cell in sorted(cells_to_update))} := {value}')
             else:
-                print("Intersection of possible values for {self}")
+                print(f"Intersection of possible values for {self}")
                 Cell.keep_values_for_cell(cells_to_update, result)
             return True
         return False
 
     def check_special(self) -> bool:
-        if not self.is_assigned and self in self.shared_data.features:
-            if self.__check_all_values_legal_in_all_houses() | self.__check_try_to_expand_feature():
-                return True
+        if self.is_assigned:
+            return False
+        # return self.__check_all_values_legal_in_all_houses() | self.__check_try_to_expand_equivalence()
+        return self.__check_try_to_expand_equivalence()
 
-        return False
 
-    def __check_all_values_legal_in_all_houses(self):
+    def __check_all_values_legal_in_all_houses_maybe_obsolete_but_not_deleting_yet(self):
         neighbors = self.cells[0].neighbors  # All cells have the same neighbors and the same value
         for value in self.cells[0].possible_values:
             for house in self.grid.houses:
@@ -124,9 +101,9 @@ class SameValueFeature(Feature):
                     return True
         return False
 
-    def __check_try_to_expand_feature(self) -> bool:
+    def __check_try_to_expand_equivalence(self) -> bool:
         changed = False
-        while self in self.shared_data.features:  # The call to self._check() may make us drop out
+        while not self.is_assigned:  # We can quite once we discover we've got an assigned value
             my_neighbors = self.cells[0].neighbors
             my_values = self.cells[0].possible_values
             my_houses = {house for cell in self.cells for house in cell.houses}
@@ -137,126 +114,103 @@ class SameValueFeature(Feature):
                                      if cell not in my_neighbors
                                      if not cell.possible_values.isdisjoint(my_values)]
                 assert len(viable_candidates) > 0
-                if len(viable_candidates) > 1:
-                    continue
-                candidate = viable_candidates.pop()
-                print(f'In {house}, {self} must also include {candidate}')
-                fake_feature = SameValueFeature('', cells=(self.cells[0], candidate), name=f'[+= {candidate}]')
-                fake_feature.initialize(self.grid)
-                fake_feature.start()
-                assert fake_feature not in self.shared_data.features
-                self.__check()
-                changed = True
-                break
+                if len(viable_candidates) == 1:
+                    # There is only one possible candidate for me in this house
+                    candidate = viable_candidates.pop()
+                    print(f'In {house}, {self} must also include {candidate}')
+                    equivalence = Equivalence(grid=self.grid, cells=[self.cells[0], candidate], name=f'+{candidate}')
+                    self.grid.same_value_handler.add_equivalence(equivalence)
+                    assert equivalence not in self.grid.same_value_handler.equivalences
+                    self.__check()
+                    changed = True
+                    break
+                else:
+                    all_possible_values = SmallIntSet.union(*(cell.possible_values for cell in viable_candidates))
+                    # TODO: Can this happen?  Intersection removal may already take care of this!  All the occurrences
+                    # of the value in the house are from cells that are all our neighbors. So the value should have
+                    # been removed from us.
+                    if not my_values <= all_possible_values:
+                        excluded = my_values - all_possible_values
+                        my_values &= all_possible_values
+                        print(f'In {house}, {self} must be one of {viable_candidates}.  Cannot include {excluded}.')
+                        Cell.keep_values_for_cell(self.cells, my_values)
+                        changed = True
+                        break
             else:
                 return changed
         return changed
 
-    def __str__(self):
-        temp = '='.join(str(cell) for cell in self.cells)
-        if self.has_real_name:
-            return self.name + " " + temp
-        else:
-            return temp
-
-    def __repr__(self):
-        return str(self)
-
-    def set_all_neighbors(self, neighbors: frozenset[Cell]):
-        assert neighbors.isdisjoint(self.cells)
-        for cell in self.cells:
-            cell.neighbors = neighbors
-        cells_as_list = set(self.cells)
-        for cell in neighbors:
-            cell.neighbors |= cells_as_list
-
-    def draw(self, context: DrawContext) -> None:
-        if self not in self.shared_data.features:
-            return
-        if all(cell.is_known for cell in self.cells):
-            return
-        self.color = self.color or self.shared_data.get_next_color()
-        for cell in self.cells:
-            y, x = cell.index
-            context.draw_circle((x + .5, y + .2), radius=.1, fill=True, color=self.color)
+    def __str__(self) -> str:
+        return self.name
 
 
-class _SameValueSharedData:
+class SameValueHandler(Feature):
     VERIFY = True
 
     COLORS = ('#e6194B', '#3cb44b', '#ffe119', '#4363d8', '#f58231', '#911eb4', '#42d4f4', '#f032e6',
               '#bfef45', '#fabed4', '#469990', '#dcbeff', '#9A6324', '#fffac8', '#800000', '#aaffc3',
               '#808000', '#ffd8b1', '#000075', '#a9a9a9', '#000000')
 
-    features: dict[SameValueFeature, bool]   # Using the fact that dictionaries are Ordered
+    equivalences: dict[Equivalence, bool]  # Using the fact that dictionaries are Ordered
     union_find: UnionFind
-    token_to_feature: dict[Cell, SameValueFeature]
-    grid: grid
-
-    owner: Optional[SameValueFeature]
+    token_to_equivalence: dict[Cell, Equivalence]
     colors: deque[str]
 
-    def __init__(self,  grid: Grid):
+    def __init__(self):
+        super().__init__(name="Same Value Handler")
+        # equivalences is really a set, but we use a dictionary so that we iterate by order of entry
+        self.equivalences = {}
         self.union_find = UnionFind()
-        self.token_to_feature = {}
-        # self.features is really intended as a set, but dictionaries remember the order in which things are
-        # added, so we just ignore the value.
-        self.features = {}
-        self.grid = grid
-
-        self.owner = None
+        self.token_to_equivalence = {}
         self.colors = deque(self.COLORS)
 
-    @staticmethod
-    def get_singleton(grid: Grid) -> _SameValueSharedData:
-        key = _SameValueSharedData
-        shared_data = grid.get(key)
-        if not shared_data:
-            shared_data = grid[key] = _SameValueSharedData(grid)
-        return shared_data
+    def check(self):
+        return any(equivalence.check() for equivalence in self.equivalences)
 
-    def add_feature(self, feature: SameValueFeature) -> None:
-        cell0 = feature.cells[0]
-        for i in range(1, len(feature.cells)):
-            self.union_find.union(cell0, feature.cells[i])
-        self.features[feature] = True  # Add ourselves to what is actually an ordered set
-        self.token_to_feature[self.union_find.find(cell0)] = feature
-        self.__reassign_tokens_to_features_as_necessary()
+    def check_special(self):
+        return any(equivalence.check_special() for equivalence in self.equivalences)
 
-    def cell_to_feature(self, cell: Cell) -> Optional[SameValueFeature]:
-        """Get the feature to which a cell belongs.  Or None"""
-        token = self.union_find.find(cell)
-        return self.token_to_feature.get(token)
+    def already_paired(self, cell1: Cell, cell2: Cell) -> bool:
+        return self.union_find.find(cell1) == self.union_find.find(cell2)
 
-    def get_next_color(self):
-        return self.colors.popleft()
+    def add_pair(self, cell1: Cell, cell2: Cell, name: Optional[str]) -> bool:
+        if self.already_paired(cell1, cell2):
+            return False
+        equivalence = Equivalence(grid=self.grid, cells=[cell1, cell2], name=name or "xxx")
+        self.add_equivalence(equivalence)
 
-    def __reassign_tokens_to_features_as_necessary(self):
+    def add_equivalence(self, equivalence: Equivalence) -> None:
+        for a, b in pairwise(equivalence.cells):
+            self.union_find.union(a, b)
+        self.equivalences[equivalence] = True  # Add ourselves to what is actually an ordered set
+        self.__reassign_tokens_to_equivalences_as_necessary()
+
+    def __reassign_tokens_to_equivalences_as_necessary(self):
         deletions = []
-        self.token_to_feature.clear()
-        # We go through the features in the order that they were created
-        for feature in self.features:
-            # Find the token associated with this feature
-            token = self.union_find.find(feature.cells[0])
-            # Does a previous feature already claim that token?
-            prev_feature = self.token_to_feature.get(token)
-            if not prev_feature:
+        self.token_to_equivalence.clear()
+        # We go through the equivalences in the order that they were created
+        for equivalence in self.equivalences:
+            # Find the token associated with this equivalence
+            token = self.union_find.find(equivalence.cells[0])
+            # Does a previous equivalence already claim that token?
+            old_equivalence = self.token_to_equivalence.get(token)
+            if not old_equivalence:
                 # No, claim it as our own
-                self.token_to_feature[token] = feature
+                self.token_to_equivalence[token] = equivalence
             else:
-                # feature and prev_feature have been united.  Merge feature into prev_feature
-                old_name = str(prev_feature)
-                neighbors = feature.cells[0].neighbors | prev_feature.cells[0].neighbors
-                prev_feature.set_all_neighbors(neighbors)
-                prev_feature.cells = list(unique_everseen(itertools.chain(prev_feature.cells, feature.cells)))
-                print(f'...Merging {feature} into {old_name} yielding {prev_feature}')
+                # equivalence and old_equivalence have been united.  Merge equivalence into old_equivalence
+                old_name = str(old_equivalence)
+                neighbors = equivalence.cells[0].neighbors | old_equivalence.cells[0].neighbors
+                old_equivalence.set_all_neighbors(neighbors)
+                old_equivalence.cells = list(unique_everseen(itertools.chain(old_equivalence.cells, equivalence.cells)))
+                print(f'...Merging {equivalence} into {old_name} yielding {old_equivalence}')
                 # Delete us once we're through iterating through the dict
-                deletions.append(feature)
-        for feature in deletions:
-            self.features.pop(feature)
-            if feature.color:
+                deletions.append(equivalence)
+        for equivalence in deletions:
+            self.equivalences.pop(equivalence)
+            if equivalence.color:
                 # We can re-use its color, if we really start to run low
-                self.colors.append(feature.color)
+                self.colors.append(equivalence.color)
         if self.VERIFY:
             self.__verify()
 
@@ -267,11 +221,20 @@ class _SameValueSharedData:
                 assert cell in neighbor.neighbors
 
         nodes = set(self.union_find.all_nodes())
-        for feature in self.features:
-            tokens = [self.union_find.find(cell) for cell in feature.cells]
+        for equivalence in self.equivalences:
+            tokens = [self.union_find.find(cell) for cell in equivalence.cells]
             token = tokens.pop()
             assert all(t == token for t in tokens)
-            assert self.token_to_feature[token] == feature
-            cells = set(feature.cells)
+            assert self.token_to_equivalence[token] == equivalence
+            cells = set(equivalence.cells)
             assert cells <= nodes
             nodes -= cells
+
+    def draw(self, context: DrawContext) -> None:
+        for equivalence in self.equivalences:
+            if all(cell.is_known for cell in equivalence.cells):
+                continue
+            color = equivalence.color = equivalence.color or self.colors.popleft()
+            for cell in equivalence.cells:
+                y, x = cell.index
+                context.draw_circle((x + .5, y + .2), radius=.1, fill=True, color=color)

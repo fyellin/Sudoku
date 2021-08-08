@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import datetime
 import functools
+import itertools
 from collections import defaultdict
 from itertools import permutations
 from typing import Iterable, Mapping, Optional, Sequence
@@ -26,8 +27,11 @@ class SandwichFeature(HousePossibilitiesFeature):
         super().__init__(htype, index, name="Sandwich")
         self.total = total
 
+    def generator(self) -> Iterable[tuple[int, ...]]:
+        return self.get_all_generators()[self.total]
+
     def match(self, permutation: tuple[int, ...]) -> bool:
-        return self.sandwich_sum(permutation) == self.total
+        return True
 
     @classmethod
     def sandwich_sum(cls, permutation):
@@ -37,6 +41,14 @@ class SandwichFeature(HousePossibilitiesFeature):
             return sum(permutation[i] for i in range(index1 + 1, index2))
         else:
             return sum(permutation[i] for i in range(index2 + 1, index1))
+
+    @classmethod
+    @functools.cache
+    def get_all_generators(cls) -> dict[int, Sequence[tuple[int, ...]]]:
+        result = defaultdict(list)
+        for permutation in itertools.permutations(range(1, 10)):
+            result[cls.sandwich_sum(permutation)].append(permutation)
+        return result
 
     ONE_AND_NINE = SmallIntSet((1, 9))
 

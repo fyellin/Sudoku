@@ -215,8 +215,9 @@ def puzzle_hunt() -> tuple[str, Sequence[Feature]]:
 
 def sandwich_07_28() -> tuple[str, Sequence[Feature]]:
     class LiarsSandwichFeature(SandwichFeature):
-        def match(self, permutation: tuple[int, ...]) -> bool:
-            return abs(self.sandwich_sum(permutation) - self.total) == 1
+        def generator(self) -> Iterable[tuple[int, ...]]:
+            yield from self.get_all_generators()[self.total - 1]
+            yield from self.get_all_generators()[self.total + 1]
 
     puzzle = "..6................1...........1.....4.........9...2.....................7......8"
     features = [
@@ -372,6 +373,7 @@ def puzzle_08_15() -> tuple[str, Sequence[Feature]]:
 
 def puzzle_08_26() -> tuple[str, Sequence[Feature]]:
     PRIMES = {2, 3, 5, 7, 11, 13, 17}
+
     def create_prime_ring(squares: SquaresParseable) -> Sequence[Square]:
         return [
             *AdjacentRelationshipFeature.create(squares, prefix="Prime", cyclic=True,
@@ -664,8 +666,8 @@ def puzzle_2021_08_02() -> tuple[str, Sequence[Feature]]:
 
 def puzzle_2021_08_03() -> tuple[str, Sequence[Feature]]:
     features = [
-        ThermometerFeature("33,E,E,E,E"),
-        ThermometerFeature("77,N,N,N"),
+        # ThermometerFeature("33,E,E,E,E"),
+        # ThermometerFeature("77,N,N,N"),
         KillerCageFeature(21, "11,E,S,W"),
         KillerCageFeature(18, "18,E,S,W"),
         KillerCageFeature(30, "88,E,S,W"),
@@ -679,7 +681,7 @@ def puzzle_2021_08_03() -> tuple[str, Sequence[Feature]]:
 
 def main():
     start = datetime.datetime.now()
-    grid, features = puzzle_09_06()
+    grid, features = puzzle_2021_08_03()
     Sudoku().solve(grid, features=features, initial_only=False, medusa=True, guides=1)
     end = datetime.datetime.now()
     print(end - start)

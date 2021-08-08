@@ -8,18 +8,24 @@ from cell import Cell, House
 
 if TYPE_CHECKING:
     from feature import Feature
-
+    import features.same_value_feature as svf
 
 class Grid(UserDict):
     matrix: dict[tuple[int, int], Cell]
     houses: list[House]
-    features: Sequence[Feature]
+    features: list[Feature]
     neighborly_features: Sequence[Feature]
     pair_features: Sequence[Feature]
     has_alternative_boxes: bool
+    same_value_handler: 'svf.SameValueHandler'
 
-    def __init__(self, features: Sequence[Feature]) -> None:
+    def __init__(self, features: list[Feature]) -> None:
         super().__init__()
+
+        import features.same_value_feature as svf
+        same_value_handler = svf.SameValueHandler()
+        features.append(same_value_handler)
+
         # Features that affect neighbors of a cell
         self.neighborly_features = [feature for feature in features if feature.has_neighbor_method()]
         # Features that have strong/weak/chain pairs
@@ -27,6 +33,7 @@ class Grid(UserDict):
         self.matrix = {(row, column): Cell(row, column, self)
                        for row in range(1, 10) for column in range(1, 10)}
         self.features = features
+        self.same_value_handler = same_value_handler
 
         def items_in_row(row: int) -> Sequence[Cell]:
             return [self.matrix[row, column] for column in range(1, 10)]

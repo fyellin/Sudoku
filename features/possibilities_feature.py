@@ -33,8 +33,7 @@ class PossibilitiesFeature(Feature, abc.ABC):
     def create(cls, squares: SquaresParseable, *,
                possibility_function: Callable[[], Iterable[Possibility]],
                name: Optional[str] = None, prefix: Optional[str] = None,
-               neighbors: bool = False,
-               duplicates: bool = False) -> Sequence[PossibilitiesFeature]:
+               neighbors: bool = False, duplicates: bool = False) -> Sequence[PossibilitiesFeature]:
         return [
             PossibilitiesFeature(squares, possibility_function=possibility_function,
                                  name=name, prefix=prefix,
