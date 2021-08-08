@@ -8,7 +8,9 @@ from cell import Cell, House
 
 if TYPE_CHECKING:
     from feature import Feature
-    import features.same_value_feature as svf
+    from features.same_value_feature import SameValueHandler
+    from features.possibilities_feature import PossibilitiesHandler
+
 
 class Grid(UserDict):
     matrix: dict[tuple[int, int], Cell]
@@ -17,14 +19,18 @@ class Grid(UserDict):
     neighborly_features: Sequence[Feature]
     pair_features: Sequence[Feature]
     has_alternative_boxes: bool
-    same_value_handler: 'svf.SameValueHandler'
+    same_value_handler: SameValueHandler
+    possibilities_handler: PossibilitiesHandler
 
     def __init__(self, features: list[Feature]) -> None:
         super().__init__()
 
-        import features.same_value_feature as svf
-        same_value_handler = svf.SameValueHandler()
-        features.append(same_value_handler)
+        from features.same_value_feature import SameValueHandler
+        from features.possibilities_feature import PossibilitiesHandler
+        self.same_value_handler = SameValueHandler()
+        self.possibilities_handler = PossibilitiesHandler()
+        features.append(self.same_value_handler)
+        features.append(self.possibilities_handler)
 
         # Features that affect neighbors of a cell
         self.neighborly_features = [feature for feature in features if feature.has_neighbor_method()]
@@ -33,7 +39,6 @@ class Grid(UserDict):
         self.matrix = {(row, column): Cell(row, column, self)
                        for row in range(1, 10) for column in range(1, 10)}
         self.features = features
-        self.same_value_handler = same_value_handler
 
         def items_in_row(row: int) -> Sequence[Cell]:
             return [self.matrix[row, column] for column in range(1, 10)]

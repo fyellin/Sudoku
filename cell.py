@@ -347,8 +347,3 @@ class CellValue(NamedTuple):
         yield from ((cv, feature)
                     for feature in cell.grid.pair_features
                     for cv in feature.get_chain_pairs(self))
-
-
-
-
-

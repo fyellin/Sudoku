@@ -588,6 +588,7 @@ def puzzle_2021_07_06() -> tuple[str, Sequence[Feature]]:
 
 
 def puzzle_2021_07_10() -> tuple[str, Sequence[Feature]]:
+    # This puzzle is good an checking the ability to find cells with the same values
     killers = [
         (7, "2,2,S,S"),
         (5, "2,6,E"),
@@ -666,18 +667,18 @@ def puzzle_2021_08_02() -> tuple[str, Sequence[Feature]]:
 
 def puzzle_2021_08_03() -> tuple[str, Sequence[Feature]]:
     features = [
-        # ThermometerFeature("33,E,E,E,E"),
-        # ThermometerFeature("77,N,N,N"),
+        ThermometerFeature("33,E,E,E,E"),
+        ThermometerFeature("77,N,N,N"),
         KillerCageFeature(21, "11,E,S,W"),
         KillerCageFeature(18, "18,E,S,W"),
         KillerCageFeature(30, "88,E,S,W"),
         KillerCageFeature(7, "83,S"),
         ThermometerAsLessThanFeature("91,92"),
         *PalindromeFeature.create("73,N,N,N,N,E,E,E,E"),
-        *PalindromeFeature.create("74,E,E,E,N,N,N")
+        *PalindromeFeature.create("74,E,E,E,N,N,N"),
+        KnightsMoveFeature(),
         ]
     return BLANK_GRID, features
-
 
 def main():
     start = datetime.datetime.now()
