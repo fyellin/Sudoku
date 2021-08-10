@@ -535,7 +535,7 @@ def puzzle_09_21() -> tuple[str, Sequence[Feature]]:
                     yield x, y, q, r
 
         def draw(self, context: DrawContext) -> None:
-            context.draw_rectangles(self.squares, color='lightgray')
+            context.draw_rectangles(self.squares, facecolor='lightgray')
 
     puzzle = "X..7-6...5.-.8.-..9-X-5..-.6.-.9...1-2..X".replace("X", "---").replace("-", "...")
     features = [
@@ -680,9 +680,37 @@ def puzzle_2021_08_03() -> tuple[str, Sequence[Feature]]:
         ]
     return BLANK_GRID, features
 
+def puzzle_2021_08_04() -> tuple[str, Sequence[Feature]]:
+    ## This is not solved.
+    class Cheater(PossibilitiesFeature):
+        def __init__(self):
+            super().__init__("64,E,E,94,E,E", neighbors=True, name="Cheater")
+        def get_possibilities(self) -> Iterable[tuple[int,...]]:
+            for (a, b, c), (d, e, f) in itertools.product(itertools.permutations(range(1, 10), 3), repeat=2):
+                if a + b + c + 8 == d + e + f:
+                    yield a, b, c, d, e, f
+
+    features = [
+        KingsMoveFeature(),
+        KillerCageFeature(15, "15,S"),
+        KillerCageFeature(10, "21,E"),
+        KillerCageFeature(12, "53,E"),
+        KillerCageFeature(8, "56, E"),
+        KillerCageFeature(6, "62, E"),
+        KillerCageFeature(32, "64,E,E,S,S,74,S"),
+        KillerCageFeature(8, "67,E"),
+        KillerCageFeature(9, "73,S"),
+        KillerCageFeature(5, "75,S"),
+        KillerCageFeature(12, "78, S"),
+        KillerCageFeature(17, "97,E,E"),
+        Cheater()
+    ]
+    return BLANK_GRID, features
+
+
 def main():
     start = datetime.datetime.now()
-    grid, features = puzzle_2021_08_03()
+    grid, features = puzzle_2021_08_04()
     Sudoku().solve(grid, features=features, initial_only=False, medusa=True, guides=1)
     end = datetime.datetime.now()
     print(end - start)

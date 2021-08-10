@@ -58,7 +58,7 @@ class SandwichFeature(HousePossibilitiesFeature):
             context[self.__class__] = True
             special = [square for square in self.all_squares()
                        if (self @ square).possible_values.isdisjoint(self.ONE_AND_NINE)]
-            context.draw_rectangles(special, color='lightgreen')
+            context.draw_rectangles(special, facecolor='lightgreen')
 
 
 class SandwichXboxFeature(PossibilitiesFeature):

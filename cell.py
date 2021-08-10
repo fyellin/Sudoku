@@ -3,9 +3,9 @@ from __future__ import annotations
 import functools
 import itertools
 import operator
-from collections.abc import Iterable, Iterator, Sequence
+from collections.abc import Iterator, Sequence
 from enum import Enum, auto
-from typing import AbstractSet, Final, NamedTuple, Optional, TYPE_CHECKING, Union
+from typing import AbstractSet, Final, Iterable, NamedTuple, Optional, TYPE_CHECKING, Union
 
 from color import Color
 
@@ -221,18 +221,21 @@ class Cell:
     def house_of_type(self, house_type: House.Type) -> House:
         return next(house for house in self.houses if house.house_type == house_type)
 
-    def simple_chain_pair(self, value: int) -> Iterable[tuple[Cell, House]]:
-        """A chain pair implies that exactly one of self=value or result=value is True."""
-        return self.simple_strong_pair(value)
+    def get_equivalent_cells(self) -> tuple[Cell]:
+        return self.grid.same_value_handler.get_all_equivalent_cells(self)
 
-    def simple_strong_pair(self, value: int) -> Iterable[tuple[Cell, House]]:
+    def get_xor_pairs(self, value: int) -> Iterable[tuple[Cell, House]]:
+        """A chain pair implies that exactly one of self=value or result=value is True."""
+        return self.get_strong_pairs(value)
+
+    def get_strong_pairs(self, value: int) -> Iterable[tuple[Cell, House]]:
         """A strong pair implies that at least one of self=value or result=value is True"""
         for house in self.houses:
             temp = [cell for cell in house.unknown_cells if cell != self and value in cell.possible_values]
             if len(temp) == 1:
                 yield temp[0], house
 
-    def simple_weak_pair(self, value: int) -> Iterable[tuple[Cell, House]]:
+    def get_weak_pairs(self, value: int) -> Iterable[tuple[Cell, House]]:
         """A strong pair implies that at most one of self=value or result=value is True.  Both may be False"""
         return ((cell, house) for house in self.houses
                 for cell in house.unknown_cells if cell != self and value in cell.possible_values)
@@ -323,27 +326,24 @@ class CellValue(NamedTuple):
         return f'{self.cell}{char}{self.value}'
 
     def get_strong_pairs_extended(self) -> Iterable[tuple[CellValue, Union[House, Feature, bool]]]:
-        cell, value = self
-        yield from ((CellValue(cell2, value), house2) for cell2, house2 in cell.simple_strong_pair(value))
-        if len(cell.possible_values) == 2:
-            yield CellValue(cell, (cell.possible_values - {value}).unique()), True
-        yield from ((cv, feature)
-                    for feature in cell.grid.pair_features
-                    for cv in feature.get_strong_pairs(self))
+        "if cell ≠ value, then what cells are forced to have a value"
+        return self.__get_all_pairs_extended(lambda a, b: a.get_strong_pairs(b), False)
 
     def get_weak_pairs_extended(self) -> Iterable[tuple[CellValue, Union[House, Feature, bool]]]:
-        cell, value = self
-        yield from ((CellValue(cell2, value), house2) for cell2, house2 in cell.simple_weak_pair(value))
-        yield from ((CellValue(cell, value2), True) for value2 in cell.possible_values if value != value2)
-        yield from ((cv, feature)
-                    for feature in cell.grid.pair_features
-                    for cv in feature.get_weak_pairs(self))
+        """if cell == value, then what cells can't have which values?"""
+        return self.__get_all_pairs_extended(lambda a, b: a.get_weak_pairs(b), True)
 
-    def get_chain_pairs_extended(self):
-        cell, value = self
-        yield from ((CellValue(cell2, value), house2) for cell2, house2 in cell.simple_chain_pair(value))
-        if len(cell.possible_values) == 2:
-            yield CellValue(cell, (cell.possible_values - {value}).unique()), True
-        yield from ((cv, feature)
-                    for feature in cell.grid.pair_features
-                    for cv in feature.get_chain_pairs(self))
+    def get_xor_pairs_extended(self) -> Iterable[tuple[CellValue, Union[House, Feature, bool]]]:
+        """Which cells have which values if and only if this cell doesn't have the given value?"""
+        return self.__get_all_pairs_extended(lambda a, b: a.get_xor_pairs(b), False)
+
+    def __get_all_pairs_extended(self, func , is_weak) -> Iterable[tuple[CellValue, Union[House, Feature, bool]]]:
+        original_cell, value = self
+        for cell in original_cell.get_equivalent_cells():
+            yield from ((CellValue(cell2, value), house2) for cell2, house2 in func(cell, value))
+            if is_weak or len(cell.possible_values) == 2:
+                yield from ((CellValue(cell, value2), True) for value2 in cell.possible_values - {value})
+            cell_value = CellValue(cell, value)
+            yield from ((cv, feature)
+                        for feature in cell.grid.pair_features
+                        for cv in func(feature, cell_value))

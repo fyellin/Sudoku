@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import functools
-import itertools
 import operator
 from collections import deque
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional, Sequence
+from itertools import chain
+from typing import Optional
 
 from cell import Cell, SmallIntSet
 from draw_context import DrawContext
@@ -32,9 +33,9 @@ class SameValueFeature(Feature):
         self.has_real_name = name is not None or prefix is not None
 
     def start(self):
-        cells = [self @ square for square in self.squares]
+        cells = tuple(self @ square for square in self.squares)
         equivalence = _Equivalence(grid=self.grid, cells=cells, name=self.name)
-        self.grid.same_value_handler.add_equivalence(equivalence)
+        self.grid.same_value_handler.add_equivalence_internal(equivalence)
 
 
 @dataclass(eq=False)
@@ -43,7 +44,7 @@ class _Equivalence:
     An equivalence keeps track of all information about a group of cells that have the same value
     """
     grid: Grid
-    cells: list[Cell]
+    cells: tuple[Cell, ...]
     name: str
     color: Optional[str] = None
     __check_cache: list[int] = field(default_factory=list)
@@ -126,8 +127,8 @@ class _Equivalence:
                     # There is only one possible candidate for me in this house
                     candidate = viable_candidates.pop()
                     print(f'In {house}, {self} must also include {candidate}')
-                    equivalence = _Equivalence(grid=self.grid, cells=[self.cells[0], candidate], name=f'+{candidate}')
-                    self.grid.same_value_handler.add_equivalence(equivalence)
+                    equivalence = _Equivalence(grid=self.grid, cells=(self.cells[0], candidate), name=f'+{candidate}')
+                    self.grid.same_value_handler.add_equivalence_internal(equivalence)
                     assert equivalence not in equivalences
                     self.__check()
                     changed = True
@@ -165,7 +166,7 @@ class SameValueHandler(Feature):
     __token_to_equivalence: dict[Cell, _Equivalence]
     __colors: deque[str]
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(name="Same Value Handler")
         # equivalences is really a set, but we use a dictionary so that we iterate by order of entry
         self.equivalences = {}
@@ -181,16 +182,24 @@ class SameValueHandler(Feature):
         # Copy the list before iterating, as items may delete themselves.
         return any(equivalence.check_special() for equivalence in list(self.equivalences))
 
-    def already_paired(self, cell1: Cell, cell2: Cell) -> bool:
+    def are_cells_equivalent(self, cell1: Cell, cell2: Cell) -> bool:
         return self.__union_find.find(cell1) == self.__union_find.find(cell2)
 
-    def add_pair(self, cell1: Cell, cell2: Cell, name: str) -> bool:
-        if self.already_paired(cell1, cell2):
+    def make_cells_equivalent(self, cell1: Cell, cell2: Cell, name: str) -> bool:
+        if self.are_cells_equivalent(cell1, cell2):
             return False
-        equivalence = _Equivalence(grid=self.grid, cells=[cell1, cell2], name=name)
-        self.add_equivalence(equivalence)
+        equivalence = _Equivalence(grid=self.grid, cells=(cell1, cell2), name=name)
+        self.add_equivalence_internal(equivalence)
 
-    def add_equivalence(self, equivalence: _Equivalence) -> None:
+    def get_all_equivalent_cells(self, cell: Cell) -> tuple[Cell]:
+        token = self.__union_find.find(cell)
+        equivalence = self.__token_to_equivalence.get(token)
+        if equivalence:
+            return equivalence.cells
+        else:
+            return cell,
+
+    def add_equivalence_internal(self, equivalence: _Equivalence) -> None:
         for a, b in pairwise(equivalence.cells):
             self.__union_find.union(a, b)
         self.equivalences[equivalence] = True  # Add ourselves to what is actually an ordered set
@@ -199,7 +208,7 @@ class SameValueHandler(Feature):
     def remove_equivalence(self, equivalence: _Equivalence) -> None:
         del self.equivalences[equivalence]
 
-    def __reassign_tokens_to_equivalences_as_necessary(self):
+    def __reassign_tokens_to_equivalences_as_necessary(self) -> None:
         deletions = []
         self.__token_to_equivalence.clear()
         # We go through the equivalences in the order that they were created
@@ -216,7 +225,7 @@ class SameValueHandler(Feature):
                 old_name = str(old_equivalence)
                 neighbors = equivalence.cells[0].neighbors | old_equivalence.cells[0].neighbors
                 old_equivalence.set_all_neighbors(neighbors)
-                old_equivalence.cells = list(unique_everseen(itertools.chain(old_equivalence.cells, equivalence.cells)))
+                old_equivalence.cells = tuple(unique_everseen(chain(old_equivalence.cells, equivalence.cells)))
                 print(f'...Merging {equivalence} into {old_name} yielding {old_equivalence}')
                 # Delete us once we're through iterating through the dict
                 deletions.append(equivalence)

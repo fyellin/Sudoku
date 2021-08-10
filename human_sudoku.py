@@ -405,11 +405,11 @@ class Sudoku:
             if cell1.is_known:
                 continue
             for value in cell1.possible_values:
-                for cell2, house2 in cell1.simple_strong_pair(value):
-                    for cell3, house3 in cell2.simple_weak_pair(value):
+                for cell2, house2 in cell1.get_strong_pairs(value):
+                    for cell3, house3 in cell2.get_weak_pairs(value):
                         if house3 == house2 or cell3 in (cell1, cell2):
                             continue
-                        for cell4, house4 in cell3.simple_strong_pair(value):
+                        for cell4, house4 in cell3.get_strong_pairs(value):
                             if house4 == house3 or cell4 in (cell1, cell2, cell3):
                                 continue
                             fixers = {cell for cell in cell1.joint_neighbors(cell4)
@@ -433,6 +433,7 @@ class Sudoku:
                     for cv4, house4 in cv3.get_strong_pairs_extended():
                         if house4 == house3 or cv4 == cv1 or cv4 == cv2:
                             continue
+                        print(cv1, cv2, cv3, cv4)
                         fixers = []
                         cell1, value1 = cv1
                         cell4, value4 = cv4
@@ -478,14 +479,14 @@ class Sudoku:
             if len(cells) <= 2:
                 continue
             for cell1, cell2 in combinations(cells, 2):
-                if self.grid.same_value_handler.already_paired(cell1, cell2):
+                if self.grid.same_value_handler.are_cells_equivalent(cell1, cell2):
                     continue
                 common_neighbors = cells & cell1.neighbors & cell2.neighbors
                 if not common_neighbors:
                     continue
                 one_neighbor = next(iter(common_neighbors))
                 print(f'{cell1} == {cell2} because both see {one_neighbor} and all three have bi-value {values}')
-                self.grid.same_value_handler.add_pair(cell1, cell2, name=f'[{cell1}-{cell2}-{values}]')
+                self.grid.same_value_handler.make_cells_equivalent(cell1, cell2, name=f'[{cell1}-{cell2}-{values}]')
                 changed = True
 
         return changed

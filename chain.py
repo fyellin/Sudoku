@@ -44,11 +44,11 @@ class Chain:
         if not medusa:
             def iterator(cv: CellValue) -> Iterator[CellValue]:
                 cell, value = cv
-                for next_cell in cell.get_strong_pairs(value):
+                for next_cell in cell.get_strong_pairs(value, ):
                     yield CellValue(next_cell, value)
         else:
             def iterator(cv: CellValue) -> Iterator[CellValue]:
-                for cell_value, _house in cv.get_chain_pairs_extended():
+                for cell_value, _house in cv.get_xor_pairs_extended():
                     yield cell_value
 
         todo = deque([(start, 0)])
@@ -118,13 +118,13 @@ class Chain:
                 break
             if not self.is_medusa:
                 (this_cell, this_value) = cell_value
-                for next_cell, _ in this_cell.get_chain_pairs(this_value):
+                for next_cell, _ in this_cell.get_xor_pairs(this_value):
                     next_cell_value = CellValue(next_cell, this_value)
                     if next_cell_value not in seen:
                         seen[next_cell_value] = cell_value
                         todo.append(next_cell_value)
             else:
-                for next_cell_value, _ in cell_value.get_chain_pairs_extended():
+                for next_cell_value, _ in cell_value.get_xor_pairs_extended():
                     if next_cell_value not in seen:
                         seen[next_cell_value] = cell_value
                         todo.append(next_cell_value)

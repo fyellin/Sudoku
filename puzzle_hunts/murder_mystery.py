@@ -23,7 +23,7 @@ class FakeKillerCageFeature(Feature):
         self.squares = Feature.parse_squares(squares)
 
     def draw(self, context: DrawContext) -> None:
-        context.draw_rectangles(self.squares, color='#a89dbc')
+        context.draw_rectangles(self.squares, facecolor='#a89dbc')
         context.draw_outline(self.squares)
         if all((self @ square).is_known for square in self.squares):
             total = sum((self @ square).known_value for square in self.squares)
@@ -55,7 +55,7 @@ class QKillerCageFeature(PossibilitiesFeature):
                     yield *values, x
 
     def draw(self, context: DrawContext) -> None:
-        context.draw_rectangles(self.squares, color='#d1c6db')
+        context.draw_rectangles(self.squares, facecolor='#d1c6db')
         context.draw_outline(self.squares)
         row, column = min(self.squares)
         context.draw_text(column + .2, row + .2, str(self.total),
@@ -425,12 +425,12 @@ def finale() -> tuple[str, Sequence[Feature]]:
 def main():
     start = datetime.datetime.now()
     puzzles = [
-        act_1,
-        act_2,
-        act_3,
-        act_4, act_5, act_6,
-        act_7,
-        act_8,
+        # act_1,
+        # act_2,
+        # act_3,
+        # act_4, act_5, act_6,
+        # act_7,
+        # act_8,
         act_9,
         act_10,
         finale,

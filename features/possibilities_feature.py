@@ -117,7 +117,8 @@ class PossibilityInfo:
         return False
 
     def check_special(self) -> bool:
-        return self.__handle_value_in_house_only_occurs_in_possibility()
+        return self.__handle_value_in_house_only_occurs_in_possibility() or \
+               self.__handle_must_be_equal()
 
     def get_weak_pairs(self, cell_value: CellValue) -> Iterable[CellValue]:
         if cell_value.cell not in self.cells_as_set:
@@ -225,6 +226,21 @@ class PossibilityInfo:
                     Cell.remove_values_from_cells(affected_cells, locked_values)
                     change = True
         return change
+
+    def __handle_must_be_equal(self) -> bool:
+        same_value_handler = self.grid.same_value_handler
+        hopefuls = {(index1, index2)
+                    for (index1, cell1), (index2, cell2) in combinations(enumerate(self.cells), 2)
+                    if not same_value_handler.are_cells_equivalent(cell1, cell2)}
+        for possibility in self.possibilities:
+            deletions = {(ix1, ix2) for (ix1, ix2) in hopefuls if possibility[ix1] != possibility[ix2]}
+            hopefuls -= deletions
+            if not hopefuls:
+                return False
+        for index1, index2 in hopefuls:
+            same_value_handler.make_cells_equivalent(self.cells[index1], self.cells[index2], "Twee")
+        return True
+
 
     def __handle_value_in_house_only_occurs_in_possibility(self) -> bool:
         """

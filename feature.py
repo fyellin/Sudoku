@@ -51,8 +51,8 @@ class Feature(abc.ABC):
     def get_strong_pairs(self, _cell_value: CellValue) -> Iterable[CellValue]:
         """
         cell1=value1 and cell2=value2 are a strong pair if at least one of them is always True.
-        For now, we only generate results in which exactly one of them is always True."""
-        """"""
+        For now, we only generate results in which exactly one of them is always True.
+        """
         return ()
 
     def get_weak_pairs(self, _cell_value: CellValue) -> Iterable[CellValue]:
@@ -63,7 +63,7 @@ class Feature(abc.ABC):
         return ()
 
     # noinspection PyMethodMayBeStatic
-    def get_chain_pairs(self, cell_value: CellValue) -> Iterable[CellValue]:
+    def get_xor_pairs(self, cell_value: CellValue) -> Iterable[CellValue]:
         """
         Exactly one of cell1=value and cell2=value is true.  These are both strong and weak.
         """
@@ -167,7 +167,7 @@ class Feature(abc.ABC):
     @classmethod
     def has_any_pair_method(cls):
         return cls.get_weak_pairs != Feature.get_weak_pairs or cls.get_strong_pairs != Feature.get_strong_pairs or \
-            cls.get_chain_pairs != Feature.get_chain_pairs
+               cls.get_xor_pairs != Feature.get_xor_pairs
 
     check_elided: ClassVar[int] = 0
     check_called: ClassVar[int] = 0
