@@ -48,7 +48,7 @@ class PossibilitiesFeature(Feature):
     def get_possibilities(self) -> Iterable[Possibility]:
         raise NotImplementedError()
 
-    def start(self):
+    def start(self) -> None:
         cells = [self @ square for square in self.squares]
         possibilities = list(self.possibility_function())
         if self.handle_duplicates:
@@ -59,9 +59,9 @@ class PossibilitiesFeature(Feature):
         possibility_info = PossibilityInfo(grid=self.grid, cells=cells, possibilities=possibilities, name=self.name)
         self.grid.possibilities_handler.add_info(possibility_info)
 
-    def __remove_bad_neighbors(self, cells, possibilities: Sequence[Possibility]) -> list[Possibility]:
+    def __remove_bad_neighbors(self, cells, possibilities: list[Possibility]) -> list[Possibility]:
         for (index1, cell1), (index2, cell2) in combinations(enumerate(cells), 2):
-            if cell1.index == cell2.index:
+            if cell1.square == cell2.square:
                 # For some reason, we have the same cell repeated twice
                 possibilities = [p for p in possibilities if p[index1] == p[index2]]
             elif cell1.is_neighbor(cell2):
@@ -91,7 +91,7 @@ class PossibilityInfo:
     __weak_pair_cache_check: int = -1
     __strong_pair_cache_check: int = -1
 
-    def __post_init__(self, verbose):
+    def __post_init__(self, verbose) -> None:
         self.cells_as_set = set(self.cells)
         self.__value_only_in_feature = defaultdict(SmallIntSet)
         self.__house_to_indexes = defaultdict(list)
@@ -100,7 +100,7 @@ class PossibilityInfo:
                 self.__house_to_indexes[house].append(index)
         self.__update_cells_for_possibilities(show=verbose)
 
-    def check(self):
+    def check(self) -> bool:
         if not Feature.cells_changed_since_last_invocation(self.__cells_at_last_call_to_check, self.cells):
             return False
         old_length = len(self.possibilities)
@@ -198,7 +198,7 @@ class PossibilityInfo:
                     assert all(values[index] == cell.known_value for values in self.possibilities)
                     self.__verified_cells.add(cell)
                 continue
-            legal_values = SmallIntSet(values[index] for values in self.possibilities)
+            legal_values = SmallIntSet({values[index] for values in self.possibilities})
             if not cell.possible_values <= legal_values:
                 changed = True
                 if len(legal_values) == 1:
@@ -219,7 +219,7 @@ class PossibilityInfo:
         for house, indexes in self.__house_to_indexes.items():
             locked_values = house.unknown_values - self.__value_only_in_feature[house]
             for possibility in self.possibilities:
-                locked_values &= SmallIntSet(possibility[i] for i in indexes)
+                locked_values &= SmallIntSet({possibility[i] for i in indexes})
                 if not locked_values:
                     break
 
@@ -306,10 +306,10 @@ class PossibilityInfo:
             return self.__update_cells_for_possibilities()
         return False
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.name
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return self.name
 
 
@@ -317,15 +317,15 @@ class PossibilitiesHandler(Feature):
     infos: dict[PossibilityInfo, bool]
     merge_count: int
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(name="Possibilities Handler")
         self.infos = {}
         self.merge_count = 0
 
-    def add_info(self, info: PossibilityInfo):
+    def add_info(self, info: PossibilityInfo) -> None:
         self.infos[info] = True
 
-    def remove_info(self, info: PossibilityInfo):
+    def remove_info(self, info: PossibilityInfo) -> None:
         del self.infos[info]
 
     def check(self) -> bool:
@@ -349,7 +349,7 @@ class PossibilitiesHandler(Feature):
     def __try_to_merge(self) -> bool:
         p_log = {info: math.log(len(info.possibilities)) for info in self.infos}
 
-        def closeness(f1: PossibilityInfo, f2: PossibilityInfo) -> int:
+        def closeness(f1: PossibilityInfo, f2: PossibilityInfo) -> float:
             count = 0
             for cell in f2.cells:
                 if cell in f1.cells_as_set:
@@ -415,16 +415,16 @@ class HousePossibilitiesFeature(PossibilitiesFeature, abc.ABC):
     permutations of 1..9], and match() which determines if a permutation should be included.  9! is
     smaller than it used to be.
     """
-    htype: House.Type
-    index: int
+    house_type: House.Type
+    house_index: int
 
     def __init__(self, htype: House.Type, index: int, *,
                  name: Optional[str] = None, prefix: Optional[str] = None):
         if not name and prefix:
             name = f'{prefix} {htype.name} #{index}'
         super().__init__(self.get_house_squares(htype, index), name=name)
-        self.htype = htype
-        self.index = index
+        self.house_type = htype
+        self.house_index = index
 
     def get_possibilities(self) -> Iterable[Possibility]:
         return filter(self.match, self.generator())
@@ -433,7 +433,7 @@ class HousePossibilitiesFeature(PossibilitiesFeature, abc.ABC):
     def match(self, permutation: Possibility) -> bool:
         ...
 
-    def generator(self):
+    def generator(self) -> Iterable[Possibility]:
         return permutations(range(1, 10))
 
 
@@ -457,7 +457,7 @@ class GroupedPossibilitiesFeature(Feature, abc.ABC):
         self.__cells_at_last_call_to_check = []
 
     @abc.abstractmethod
-    def get_possibilities(self) -> list[tuple[SmallIntSet | Iterable[int] | int], ...]:
+    def get_possibilities(self) -> list[tuple[SmallIntSet | Iterable[int] | int]]:
         ...
 
     def start(self) -> None:
@@ -524,8 +524,7 @@ class GroupedPossibilitiesFeature(Feature, abc.ABC):
         for (index1, cell1), (index2, cell2) in combinations(enumerate(self.cells), 2):
             if cell1.is_neighbor(cell2):
                 possibilities = [p for p in possibilities if len(p[index1]) > 1 or p[index1] != p[index2]]
-            elif cell1.index == cell2.index:
-                #  We're not sure if this works or not
+            elif cell1.square == cell2.square:
                 possibilities = [p for p in possibilities if p[index1] == p[index2]]
         return possibilities
 

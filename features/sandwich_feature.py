@@ -9,7 +9,7 @@ from typing import Iterable, Mapping, Optional, Sequence
 
 from cell import House, SmallIntSet
 from draw_context import DrawContext
-from features.possibilities_feature import HousePossibilitiesFeature, PossibilitiesFeature
+from .possibilities_feature import HousePossibilitiesFeature, PossibilitiesFeature
 
 
 class SandwichFeature(HousePossibilitiesFeature):
@@ -53,7 +53,7 @@ class SandwichFeature(HousePossibilitiesFeature):
     ONE_AND_NINE = SmallIntSet((1, 9))
 
     def draw(self, context: DrawContext) -> None:
-        context.draw_outside(self.total, self.htype, self.index, fontsize=20, weight='bold')
+        context.draw_outside(self.total, self.house_type, self.house_index, fontsize=20, weight='bold')
         if not context.get(self.__class__):
             context[self.__class__] = True
             special = [square for square in self.all_squares()

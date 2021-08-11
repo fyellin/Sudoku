@@ -573,7 +573,7 @@ class Sudoku:
                     for cell in cells:
                         cells_to_corners[cell].append(value)
             for cell, values in cells_to_corners.items():
-                row, column = cell.index
+                row, column = cell.square
                 for i, value in enumerate(sorted(values)):
                     if i == 0:
                         axes.text(column + .1, row + .1, str(value), va='top', ha='left', **corner_args)

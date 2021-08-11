@@ -15,7 +15,7 @@ class UnionFind(Generic[Node]):
     def all_nodes(self) -> Iterable[Node]:
         return self.parent.keys()
 
-    def find(self, x: Node):
+    def find(self, x: Node) -> Node:
         parent = self.parent
         parent.setdefault(x, x)
         root = x

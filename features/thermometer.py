@@ -3,9 +3,9 @@ from typing import Iterable, Optional, Sequence, Union
 
 from draw_context import DrawContext
 from feature import Feature, Square, SquaresParseable
-from features.chess_move import _draw_thermometer
-from features.features import AdjacentRelationshipFeature, DrawOnlyFeature
-from features.possibilities_feature import GroupedPossibilitiesFeature, PossibilitiesFeature
+from .chess_move import _draw_thermometer
+from .features import AdjacentRelationshipFeature, DrawOnlyFeature
+from .possibilities_feature import GroupedPossibilitiesFeature, PossibilitiesFeature
 
 
 class ThermometerFeature(PossibilitiesFeature):
@@ -91,5 +91,3 @@ class SlowThermometerFeature(PossibilitiesFeature):
 
     def get_possibilities(self) -> Iterable[tuple[int, ...]]:
         return combinations_with_replacement(range(1, 10), len(self.squares))
-
-

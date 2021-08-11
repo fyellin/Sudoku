@@ -74,7 +74,7 @@ class DoubleSumFeature(HousePossibilitiesFeature):
     """The first two items in the row/column are indices, and the values they point at must total to ptotal.
     If total is also given, then the first two values must sum to this"""
     row_column: int
-    htype: House.Type
+    house_type: House.Type
     total: Optional[int]
     ptotal: int
 
@@ -91,9 +91,9 @@ class DoubleSumFeature(HousePossibilitiesFeature):
     def draw(self, context: DrawContext) -> None:
         args = {'fontsize': '10'}
         if self.total:
-            context.draw_outside(f'{self.total}', self.htype, self.index, padding=.2,
+            context.draw_outside(f'{self.total}', self.house_type, self.house_index, padding=.2,
                                  color='red', **args)
-        context.draw_outside(f'{self.ptotal}', self.htype, self.index, **args)
+        context.draw_outside(f'{self.ptotal}', self.house_type, self.house_index, **args)
 
 
 def thermometer_magic() -> tuple[str, Sequence[Feature]]:
@@ -372,12 +372,12 @@ def puzzle_08_15() -> tuple[str, Sequence[Feature]]:
 
 
 def puzzle_08_26() -> tuple[str, Sequence[Feature]]:
-    PRIMES = {2, 3, 5, 7, 11, 13, 17}
+    primes = {2, 3, 5, 7, 11, 13, 17}
 
     def create_prime_ring(squares: SquaresParseable) -> Sequence[Square]:
         return [
             *AdjacentRelationshipFeature.create(squares, prefix="Prime", cyclic=True,
-                                                match=lambda i, j: i + j in PRIMES),
+                                                match=lambda i, j: i + j in primes),
             DrawOnlyFeature(lambda context: context.draw_line(squares, closed=True, color='red', linewidth=5)),
         ]
 
@@ -680,12 +680,14 @@ def puzzle_2021_08_03() -> tuple[str, Sequence[Feature]]:
         ]
     return BLANK_GRID, features
 
+
 def puzzle_2021_08_04() -> tuple[str, Sequence[Feature]]:
-    ## This is not solved.
+    # This is not solved.
     class Cheater(PossibilitiesFeature):
         def __init__(self):
             super().__init__("64,E,E,94,E,E", neighbors=True, name="Cheater")
-        def get_possibilities(self) -> Iterable[tuple[int,...]]:
+
+        def get_possibilities(self) -> Iterable[tuple[int, ...]]:
             for (a, b, c), (d, e, f) in itertools.product(itertools.permutations(range(1, 10), 3), repeat=2):
                 if a + b + c + 8 == d + e + f:
                     yield a, b, c, d, e, f

@@ -22,7 +22,7 @@ class DrawContext(UserDict):
 
     width: int
 
-    def __init__(self, axis, *, done: bool, result: bool) -> None:
+    def __init__(self, axis: Axes, *, done: bool, result: bool) -> None:
         super().__init__()
         self._axis = axis
         self.done = done
@@ -36,10 +36,10 @@ class DrawContext(UserDict):
     def draw_text(self, x: float, y: float, text: str, **args: Any) -> None:
         self._axis.text(x, y, text, **args)
 
-    def draw_rectangle(self, corner: tuple[float, float], *, width: float, height: float, **args: Any):
+    def draw_rectangle(self, corner: tuple[float, float], *, width: float, height: float, **args: Any) -> None:
         self._axis.add_patch(Rectangle(corner, width=width, height=height, **args))
 
-    def draw_rectangles(self, points: Sequence[Square], **args: Any):
+    def draw_rectangles(self, points: Sequence[Square], **args: Any) -> None:
         args = {'facecolor': 'lightgrey', 'fill': True, **args}
         for row, column in points:
             self._axis.add_patch(Rectangle((column, row), width=1, height=1, **args))
@@ -52,20 +52,20 @@ class DrawContext(UserDict):
             xs.append(xs[0])
         self._axis.plot(xs, ys, **{'color': 'black', **kwargs})
 
-    def plot(self, xs, ys, **args: Any):
+    def plot(self, xs: Any, ys: Any, **args: Any) -> None:
         self._axis.plot(xs, ys, **args)
 
-    def draw_arrow(self, x: float, y: float, dx: float, dy: float, *, color: Optional[str] = None):
+    def draw_arrow(self, x: float, y: float, dx: float, dy: float, *, color: Optional[str] = None) -> None:
         self._axis.annotate('', xytext=(x, y), xy=(x + dx, y + dy),
                             arrowprops=dict(arrowstyle=f"->, head_width=.3, head_length=.3",
                                             color=color))
         # self._axis.arrow(x, y, dx, dy, **args)
 
-    def add_fancy_bbox(self, center, width, height, **args: Any):
+    def add_fancy_bbox(self, center, width, height, **args: Any) -> None:
         self._axis.add_patch(FancyBboxPatch(center, width=width, height=height, **args))
 
     def draw_outside(self, value: Any, htype: House.Type, row_or_column: int, *,
-                     is_right: bool = False, padding: float = 0, **args: Any):
+                     is_right: bool = False, padding: float = 0, **args: Any) -> None:
         args = {'fontsize': 20, 'weight': 'bold', **args}
 
         if htype == House.Type.ROW:

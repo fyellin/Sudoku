@@ -10,10 +10,10 @@ from typing import Any, ClassVar, Optional
 from cell import Cell, House, SmallIntSet
 from draw_context import DrawContext
 from feature import Feature, Square, SquaresParseable
-from features.possibilities_feature import PossibilitiesFeature
-from features.same_value_feature import SameValueFeature
 from grid import Grid
 from tools.itertool_recipes import pairwise
+from .possibilities_feature import PossibilitiesFeature
+from .same_value_feature import SameValueFeature
 
 
 class MagicSquareFeature(PossibilitiesFeature):
@@ -51,7 +51,7 @@ class AdjacentRelationshipFeature:
 
     @classmethod
     def create(cls, squares: SquaresParseable, *, match: Callable[[int, int], bool],
-               prefix: Optional[str] = None, cyclic: bool = False):
+               prefix: Optional[str] = None, cyclic: bool = False) -> Sequence[Feature]:
         squares = Feature.parse_squares(squares)
 
         features: list[Feature]
@@ -166,7 +166,7 @@ class LimitedValuesFeature(Feature):
         odds = cls.parse_squares(odds)
         evens = cls.parse_squares(evens)
 
-        def draw_function(context):
+        def draw_function(context) -> None:
             for row, column in evens:
                 context.draw_rectangle((column + .1, row + .1), width=.8, height=.8, color='lightgray', fill=True)
             for row, column in odds:

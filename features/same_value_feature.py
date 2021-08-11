@@ -162,7 +162,7 @@ class SameValueHandler(Feature):
               '#808000', '#ffd8b1', '#000075', '#a9a9a9', '#000000')
 
     equivalences: dict[_Equivalence, bool]  # Using the fact that dictionaries remember the order items are added.
-    __union_find: UnionFind
+    __union_find: UnionFind[Cell]
     __token_to_equivalence: dict[Cell, _Equivalence]
     __colors: deque[str]
 
@@ -199,11 +199,11 @@ class SameValueHandler(Feature):
         else:
             return cell,
 
-    def group_same_value_cells(self, cells: Sequence[Cell]) -> Sequence[frozenset(Cell)]:
-        map = defaultdict(set)
+    def group_same_value_cells(self, cells: Sequence[Cell]) -> Sequence[frozenset[Cell]]:
+        mapper = defaultdict(set)
         for cell in cells:
-            map[self.__union_find.find(cell)].add(cell)
-        return [frozenset(values) for values in map.values() if len(values) > 1]
+            mapper[self.__union_find.find(cell)].add(cell)
+        return [frozenset(values) for values in mapper.values() if len(values) > 1]
 
     def add_equivalence_internal(self, equivalence: _Equivalence) -> None:
         for a, b in pairwise(equivalence.cells):
@@ -265,5 +265,5 @@ class SameValueHandler(Feature):
                 continue
             color = equivalence.color = equivalence.color or self.__colors.popleft()
             for cell in equivalence.cells:
-                y, x = cell.index
+                y, x = cell.square
                 context.draw_circle((x + .5, y + .2), radius=.1, fill=True, color=color)

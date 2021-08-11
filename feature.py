@@ -86,7 +86,7 @@ class Feature(abc.ABC):
         return self.grid.matrix[square]
 
     def neighbors_from_offsets(self, cell: Cell, offsets: Iterable[Square]) -> Iterable[Cell]:
-        row, column = cell.index
+        row, column = cell.square
         for dr, dc in offsets:
             if 1 <= row + dr <= 9 and 1 <= column + dc <= 9:
                 yield self.grid.matrix[row + dr, column + dc]
@@ -132,7 +132,7 @@ class Feature(abc.ABC):
         return temp[0]
 
     @staticmethod
-    def get_house_squares(htype, index):
+    def get_house_squares(htype, index) -> Sequence[Square]:
         if htype == House.Type.ROW:
             return [(index, i) for i in range(1, 10)]
         if htype == House.Type.COLUMN:
@@ -147,7 +147,7 @@ class Feature(abc.ABC):
         assert False, f'Bad argument {htype}'
 
     @staticmethod
-    def box_for_square(square) -> int:
+    def box_for_square(square: Square) -> int:
         row, column = square
         return 3 * ((row - 1) // 3) + ((column - 1) // 3) + 1
 
@@ -156,16 +156,16 @@ class Feature(abc.ABC):
         return cast(Iterable[Square], product(range(1, 10), repeat=2))
 
     @classmethod
-    def has_neighbor_method(cls):
+    def has_neighbor_method(cls) -> bool:
         return cls.get_neighbors != Feature.get_neighbors or \
             cls.get_neighbors_for_value != Feature.get_neighbors_for_value
 
     @classmethod
-    def has_check_method(cls):
+    def has_check_method(cls) -> bool:
         return cls.check != Feature.check or cls.check_special != Feature.check_special
 
     @classmethod
-    def has_any_pair_method(cls):
+    def has_any_pair_method(cls) -> bool:
         return cls.get_weak_pairs != Feature.get_weak_pairs or cls.get_strong_pairs != Feature.get_strong_pairs or \
                cls.get_xor_pairs != Feature.get_xor_pairs
 
@@ -185,7 +185,7 @@ class Feature(abc.ABC):
 
 
 @atexit.register
-def print_counters():
+def print_counters() -> None:
     total = Feature.check_called + Feature.check_elided
     if total > 0:
         elision = 100.0 * Feature.check_elided / total

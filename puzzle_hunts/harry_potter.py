@@ -14,7 +14,7 @@ from grid import Grid
 from human_sudoku import Sudoku
 
 
-class  MalvoloRingFeature:
+class MalvoloRingFeature:
     SQUARES = ((2, 4), (2, 5), (2, 6), (3, 7), (4, 8), (5, 8), (6, 8), (7, 7),
                (8, 6), (8, 5), (8, 4), (7, 3), (6, 2), (5, 2), (4, 2), (3, 3))
 

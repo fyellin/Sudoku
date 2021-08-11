@@ -4,13 +4,14 @@ import functools
 import itertools
 import operator
 from collections.abc import Iterator, Sequence
+from dataclasses import dataclass, field
 from enum import Enum, auto
-from typing import AbstractSet, Final, Iterable, NamedTuple, Optional, TYPE_CHECKING
+from typing import AbstractSet, ClassVar, Final, Iterable, NamedTuple, Optional, TYPE_CHECKING
 
 from color import Color
 
 if TYPE_CHECKING:
-    from feature import Feature
+    from feature import Feature, Square
     from grid import Grid
 
 
@@ -23,10 +24,15 @@ class SmallIntSet:
                      for bits in [functools.reduce(operator.__or__, (1 << i for i in items), 0)]
                      }
 
-    def __init__(self, items: int | Iterable[int] = 0):
+    @staticmethod
+    def get_full_cell() -> SmallIntSet:
+        # (1 << 1) + ... (1 << 9).  Note, there is no 1 << 0
+        return SmallIntSet(1022)
+
+    def __init__(self, items: int | Iterable[int] = 0) -> None:
         self.set_to(items)
 
-    def set_to(self, items: int | Iterable[int]):
+    def set_to(self, items: int | Iterable[int]) -> None:
         if isinstance(items, int):
             self.bits = items
         else:
@@ -40,10 +46,10 @@ class SmallIntSet:
     def clear(self) -> None:
         self.bits = 0
 
-    def discard(self, item: int):
+    def discard(self, item: int) -> None:
         self.bits &= ~(1 << item)
 
-    def remove(self, item: int):
+    def remove(self, item: int) -> None:
         if not self.bits & (1 << item):
             raise KeyError('item not in set')
         self.bits &= ~(1 << item)
@@ -53,7 +59,7 @@ class SmallIntSet:
         assert len(items) == 1
         return items[0]
 
-    def copy(self):
+    def copy(self) -> SmallIntSet:
         return SmallIntSet(self.bits)
 
     @classmethod
@@ -73,6 +79,9 @@ class SmallIntSet:
 
     def __len__(self) -> int:
         return len(self.BITS_TO_TUPLE[self.bits])
+
+    def as_sorted_tuple(self) -> tuple[int]:
+        return self.BITS_TO_TUPLE[self.bits]
 
     def __sub__(self, other: SmallIntSet | Iterable[int]) -> SmallIntSet:
         other_bits = other.bits if isinstance(other, SmallIntSet) else self.__to_bits(other)
@@ -104,17 +113,18 @@ class SmallIntSet:
         elements = [str(x) for x in self]
         return "/" + "".join(elements) + "/"
 
-    def __eq__(self, other: SmallIntSet):
+    def __eq__(self, other: SmallIntSet) -> bool:
         return self.bits == other.bits
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(self.bits)
 
     @staticmethod
-    def __to_bits(items):
+    def __to_bits(items: Iterable[int]) -> int:
         return functools.reduce(operator.__or__, (1 << i for i in items), 0)
 
 
+@dataclass
 class House:
     class Type(Enum):
         ROW = auto()
@@ -123,27 +133,16 @@ class House:
         EXTRA = auto()
         EGG = auto()
 
-    house_type: Final[House.Type]
-    index: Final[int]
-    cells: Final[Sequence[Cell]]
-    unknown_values: SmallIntSet
-    unknown_cells: set[Cell]
+    house_type: House.Type
+    house_index: int
+    cells: Sequence[Cell]
+    unknown_cells: set[Cell] = field(init=False)
+    unknown_values: SmallIntSet = field(default_factory=SmallIntSet.get_full_cell)
 
-    def __init__(self, house_type: House.Type, index: int, cells: Sequence[Cell]) -> None:
-        self.house_type = house_type
-        self.index = index
-        self.cells = cells
-        self.unknown_values = SmallIntSet()
-        self.unknown_cells = set()
+    def __post_init__(self):
+        self.unknown_cells = set(self.cells)
         for cell in self.cells:
             cell.houses.append(self)
-
-    def start(self) -> None:
-        self.unknown_values = SmallIntSet(range(1, 10))
-        self.unknown_cells = set(self.cells)
-
-    def __repr__(self) -> str:
-        return self.house_type.name.title()[:3] + " " + str(self.index)
 
     def set_value_to(self, cell: Cell, value: int) -> None:
         try:
@@ -153,30 +152,29 @@ class House:
             print(f'Cannot remove {value} from {cell} in {self}')
             raise
 
+    def __repr__(self) -> str:
+        return self.house_type.name.title()[:3] + " " + str(self.house_index)
+
+    def __eq__(self, other) -> bool:
+        return self is other
+
+    def __hash__(self) -> int:
+        return id(self)
+
     def __lt__(self, other: 'House') -> bool:
-        return (self.house_type, self.index) < (other.house_type, other.index)
+        return (self.house_type, self.house_index) < (other.house_type, other.house_index)
 
 
+@dataclass
 class Cell:
-    houses: Final[list[House]]
-    index: Final[tuple[int, int]]
-    neighbors: frozenset[Cell]
-    grid: Final[grid]
+    PROTOTYPE_CELL: ClassVar[SmallIntSet] = SmallIntSet(range(1, 10))
 
-    known_value: Optional[int]
-    possible_values: SmallIntSet
-
-    def __init__(self, row: int, column: int, grid: Grid) -> None:
-        self.index = (row, column)
-        self.grid = grid
-        self.known_value = None
-        self.possible_values = SmallIntSet(range(1, 10))
-        self.neighbors = frozenset()  # Filled in later
-        self.houses = []
-
-    def start(self) -> None:
-        self.known_value = None
-        self.possible_values = SmallIntSet(range(1, 10))
+    square: Square
+    grid: Grid
+    houses: Final[list[House]] = field(default_factory=list)  # Can this be left uninitialized?
+    neighbors: frozenset[Cell] = field(default_factory=frozenset)  # Can this be left uninitialized?
+    known_value: Optional[int] = None
+    possible_values: SmallIntSet = field(default_factory=SmallIntSet.get_full_cell)
 
     def set_value_to(self, value: int, *, show: bool = False) -> str:
         for house in self.houses:
@@ -260,11 +258,11 @@ class Cell:
         return (cell for cell in self.neighbors if other.is_neighbor(cell))
 
     def __repr__(self) -> str:
-        row, column = self.index
+        row, column = self.square
         return f"r{row}c{column}"
 
     def possible_value_string(self) -> str:
-        return ''.join(str(i) for i in sorted(self.possible_values))
+        return ''.join(str(i) for i in self.possible_values)
 
     def __hash__(self) -> int:
         return id(self)
@@ -273,7 +271,7 @@ class Cell:
         return self is other
 
     def __lt__(self, other: Cell) -> bool:
-        return self.index < other.index
+        return self.square < other.square
 
     @staticmethod
     def __deleted(i: int) -> str:
@@ -282,7 +280,7 @@ class Cell:
     @staticmethod
     def remove_value_from_cells(cells: Iterable[Cell], value: int, *, show: bool = True) -> None:
         for cell in cells:
-            foo = ''.join((Cell.__deleted(i) if i == value else str(i)) for i in sorted(cell.possible_values))
+            foo = ''.join((Cell.__deleted(i) if i == value else str(i)) for i in cell.possible_values)
             cell.possible_values.remove(value)
             assert cell.possible_values
             if show:
@@ -294,7 +292,7 @@ class Cell:
             values = SmallIntSet(values)
         for cell in cells:
             if show:
-                foo = ''.join((Cell.__deleted(i) if i in values else str(i)) for i in sorted(cell.possible_values))
+                foo = ''.join((Cell.__deleted(i) if i in values else str(i)) for i in cell.possible_values)
                 print(f'  {cell} = {foo}')
             cell.possible_values -= values
             assert cell.possible_values
@@ -305,8 +303,7 @@ class Cell:
             values = SmallIntSet(values)
         for cell in cells:
             if show:
-                output = ''.join((Cell.__deleted(i) if i not in values else str(i))
-                                 for i in sorted(cell.possible_values))
+                output = ''.join((Cell.__deleted(i) if i not in values else str(i)) for i in cell.possible_values)
                 print(f'  {cell} = {output}')
             cell.possible_values &= values
             assert cell.possible_values
