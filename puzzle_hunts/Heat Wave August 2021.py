@@ -6,7 +6,7 @@ from typing import Union
 
 from draw_context import DrawContext
 from feature import Feature, Square
-from features.thermometer import SlowThermometerFeature, TestSlowThermometerFeature, ThermometerFeature
+from features.thermometer import SlowThermometerFeature, ThermometerFeature
 from human_sudoku import Sudoku
 
 
@@ -138,10 +138,10 @@ def puzzle_8() -> tuple[str, Sequence[Feature]]:
     grid = "X5..--X4..--XX7..--X-74...2"
     grid = grid.replace("X", '---').replace('-', '...')
     features = [
-        *TestSlowThermometerFeature.create("91,NE,NE,NE,NE,NE,NE,NE,NE"),
-        *TestSlowThermometerFeature.create("24,NE,E,SE,SE,SE,S,SW,SW"),
-        *TestSlowThermometerFeature.create("35,S,SW,SW,SW,SE,NE,NE,NE"),
-        *TestSlowThermometerFeature.create("76,NE,NE,NW,NW,NW,SW,SW,SW"),
+        SlowThermometerFeature("91,NE,NE,NE,NE,NE,NE,NE,NE"),
+        SlowThermometerFeature("24,NE,E,SE,SE,SE,S,SW,SW"),
+        SlowThermometerFeature("35,S,SW,SW,SW,SE,NE,NE,NE"),
+        SlowThermometerFeature("76,NE,NE,NW,NW,NW,SW,SW,SW"),
         DrawLetterFeature("14", name="H")
     ]
 
@@ -211,10 +211,14 @@ def puzzle_10() -> tuple[str, Sequence[Feature]]:
 def run() -> None:
     start = datetime.datetime.now()
 
-    puzzles = [puzzle_1,
-               puzzle_2,
-               puzzle_3, puzzle_4, puzzle_5, puzzle_6, puzzle_7, puzzle_8, puzzle_9, puzzle_10
-               ]
+    puzzles = [
+        puzzle_1,
+        puzzle_2,
+        puzzle_3,
+        puzzle_4,
+        puzzle_5, puzzle_6, puzzle_7,
+        puzzle_8, puzzle_9, puzzle_10
+        ]
     for puzzle in puzzles:
         grid, features = puzzle()
         print()

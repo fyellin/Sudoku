@@ -447,7 +447,6 @@ class Sudoku:
                     for cv4, house4 in cv3.get_strong_pairs_extended():
                         if house4 == house3 or cv4 == cv1 or cv4 == cv2:
                             continue
-                        print(cv1, cv2, cv3, cv4)
                         fixers = []
                         cell1, value1 = cv1
                         cell4, value4 = cv4

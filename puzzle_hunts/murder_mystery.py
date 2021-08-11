@@ -8,7 +8,7 @@ from feature import Feature, Square, SquaresParseable
 from features.chess_move import KingsMoveFeature, KnightsMoveFeature, QueensMoveFeature, TaxicabFeature
 from features.features import AdjacentNotConsecutiveFeature, AlternativeBoxesFeature, \
     BoxOfNineFeature, CloneBoxFeature, \
-    KillerCageFeature, MessageFeature, PalindromeFeature, XVFeature
+    KillerCageFeature, MessageFeature, XVFeature, PalindromeFeature
 from features.possibilities_feature import PossibilitiesFeature
 from features.sandwich_feature import SandwichFeature
 from features.thermometer import ThermometerAsLessThanFeature, ThermometerFeature
@@ -241,7 +241,7 @@ def act_4(box1: int = 1, box2: int = 9) -> tuple[str, Sequence[Feature]]:
     # Success occurs with boxes 1 and 9
 
     features = [
-        *CloneBoxFeature.create(box1, box2),
+        CloneBoxFeature(box1, box2),
         FakeKillerCageFeature("4,4,S,S,NE,NE,S,S"),
         DumpResultFeature(),
     ]
@@ -325,8 +325,8 @@ def act_9() -> tuple[str, Sequence[Feature]]:
     # KillerCageFeature(12, [(3, 5), (3, 6), (4, 6), (4, 5)])
 
     features = [
-        *MessageFeature.create("HELLSERVELONG", "15,SE,SE,SE,44,SE,SE,SE,SE,63,SE,SE,SE"),
-        *PalindromeFeature.create("43,NW,S,S,S,S,NE,E,SE,NE,E,SE,N,N,N,N,SW,W,NW,SW,S"),
+        MessageFeature("HELLSERVELONG", "15,SE,SE,SE,44,SE,SE,SE,SE,63,SE,SE,SE"),
+        PalindromeFeature("43,NW,S,S,S,S,NE,E,SE,NE,E,SE,N,N,N,N,SW,W,NW,SW,S"),
         FakeKillerCageFeature("35,E,S,W"),
         DumpResultFeature(),
         # SameValueFeature("62,55"),

@@ -59,7 +59,8 @@ class PossibilitiesFeature(Feature):
         possibility_info = PossibilityInfo(grid=self.grid, cells=cells, possibilities=possibilities, name=self.name)
         self.grid.possibilities_handler.add_info(possibility_info)
 
-    def __remove_bad_neighbors(self, cells, possibilities: list[Possibility]) -> list[Possibility]:
+    @classmethod
+    def __remove_bad_neighbors(cls, cells, possibilities: list[Possibility]) -> list[Possibility]:
         for (index1, cell1), (index2, cell2) in combinations(enumerate(cells), 2):
             if cell1.square == cell2.square:
                 # For some reason, we have the same cell repeated twice
@@ -67,6 +68,37 @@ class PossibilitiesFeature(Feature):
             elif cell1.is_neighbor(cell2):
                 possibilities = [p for p in possibilities if p[index1] != p[index2]]
         return possibilities
+
+
+class AdjacentRelationshipFeature(Feature, abc.ABC):
+    squares: Sequence[Square]
+    cyclic: bool
+
+    def __init__(self, squares: SquaresParseable, cyclic: bool = False, prefix: Optional[str] = None) -> None:
+        self.squares = self.parse_squares(squares)
+        self.cyclic = cyclic
+        super().__init__(prefix = prefix)
+
+    def start(self) -> None:
+        squares, cyclic, match = self.squares, self.cyclic, self.match
+        if len(squares) == 2:
+            pairs = [(i, j) for i, j in product(range(1, 10), repeat=2)
+                     if match(i, j) and (not cyclic or match(j, i))]
+            features = [PossibilitiesFeature(self.squares, prefix=self.name, neighbors=True,
+                                             possibility_function=lambda: pairs)]
+        else:
+            x_squares = squares if not cyclic else list(chain(squares, squares[0:2]))
+            triples = [(i, j, k) for i, j, k in product(range(1, 10), repeat=3) if match(i, j) and match(j, k)]
+            features = [PossibilitiesFeature(x_squares[i:i + 3], prefix=self.name, neighbors=True,
+                                             possibility_function=lambda: triples)
+                        for i in range(0, len(x_squares) - 2)]
+        for feature in features:
+            feature.initialize(self.grid)
+            feature.start()
+
+    @abc.abstractmethod
+    def match(self, i: int, j: int) -> bool:
+        raise NotImplementedError()
 
 
 @dataclass(eq=False)
@@ -248,7 +280,7 @@ class PossibilityInfo:
                 return False
         for index1, index2 in hopefuls:
             cell1, cell2 = self.cells[index1], self.cells[index2]
-            same_value_handler.make_cells_same_value(cell1, cell2, f'{cell1}={cell2} {self}')
+            same_value_handler.make_cells_same_value(cell1, cell2, name=f'{cell1}={cell2} {self}')
             self.__known_identical_cells.union(cell1, cell2)
         return True
 

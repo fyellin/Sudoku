@@ -12,7 +12,7 @@ from cell import Cell, SmallIntSet
 from draw_context import DrawContext
 from feature import Feature, Square, SquaresParseable
 from grid import Grid
-from tools.itertool_recipes import pairwise, unique_everseen
+from tools.itertool_recipes import pairwise, unique_everseen, all_equal
 from tools.union_find import UnionFind
 
 
@@ -182,13 +182,13 @@ class SameValueHandler(Feature):
         # Copy the list before iterating, as items may delete themselves.
         return any(equivalence.check_special() for equivalence in list(self.equivalences))
 
-    def are_cells_same_value(self, cell1: Cell, cell2: Cell) -> bool:
-        return self.__union_find.find(cell1) == self.__union_find.find(cell2)
+    def are_cells_same_value(self, *cells: Cell) -> bool:
+        return all_equal(self.__union_find.find(cell) for cell in cells)
 
-    def make_cells_same_value(self, cell1: Cell, cell2: Cell, name: str) -> bool:
-        if self.are_cells_same_value(cell1, cell2):
+    def make_cells_same_value(self, *cells: Cell, name: str) -> bool:
+        if self.are_cells_same_value(*cells):
             return False
-        equivalence = _Equivalence(grid=self.grid, cells=(cell1, cell2), name=name)
+        equivalence = _Equivalence(grid=self.grid, cells=cells, name=name)
         self.add_equivalence_internal(equivalence)
 
     def get_all_same_value_cells(self, cell: Cell) -> tuple[Cell]:

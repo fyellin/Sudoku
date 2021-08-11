@@ -5,14 +5,14 @@ from typing import Optional, cast
 
 from cell import Cell, House, SmallIntSet
 from draw_context import DrawContext
-from feature import Feature, Square, SquaresParseable
+from feature import Feature, Square
 from features.chess_move import KingsMoveFeature, KnightsMoveFeature, LittlePrincessFeature, QueensMoveFeature
-from features.features import AdjacentNotConsecutiveFeature, AdjacentRelationshipFeature, AlternativeBoxesFeature, \
-    ArithmeticFeature, ArrowSumFeature, BoxOfNineFeature, DrawOnlyFeature, ExtremeEndpointsFeature, \
+from features.features import AdjacentNotConsecutiveFeature, AlternativeBoxesFeature, \
+    ArithmeticFeature, ArrowSumFeature, BoxOfNineFeature, ExtremeEndpointsFeature, \
     KillerCageFeature, \
-    LimitedValuesFeature, MagicSquareFeature, PalindromeFeature, RenbanFeature, ValuesAroundIntersectionFeature, \
-    XVFeature
-from features.possibilities_feature import HousePossibilitiesFeature, PossibilitiesFeature
+    LimitedValuesFeature, MagicSquareFeature, RenbanFeature, ValuesAroundIntersectionFeature, \
+    XVFeature, PalindromeFeature
+from features.possibilities_feature import HousePossibilitiesFeature, PossibilitiesFeature, AdjacentRelationshipFeature
 from features.same_value_as_mate_feature import SameValueAsMateFeature
 from features.sandwich_feature import SandwichFeature, SandwichXboxFeature
 from features.skyscraper_feature import SkyscraperFeature
@@ -28,9 +28,6 @@ class Pieces44(Feature):
     class Egg(House):
         def __init__(self, index: int, cells: Sequence[Cell]) -> None:
             super().__init__(House.Type.EGG, index, cells)
-
-        def start(self) -> None:
-            super().start()
             self.unknown_values = SmallIntSet(range(2, 10))
             Cell.remove_values_from_cells(self.cells, {1}, show=False)
 
@@ -372,20 +369,20 @@ def puzzle_08_15() -> tuple[str, Sequence[Feature]]:
 
 
 def puzzle_08_26() -> tuple[str, Sequence[Feature]]:
-    primes = {2, 3, 5, 7, 11, 13, 17}
+    class PrimeRing(AdjacentRelationshipFeature):
+        PRIMES = {2, 3, 5, 7, 11, 13, 17}
 
-    def create_prime_ring(squares: SquaresParseable) -> Sequence[Square]:
-        return [
-            *AdjacentRelationshipFeature.create(squares, prefix="Prime", cyclic=True,
-                                                match=lambda i, j: i + j in primes),
-            DrawOnlyFeature(lambda context: context.draw_line(squares, closed=True, color='red', linewidth=5)),
-        ]
+        def match(self, i: int, j: int) -> bool:
+            return i + j in self.PRIMES
+
+        def draw(self, context: DrawContext) -> None:
+            context.draw_line(self.squares, closed=True, color='red', linewidth=5)
 
     columns = (21, 25, 11, 0, 35, 23, 13, 4, 18)
     rows = (13, 13, 6, 9, 0, 29, 2, 13, 2)
     features = [
         ThermometerFeature("37,S,S,S,S"),
-        create_prime_ring("22,E,E,S,E,E,N,E,E,S,S,W,S,S,E,S,S,W,W,N,W,W,S,W,W,N,N,E,N,N,W,N"),
+        PrimeRing("22,E,E,S,E,E,N,E,E,S,S,W,S,S,E,S,S,W,W,N,W,W,S,W,W,N,N,E,N,N,W,N"),
         *[SandwichFeature(House.Type.ROW, row, total) for row, total in enumerate(rows, start=1)],
         *[SandwichFeature(House.Type.COLUMN, col, total) for col, total in enumerate(columns, start=1)],
     ]
@@ -426,43 +423,42 @@ def puzzle_09_03() -> tuple[str, Sequence[Feature]]:
 
 
 def puzzle_09_05() -> tuple[str, Sequence[Feature]]:
-    class DeltaFeature:
-        @classmethod
-        def create(cls, square: Square, delta: int, is_right: bool):
+    class DeltaFeature(AdjacentRelationshipFeature):
+        delta: int
+
+        def __init__(self, square: Square, delta: int, is_right: bool):
             row, column = square
             square2 = (row, column + 1) if is_right else (row + 1, column)
+            super().__init__([square, square2], prefix="Delta")
+            self.delta = delta
 
-            def draw(context):
-                (r1, c1), (r2, c2) = (square, square2)
-                context.draw_text((c1 + c2 + 1) / 2, (r1 + r2 + 1) / 2, str(delta),
-                                  va='center', ha='center', fontsize=15, weight='bold', color='red')
+        def match(self, i: int, j: int):
+            return abs(i - j) == self.delta
 
-            return [
-                *AdjacentRelationshipFeature.create((square, square2), prefix='d',
-                                                    match=lambda i, j: abs(i - j) == delta),
-                DrawOnlyFeature(draw)
-            ]
+        def draw(self, context: DrawContext) -> None:
+            (r1, c1), (r2, c2) = self.squares
+            context.draw_text((c1 + c2 + 1) / 2, (r1 + r2 + 1) / 2, str(self.delta),
+                              va='center', ha='center', fontsize=15, weight='bold', color='red')
 
     features = [
-        *DeltaFeature.create((2, 3), 1, True),
-        *DeltaFeature.create((2, 6), 1, True),
-        *DeltaFeature.create((3, 3), 7, True),
-        *DeltaFeature.create((3, 6), 7, True),
-        *DeltaFeature.create((4, 3), 5, True),
-        *DeltaFeature.create((4, 6), 5, True),
-        *DeltaFeature.create((6, 2), 1, True),
-        *DeltaFeature.create((6, 7), 2, True),
-        *DeltaFeature.create((1, 5), 8, False),
-        *DeltaFeature.create((2, 1), 4, False),
-        *DeltaFeature.create((2, 9), 4, False),
-        *DeltaFeature.create((3, 2), 6, False),
-        *DeltaFeature.create((3, 8), 6, False),
-        *DeltaFeature.create((4, 5), 3, False),
-        *DeltaFeature.create((7, 1), 1, False),
-        *DeltaFeature.create((7, 9), 2, False),
-        *DeltaFeature.create((8, 2), 1, False),
-        *DeltaFeature.create((8, 8), 2, False),
-
+        DeltaFeature((2, 3), 1, True),
+        DeltaFeature((2, 6), 1, True),
+        DeltaFeature((3, 3), 7, True),
+        DeltaFeature((3, 6), 7, True),
+        DeltaFeature((4, 3), 5, True),
+        DeltaFeature((4, 6), 5, True),
+        DeltaFeature((6, 2), 1, True),
+        DeltaFeature((6, 7), 2, True),
+        DeltaFeature((1, 5), 8, False),
+        DeltaFeature((2, 1), 4, False),
+        DeltaFeature((2, 9), 4, False),
+        DeltaFeature((3, 2), 6, False),
+        DeltaFeature((3, 8), 6, False),
+        DeltaFeature((4, 5), 3, False),
+        DeltaFeature((7, 1), 1, False),
+        DeltaFeature((7, 9), 2, False),
+        DeltaFeature((8, 2), 1, False),
+        DeltaFeature((8, 8), 2, False),
     ]
     # noinspection SpellCheckingInspection
     puzzle = "XXXXXX.921.738.-3.9-X".replace("X", "---").replace("-", "...")
@@ -651,16 +647,16 @@ def puzzle_2021_07_31() -> tuple[str, Sequence[Feature]]:
 
 def puzzle_2021_08_02() -> tuple[str, Sequence[Feature]]:
     features = [
-        *ArithmeticFeature.create("14", "6-"),
-        *ArithmeticFeature.create("15", "11+"),
-        *ArithmeticFeature.create("16", "2"),
-        *ArithmeticFeature.create("22", "4-"),
-        *ArithmeticFeature.create("37", "2/"),
-        *ArithmeticFeature.create("61", "13+"),
-        *ArithmeticFeature.create("63", "?/"),
-        *ArithmeticFeature.create("66", "?x"),
-        *ArithmeticFeature.create("68", "7+"),
-        *ArithmeticFeature.create("73", "359"),
+        ArithmeticFeature.get("14", "6-"),
+        ArithmeticFeature.get("15", "11+"),
+        ArithmeticFeature.get("16", "2"),
+        ArithmeticFeature.get("22", "4-"),
+        ArithmeticFeature.get("37", "2/"),
+        ArithmeticFeature.get("61", "13+"),
+        ArithmeticFeature.get("63", "?/"),
+        ArithmeticFeature.get("66", "?x"),
+        ArithmeticFeature.get("68", "7+"),
+        ArithmeticFeature.get("73", "359"),
         ]
     return BLANK_GRID, features
 
@@ -674,8 +670,8 @@ def puzzle_2021_08_03() -> tuple[str, Sequence[Feature]]:
         KillerCageFeature(30, "88,E,S,W"),
         KillerCageFeature(7, "83,S"),
         ThermometerAsLessThanFeature("91,92"),
-        *PalindromeFeature.create("73,N,N,N,N,E,E,E,E"),
-        *PalindromeFeature.create("74,E,E,E,N,N,N"),
+        PalindromeFeature("73,N,N,N,N,E,E,E,E"),
+        PalindromeFeature("74,E,E,E,N,N,N"),
         KnightsMoveFeature(),
         ]
     return BLANK_GRID, features
@@ -712,7 +708,7 @@ def puzzle_2021_08_04() -> tuple[str, Sequence[Feature]]:
 
 def main():
     start = datetime.datetime.now()
-    grid, features = puzzle_2021_07_10()
+    grid, features = puzzle_2021_08_02()
     Sudoku().solve(grid, features=features, initial_only=False, medusa=True, guides=1)
     end = datetime.datetime.now()
     print(end - start)

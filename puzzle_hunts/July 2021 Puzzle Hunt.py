@@ -6,8 +6,9 @@ from draw_context import DrawContext
 from feature import Feature, Square
 from features.chess_move import KingsMoveFeature, KnightsMoveFeature
 from features.features import AdjacentNotConsecutiveFeature, ArrowSumFeature, \
-    BoxOfNineFeature, ExtremeEndpointsFeature, KillerCageFeature, KropkeDotFeature, LimitedValuesFeature, \
-    LittleKillerFeature, LocalMinOrMaxFeature, PalindromeFeature, ValuesAroundIntersectionFeature, XVFeature
+    BoxOfNineFeature, ExtremeEndpointsFeature, KillerCageFeature, LimitedValuesFeature, \
+    LittleKillerFeature, LocalMinOrMaxFeature, ValuesAroundIntersectionFeature, XVFeature, \
+    KropkeDotFeature, PalindromeFeature
 from features.same_value_feature import SameValueFeature
 from features.sandwich_feature import SandwichFeature
 from features.thermometer import ThermometerFeature
@@ -99,7 +100,7 @@ def puzzle_7() -> tuple[str, Sequence[Feature]]:
                    "7,1,NE,E", "7,2,E,NE", "7,4,E,NE", "7,6,NE,E", "7,7,E, NE"]
     features = [
         DrawCircleFeature([(1, 3), (1, 7), (2, 5), (5, 2), (5, 8), (8, 1), (8, 9), (9, 4), (9, 6)]),
-        *[f for descriptor in palindromes for f in PalindromeFeature.create(descriptor, color='gray')],
+        *[PalindromeFeature(descriptor, color='gray') for descriptor in palindromes],
     ]
     return puzzle, features
 
@@ -261,13 +262,13 @@ def puzzle_16() -> tuple[str, Sequence[Feature]]:
     circles = [(r, c) for (r, c), letter in zip(itertools.product(range(1, 10), repeat=2), grid) if letter == 'O']
     features = [
         DrawCircleFeature(circles),
-        *KropkeDotFeature.create("3,1,N,E,N,E", color='white'),
-        *KropkeDotFeature.create("5,1,E,N,E,N,E,N,E,N", color='black'),
-        *KropkeDotFeature.create("6,3,N,E,N,E,N,E", color='white'),
-        *KropkeDotFeature.create("8,6,E,N,E,N", color='black'),
-        *KropkeDotFeature.create("9,8,N,E", color="white"),
-        *KropkeDotFeature.create("9,1,E", color="white"),
-        *KropkeDotFeature.create("1,8,E", color='black'),
+        KropkeDotFeature("3,1,N,E,N,E", color='white'),
+        KropkeDotFeature("5,1,E,N,E,N,E,N,E,N", color='black'),
+        KropkeDotFeature("6,3,N,E,N,E,N,E", color='white'),
+        KropkeDotFeature("8,6,E,N,E,N", color='black'),
+        KropkeDotFeature("9,8,N,E", color="white"),
+        KropkeDotFeature("9,1,E", color="white"),
+        KropkeDotFeature("1,8,E", color='black'),
     ]
     return puzzle, features
 
@@ -368,14 +369,14 @@ def puzzle_20() -> tuple[str, Sequence[Feature]]:
 
 def run() -> None:
     puzzles = [
-        puzzle_1, puzzle_2, puzzle_3, puzzle_4, puzzle_5, puzzle_6, puzzle_7, puzzle_8,
-        puzzle_9,
-        puzzle_10,
-        puzzle_11, puzzle_12,
-        puzzle_13,
-        puzzle_14, puzzle_15,
-        puzzle_16,
-        puzzle_17, puzzle_18,
+        # puzzle_1, puzzle_2, puzzle_3, puzzle_4, puzzle_5, puzzle_6, puzzle_7, puzzle_8,
+        # puzzle_9,
+        # puzzle_10,
+        # puzzle_11, puzzle_12,
+        # puzzle_13,
+        # puzzle_14, puzzle_15,
+        # puzzle_16,
+        # puzzle_17, puzzle_18,
         puzzle_19,
         puzzle_20,
         ]

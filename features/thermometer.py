@@ -2,9 +2,8 @@ from itertools import combinations, combinations_with_replacement
 from typing import Iterable, Optional, Sequence, Union
 
 from draw_context import DrawContext
-from feature import Feature, Square, SquaresParseable
+from feature import Square, SquaresParseable
 from .chess_move import _draw_thermometer
-from .features import AdjacentRelationshipFeature, DrawOnlyFeature
 from .possibilities_feature import GroupedPossibilitiesFeature, PossibilitiesFeature
 
 
@@ -68,16 +67,6 @@ class ThermometerAsLessThanFeature(ThermometerFeature):
                           verticalalignment='center', horizontalalignment='center',
                           rotation=(90 if dx == 0 else 0),
                           fontsize=20, weight='bold')
-
-
-class TestSlowThermometerFeature:
-    @classmethod
-    def create(cls, squares: SquaresParseable, *, color: str = 'lightgrey') -> Sequence[Feature]:
-        squares = Feature.parse_squares(squares)
-        return [
-            *AdjacentRelationshipFeature.create(squares, match=lambda i, j: i <= j, prefix="Slow Thermometer"),
-            DrawOnlyFeature(lambda context: _draw_thermometer(squares, color, context)),
-        ]
 
 
 class SlowThermometerFeature(PossibilitiesFeature):
