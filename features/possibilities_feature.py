@@ -6,13 +6,14 @@ from collections import defaultdict
 from dataclasses import InitVar, dataclass, field
 from functools import cache
 from itertools import chain, combinations, permutations, product
-from typing import Callable, Iterable, Mapping, Optional, Sequence, Union
+from typing import Callable, Iterable, Mapping, Optional, Sequence
 
 from cell import Cell, CellValue, House, SmallIntSet
 from draw_context import DrawContext
 from feature import Feature, Square, SquaresParseable
 from grid import Grid
-from tools.union_find import Node
+from tools.itertool_recipes import all_equal, pairwise
+from tools.union_find import Node, UnionFind
 
 Possibility = tuple[int, ...]
 
@@ -83,10 +84,12 @@ class PossibilityInfo:
     __house_to_indexes: Mapping[House, list[int]] = field(init=False)
     # These cells have a known value, and we have verified that all possibilities use that value
     __verified_cells: set[Cell] = field(default_factory=set)
+    # These cells are known to have identical values in all possibilities
+    __known_identical_cells: UnionFind[Cell] = field(default_factory=UnionFind)
 
-    __check_cache: list[int] = field(default_factory=list)
-    __weak_pair_cache: list[int] = field(default_factory=list)
-    __strong_pair_cache: list[int] = field(default_factory=list)
+    __cells_at_last_call_to_check: list[int] = field(default_factory=list)
+    __weak_pair_cache_check: int = -1
+    __strong_pair_cache_check: int = -1
 
     def __post_init__(self, verbose):
         self.cells_as_set = set(self.cells)
@@ -98,7 +101,7 @@ class PossibilityInfo:
         self.__update_cells_for_possibilities(show=verbose)
 
     def check(self):
-        if not Feature.cells_changed_since_last_invocation(self.__check_cache, self.cells):
+        if not Feature.cells_changed_since_last_invocation(self.__cells_at_last_call_to_check, self.cells):
             return False
         old_length = len(self.possibilities)
         if old_length == 1:
@@ -118,20 +121,25 @@ class PossibilityInfo:
 
     def check_special(self) -> bool:
         return self.__handle_value_in_house_only_occurs_in_possibility() or \
-               self.__handle_must_be_equal()
+               self.__check_values_identical_in_all_possibilities() or \
+               self.__check_identical_cells()
 
     def get_weak_pairs(self, cell_value: CellValue) -> Iterable[CellValue]:
         if cell_value.cell not in self.cells_as_set:
             return ()
-        if Feature.cells_changed_since_last_invocation(self.__weak_pair_cache, self.cells):
+        length = len(self.possibilities)
+        if self.__weak_pair_cache_check != length:
             self.__get_weak_pairs.cache_clear()
+            self.__weak_pair_cache_check = length
         return self.__get_weak_pairs(cell_value)
 
     def get_strong_pairs(self, cell_value: CellValue) -> Iterable[CellValue]:
         if cell_value.cell not in self.cells_as_set:
             return ()
-        if Feature.cells_changed_since_last_invocation(self.__strong_pair_cache, self.cells):
+        length = len(self.possibilities)
+        if self.__strong_pair_cache_check != length:
             self.__get_strong_pairs.cache_clear()
+            self.__strong_pair_cache_check = length
         return self.__get_strong_pairs(cell_value)
 
     @cache
@@ -227,20 +235,47 @@ class PossibilityInfo:
                     change = True
         return change
 
-    def __handle_must_be_equal(self) -> bool:
+    def __check_values_identical_in_all_possibilities(self) -> bool:
+        """If two cells are identical in all possibilities, then we can guarantee they have the same value"""
         same_value_handler = self.grid.same_value_handler
         hopefuls = {(index1, index2)
                     for (index1, cell1), (index2, cell2) in combinations(enumerate(self.cells), 2)
-                    if not same_value_handler.are_cells_equivalent(cell1, cell2)}
+                    if not same_value_handler.are_cells_same_value(cell1, cell2)}
         for possibility in self.possibilities:
             deletions = {(ix1, ix2) for (ix1, ix2) in hopefuls if possibility[ix1] != possibility[ix2]}
             hopefuls -= deletions
             if not hopefuls:
                 return False
         for index1, index2 in hopefuls:
-            same_value_handler.make_cells_equivalent(self.cells[index1], self.cells[index2], "Twee")
+            cell1, cell2 = self.cells[index1], self.cells[index2]
+            same_value_handler.make_cells_same_value(cell1, cell2, f'{cell1}={cell2} {self}')
+            self.__known_identical_cells.union(cell1, cell2)
         return True
 
+    def __check_identical_cells(self) -> bool:
+        """If two cells are guaranteed to have the same value, we can prune possibilities down to just those
+        in which the cells are equal.
+        """
+        same_value_handler = self.grid.same_value_handler
+        groups = same_value_handler.group_same_value_cells(self.cells)
+        if not groups:
+            return False
+        updated = False
+        length = len(self.possibilities)
+        for group in groups:
+            if all_equal(self.__known_identical_cells.find(cell) for cell in group):
+                continue
+            [self.__known_identical_cells.union(cell1, cell2) for cell1, cell2 in pairwise(group)]
+            indexes = [self.cells.index(cell) for cell in group]
+            self.possibilities = [p for p in self.possibilities if all_equal(p[index] for index in indexes)]
+            if len(self.possibilities) < length:
+                print(f"Possibilities for {self} reduced from {length} to {len(self.possibilities)} "
+                      f"because  {'='.join(str(cell) for cell in group)}")
+                length = len(self.possibilities)
+                updated = True
+        if updated:
+            return self.__update_cells_for_possibilities()
+        return False
 
     def __handle_value_in_house_only_occurs_in_possibility(self) -> bool:
         """
@@ -269,6 +304,7 @@ class PossibilityInfo:
                     length = len(self.possibilities)
         if updated:
             return self.__update_cells_for_possibilities()
+        return False
 
     def __str__(self):
         return self.name
@@ -408,7 +444,7 @@ class GroupedPossibilitiesFeature(Feature, abc.ABC):
     possibilities: list[tuple[SmallIntSet, ...]]
     handle_neighbors: bool
     compressed: bool
-    __check_cache: list[int]
+    __cells_at_last_call_to_check: list[int]
 
     def __init__(self, squares: SquaresParseable, *,
                  name: Optional[str] = None, neighbors: bool = False, compressed: bool = False) -> None:
@@ -418,16 +454,16 @@ class GroupedPossibilitiesFeature(Feature, abc.ABC):
         self.squares = squares
         self.handle_neighbors = neighbors
         self.compressed = compressed
-        self.__check_cache = []
+        self.__cells_at_last_call_to_check = []
 
     @abc.abstractmethod
-    def get_possibilities(self) -> list[tuple[Union[SmallIntSet, Iterable[int], int], ...]]:
+    def get_possibilities(self) -> list[tuple[SmallIntSet | Iterable[int] | int], ...]:
         ...
 
     def start(self) -> None:
         self.cells = [self@square for square in self.squares]
 
-        def fixit_one(x: Union[SmallIntSet, Iterable[int], int]) -> SmallIntSet:
+        def fixit_one(x: SmallIntSet | Iterable[int] | int) -> SmallIntSet:
             if isinstance(x, int):
                 return SmallIntSet([x])
             elif isinstance(x, SmallIntSet):
@@ -435,7 +471,7 @@ class GroupedPossibilitiesFeature(Feature, abc.ABC):
             else:
                 return SmallIntSet(x)
 
-        def fixit(items: tuple[Union[SmallIntSet, Iterable[int], int], ...]) -> tuple[SmallIntSet, ...]:
+        def fixit(items: tuple[SmallIntSet | Iterable[int] | int, ...]) -> tuple[SmallIntSet, ...]:
             return tuple(fixit_one(item) for item in items)
 
         possibilities = list(fixit(x) for x in self.get_possibilities())
@@ -446,7 +482,7 @@ class GroupedPossibilitiesFeature(Feature, abc.ABC):
         self.__update_for_possibilities(False)
 
     def check(self) -> bool:
-        if not self.cells_changed_since_last_invocation(self.__check_cache, self.cells):
+        if not self.cells_changed_since_last_invocation(self.__cells_at_last_call_to_check, self.cells):
             return False
 
         old_length = len(self.possibilities)

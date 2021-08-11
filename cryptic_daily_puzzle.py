@@ -710,7 +710,7 @@ def puzzle_2021_08_04() -> tuple[str, Sequence[Feature]]:
 
 def main():
     start = datetime.datetime.now()
-    grid, features = puzzle_2021_08_04()
+    grid, features = puzzle_2021_07_10()
     Sudoku().solve(grid, features=features, initial_only=False, medusa=True, guides=1)
     end = datetime.datetime.now()
     print(end - start)

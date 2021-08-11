@@ -5,7 +5,7 @@ import itertools
 import operator
 from collections.abc import Iterator, Sequence
 from enum import Enum, auto
-from typing import AbstractSet, Final, Iterable, NamedTuple, Optional, TYPE_CHECKING, Union
+from typing import AbstractSet, Final, Iterable, NamedTuple, Optional, TYPE_CHECKING
 
 from color import Color
 
@@ -23,10 +23,10 @@ class SmallIntSet:
                      for bits in [functools.reduce(operator.__or__, (1 << i for i in items), 0)]
                      }
 
-    def __init__(self, items: Union[int, Iterable[int]] = 0):
+    def __init__(self, items: int | Iterable[int] = 0):
         self.set_to(items)
 
-    def set_to(self, items: Union[int, Iterable[int]]):
+    def set_to(self, items: int | Iterable[int]):
         if isinstance(items, int):
             self.bits = items
         else:
@@ -74,11 +74,11 @@ class SmallIntSet:
     def __len__(self) -> int:
         return len(self.BITS_TO_TUPLE[self.bits])
 
-    def __sub__(self, other: Union[SmallIntSet, Iterable[int]]) -> SmallIntSet:
+    def __sub__(self, other: SmallIntSet | Iterable[int]) -> SmallIntSet:
         other_bits = other.bits if isinstance(other, SmallIntSet) else self.__to_bits(other)
         return SmallIntSet(self.bits & ~other_bits)
 
-    def __isub__(self, other: Union[SmallIntSet, Iterable[int]]) -> SmallIntSet:
+    def __isub__(self, other: SmallIntSet | Iterable[int]) -> SmallIntSet:
         other_bits = other.bits if isinstance(other, SmallIntSet) else self.__to_bits(other)
         self.bits &= ~other_bits
         return self
@@ -222,7 +222,7 @@ class Cell:
         return next(house for house in self.houses if house.house_type == house_type)
 
     def get_equivalent_cells(self) -> tuple[Cell]:
-        return self.grid.same_value_handler.get_all_equivalent_cells(self)
+        return self.grid.same_value_handler.get_all_same_value_cells(self)
 
     def get_xor_pairs(self, value: int) -> Iterable[tuple[Cell, House]]:
         """A chain pair implies that exactly one of self=value or result=value is True."""
@@ -289,8 +289,7 @@ class Cell:
                 print(f'  {cell} = {foo}')
 
     @staticmethod
-    def remove_values_from_cells(cells: Iterable[Cell], values: Union[SmallIntSet, set[int]], *,
-                                 show: bool = True) -> None:
+    def remove_values_from_cells(cells: Iterable[Cell], values: SmallIntSet | set[int], *, show: bool = True) -> None:
         if isinstance(values, AbstractSet):
             values = SmallIntSet(values)
         for cell in cells:
@@ -301,8 +300,7 @@ class Cell:
             assert cell.possible_values
 
     @staticmethod
-    def keep_values_for_cell(cells: Iterable[Cell], values: Union[SmallIntSet, set[int]], *,
-                             show: bool = True) -> None:
+    def keep_values_for_cell(cells: Iterable[Cell], values: SmallIntSet | set[int], *, show: bool = True) -> None:
         if isinstance(values, AbstractSet):
             values = SmallIntSet(values)
         for cell in cells:
@@ -325,19 +323,19 @@ class CellValue(NamedTuple):
         char = '=' if truth else '≠'
         return f'{self.cell}{char}{self.value}'
 
-    def get_strong_pairs_extended(self) -> Iterable[tuple[CellValue, Union[House, Feature, bool]]]:
-        "if cell ≠ value, then what cells are forced to have a value"
+    def get_strong_pairs_extended(self) -> Iterable[tuple[CellValue, House | Feature | bool]]:
+        """if cell ≠ value, then what cells are forced to have a value"""
         return self.__get_all_pairs_extended(lambda a, b: a.get_strong_pairs(b), False)
 
-    def get_weak_pairs_extended(self) -> Iterable[tuple[CellValue, Union[House, Feature, bool]]]:
+    def get_weak_pairs_extended(self) -> Iterable[tuple[CellValue, House | Feature | bool]]:
         """if cell == value, then what cells can't have which values?"""
         return self.__get_all_pairs_extended(lambda a, b: a.get_weak_pairs(b), True)
 
-    def get_xor_pairs_extended(self) -> Iterable[tuple[CellValue, Union[House, Feature, bool]]]:
+    def get_xor_pairs_extended(self) -> Iterable[tuple[CellValue, House | Feature | bool]]:
         """Which cells have which values if and only if this cell doesn't have the given value?"""
         return self.__get_all_pairs_extended(lambda a, b: a.get_xor_pairs(b), False)
 
-    def __get_all_pairs_extended(self, func , is_weak) -> Iterable[tuple[CellValue, Union[House, Feature, bool]]]:
+    def __get_all_pairs_extended(self, func, is_weak) -> Iterable[tuple[CellValue, House | Feature | bool]]:
         original_cell, value = self
         for cell in original_cell.get_equivalent_cells():
             yield from ((CellValue(cell2, value), house2) for cell2, house2 in func(cell, value))

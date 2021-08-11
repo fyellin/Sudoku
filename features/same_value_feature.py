@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import functools
 import operator
-from collections import deque
+from collections import defaultdict, deque
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from itertools import chain
@@ -47,7 +47,7 @@ class _Equivalence:
     cells: tuple[Cell, ...]
     name: str
     color: Optional[str] = None
-    __check_cache: list[int] = field(default_factory=list)
+    __cells_at_last_call_to_check: list[int] = field(default_factory=list)
 
     def __post_init__(self):
         neighbors = frozenset.union(*(cell.neighbors for cell in self.cells))
@@ -64,7 +64,7 @@ class _Equivalence:
             cell.neighbors |= cells_as_set
 
     def check(self) -> bool:
-        if not Feature.cells_changed_since_last_invocation(self.__check_cache, self.cells):
+        if not Feature.cells_changed_since_last_invocation(self.__cells_at_last_call_to_check, self.cells):
             return False
         return self.__check()
 
@@ -182,22 +182,28 @@ class SameValueHandler(Feature):
         # Copy the list before iterating, as items may delete themselves.
         return any(equivalence.check_special() for equivalence in list(self.equivalences))
 
-    def are_cells_equivalent(self, cell1: Cell, cell2: Cell) -> bool:
+    def are_cells_same_value(self, cell1: Cell, cell2: Cell) -> bool:
         return self.__union_find.find(cell1) == self.__union_find.find(cell2)
 
-    def make_cells_equivalent(self, cell1: Cell, cell2: Cell, name: str) -> bool:
-        if self.are_cells_equivalent(cell1, cell2):
+    def make_cells_same_value(self, cell1: Cell, cell2: Cell, name: str) -> bool:
+        if self.are_cells_same_value(cell1, cell2):
             return False
         equivalence = _Equivalence(grid=self.grid, cells=(cell1, cell2), name=name)
         self.add_equivalence_internal(equivalence)
 
-    def get_all_equivalent_cells(self, cell: Cell) -> tuple[Cell]:
+    def get_all_same_value_cells(self, cell: Cell) -> tuple[Cell]:
         token = self.__union_find.find(cell)
         equivalence = self.__token_to_equivalence.get(token)
         if equivalence:
             return equivalence.cells
         else:
             return cell,
+
+    def group_same_value_cells(self, cells: Sequence[Cell]) -> Sequence[frozenset(Cell)]:
+        map = defaultdict(set)
+        for cell in cells:
+            map[self.__union_find.find(cell)].add(cell)
+        return [frozenset(values) for values in map.values() if len(values) > 1]
 
     def add_equivalence_internal(self, equivalence: _Equivalence) -> None:
         for a, b in pairwise(equivalence.cells):

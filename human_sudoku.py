@@ -19,7 +19,8 @@ class Sudoku:
     features: list[Feature]
     initial_grid: Mapping[tuple[int, int], int]
     guides: int
-    __check_hidden_singles_cache: dict[House, list[int]]
+    __cells_at_last_call_to_hidden_singles: dict[House, list[int]]
+    __cells_at_last_call_to_intersection_removal: dict[House, list[int]]
     checking_features: list[Feature]
 
     def solve(self, puzzle: str, *, features: Sequence[Feature] = (),
@@ -50,7 +51,8 @@ class Sudoku:
             raise
 
     def run_solver(self, *, medusa: bool) -> bool:
-        self.__check_hidden_singles_cache = defaultdict(list)
+        self.__cells_at_last_call_to_hidden_singles = defaultdict(list)
+        self.__cells_at_last_call_to_intersection_removal = defaultdict(list)
         self.checking_features = [f for f in self.features if f.has_check_method()]
 
         while True:
@@ -124,6 +126,9 @@ class Sudoku:
         Returns true if it finds such a house.
         """
         def check_house(house: House) -> bool:
+            if not Feature.cells_changed_since_last_invocation(
+                    self.__cells_at_last_call_to_hidden_singles[house], house.cells):
+                return False
             changed = False
             mapper = defaultdict(list)
             for cell in house.unknown_cells:
@@ -136,7 +141,7 @@ class Sudoku:
                     changed = True
             return changed
 
-        return any(check_house(house) for house in self.grid.houses)
+        return any(check_house(house) for house in self.grid.houses if house.unknown_cells)
 
     def check_intersection_removal(self) -> bool:
         """
@@ -151,25 +156,34 @@ class Sudoku:
 
         Returns true if we make a change.
         """
-        return any(self.__check_intersection_removal(house, value)
-                   for house in self.grid.houses
-                   for value in house.unknown_values)
+        return any(self.__check_intersection_removal(house)
+                   for house in self.grid.houses if house.unknown_values)
 
-    @staticmethod
-    def __check_intersection_removal(house: House, value: int) -> bool:
+    def __check_intersection_removal(self, house: House) -> bool:
         """Checks for intersection removing of the specific value in the specific house"""
-        candidates = [cell for cell in house.unknown_cells if value in cell.possible_values]
-        assert len(candidates) > 1
-        cell0, *other_candidates = candidates
-        # Find all cells that both have the specified value, and are neighbors of all the candidates.
 
-        fixers = {cell for cell in cell0.get_all_neighbors_for_value(value) if value in cell.possible_values}
-        fixers.intersection_update(*(cell.get_all_neighbors_for_value(value) for cell in other_candidates))
-        if fixers:
-            print(f'Intersection Removal: {house} = {value} must be one of {sorted(candidates)}')
-            Cell.remove_value_from_cells(fixers, value)
-            return True
-        return False
+        # Once we've checked a house, we don't need to check the house again until one of its cells has changed
+        if not Feature.cells_changed_since_last_invocation(
+                self.__cells_at_last_call_to_intersection_removal[house], house.cells):
+            return False
+
+        changed = False
+        cell_values = defaultdict(list)
+        for cell in house.unknown_cells:
+            for value in cell.possible_values:
+                cell_values[value].append(cell)
+        for value, candidates in cell_values.items():
+            assert len(candidates) >= 2
+            candidate0, *other_candidates = candidates
+            # Find all cells that both have the specified value and are neighbors of all the candidates
+            fixers = {cell for cell in candidate0.get_all_neighbors_for_value(value) if value in cell.possible_values}
+            fixers.intersection_update(*(cell.get_all_neighbors_for_value(value) for cell in other_candidates))
+            if fixers:
+                print(f'Intersection Removal: {house} = {value} must be one of {sorted(candidates)}')
+                Cell.remove_value_from_cells(fixers, value)
+                changed = True
+
+        return changed
 
     def check_tuples(self) -> bool:
         """
@@ -479,14 +493,14 @@ class Sudoku:
             if len(cells) <= 2:
                 continue
             for cell1, cell2 in combinations(cells, 2):
-                if self.grid.same_value_handler.are_cells_equivalent(cell1, cell2):
+                if self.grid.same_value_handler.are_cells_same_value(cell1, cell2):
                     continue
                 common_neighbors = cells & cell1.neighbors & cell2.neighbors
                 if not common_neighbors:
                     continue
                 one_neighbor = next(iter(common_neighbors))
                 print(f'{cell1} == {cell2} because both see {one_neighbor} and all three have bi-value {values}')
-                self.grid.same_value_handler.make_cells_equivalent(cell1, cell2, name=f'[{cell1}-{cell2}-{values}]')
+                self.grid.same_value_handler.make_cells_same_value(cell1, cell2, name=f'[{cell1}-{cell2}-{values}]')
                 changed = True
 
         return changed

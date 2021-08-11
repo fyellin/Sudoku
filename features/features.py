@@ -5,7 +5,7 @@ import re
 from collections import defaultdict
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from itertools import chain, combinations_with_replacement, groupby, permutations, product
-from typing import Any, ClassVar, Optional, Union
+from typing import Any, ClassVar, Optional
 
 from cell import Cell, House, SmallIntSet
 from draw_context import DrawContext
@@ -191,7 +191,7 @@ class AlternativeBoxesFeature(Feature):
     """Don't use the regular nine boxes, but instead use 9 alternative boxes"""
     house_squares: Sequence[Sequence[Square]]
 
-    def __init__(self, pattern: Union[str, Sequence[SquaresParseable]]) -> None:
+    def __init__(self, pattern: str | Sequence[SquaresParseable]) -> None:
         super().__init__()
         if isinstance(pattern, str):
             # We can use a string of 81 characters, each one 1-9, identifying the box it belongs to
@@ -584,7 +584,7 @@ class MessageFeature:
 
 class ArithmeticFeature:
     @classmethod
-    def create(cls, square: Union[Square, str], info: str) -> Sequence[Feature]:
+    def create(cls, square: Square | str, info: str) -> Sequence[Feature]:
         square = (r, c) = Feature.parse_square(square)
         match = re.match(r'([?]|\d+)([-+x/]|)', info)
         digits, symbol = match.groups()
