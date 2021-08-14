@@ -586,7 +586,7 @@ class ArithmeticFeature(PossibilitiesFeature):
         r, c = top_left
         self.total = total
         self.operation = operation
-        self.info=info
+        self.info = info
         squares = ((r, c), (r, c + 1), (r + 1, c), (r + 1, c + 1))
         super().__init__(squares, name=f'{info}@r{r}c{c}', neighbors=True)
 

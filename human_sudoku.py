@@ -21,6 +21,7 @@ class Sudoku:
     guides: int
     __cells_at_last_call_to_hidden_singles: dict[House, list[int]]
     __cells_at_last_call_to_intersection_removal: dict[House, list[int]]
+    __cells_at_last_call_to_check_tuples: dict[tuple[House, int], list[int]]
     checking_features: list[Feature]
 
     def solve(self, puzzle: str, *, features: Sequence[Feature] = (),
@@ -53,6 +54,7 @@ class Sudoku:
     def run_solver(self, *, medusa: bool) -> bool:
         self.__cells_at_last_call_to_hidden_singles = defaultdict(list)
         self.__cells_at_last_call_to_intersection_removal = defaultdict(list)
+        self.__cells_at_last_call_to_check_tuples = defaultdict(list)
         self.checking_features = [f for f in self.features if f.has_check_method()]
 
         while True:
@@ -196,7 +198,12 @@ class Sudoku:
                    for count in range(2, 9)
                    # Look at each house
                    for house in self.grid.houses
-                   if len(house.unknown_values) > count
+                   # We won't find anything with len(house_unknown_values == count + 1.  That's a naked single.
+                   if len(house.unknown_values) > count + 1
+                   # Note that Feature.cells_changed records the state at the **start** of the call.  If the call
+                   # to __check_tuples() makes any changes, then we are free to call it again.
+                   if Feature.cells_changed_since_last_invocation(
+                        self.__cells_at_last_call_to_check_tuples[house, count], house.cells)
                    # Look at each subset of size "count" of the unknown values of that house
                    for values in combinations(house.unknown_values, count))
 

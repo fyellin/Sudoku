@@ -77,7 +77,7 @@ class AdjacentRelationshipFeature(Feature, abc.ABC):
     def __init__(self, squares: SquaresParseable, cyclic: bool = False, prefix: Optional[str] = None) -> None:
         self.squares = self.parse_squares(squares)
         self.cyclic = cyclic
-        super().__init__(prefix = prefix)
+        super().__init__(prefix=prefix)
 
     def start(self) -> None:
         squares, cyclic, match = self.squares, self.cyclic, self.match
@@ -272,6 +272,8 @@ class PossibilityInfo:
         same_value_handler = self.grid.same_value_handler
         hopefuls = {(index1, index2)
                     for (index1, cell1), (index2, cell2) in combinations(enumerate(self.cells), 2)
+                    if not len(cell1.possible_values) == 1
+                    if not len(cell2.possible_values) == 1
                     if not same_value_handler.are_cells_same_value(cell1, cell2)}
         for possibility in self.possibilities:
             deletions = {(ix1, ix2) for (ix1, ix2) in hopefuls if possibility[ix1] != possibility[ix2]}
@@ -280,6 +282,7 @@ class PossibilityInfo:
                 return False
         for index1, index2 in hopefuls:
             cell1, cell2 = self.cells[index1], self.cells[index2]
+            print("In every possibility of {self}, {cell1} = {cell2}, so they must have identical values")
             same_value_handler.make_cells_same_value(cell1, cell2, name=f'{cell1}={cell2} {self}')
             self.__known_identical_cells.union(cell1, cell2)
         return True
@@ -408,27 +411,35 @@ class PossibilitiesHandler(Feature):
     def __perform_merge(self, info1: PossibilityInfo, info2: PossibilityInfo) -> PossibilityInfo:
         length1, length2 = len(info1.possibilities), len(info2.possibilities)
 
-        index = {cell: index for index, cell in enumerate(info1.cells)}
+        index1 = {cell: index for index, cell in enumerate(info1.cells)}
+        index2 = {cell: index for index, cell in enumerate(info2.cells, start=len(index1))}
+
+        print(f'Merge {info1} ({length1}) x {info2} ({length2}) = {length1 * length2} --> ', end='')
+
         possibilities = [p1 + p2 for p1, p2 in product(info1.possibilities, info2.possibilities)]
-        deletions = set()
-        # A simplified version of handling neighbors, since we only need to cross check between the features.
-        for index2, cell2 in enumerate(info2.cells, start=len(info1.cells)):
-            if (index1 := index.get(cell2)) is not None:
-                possibilities = [p for p in possibilities if p[index1] == p[index2]]
-                deletions.add(index2)
-            else:
+        duplicates = info1.cells_as_set & info2.cells_as_set
+
+        for cell in duplicates:
+            if len(cell.possible_values) > 1:
+                i1, i2 = index1[cell], index2[cell]
+                possibilities = [p for p in possibilities if p[i1] == p[i2]]
+
+        for cell2, i2 in index2.items():
+            if cell2 not in duplicates:
                 for cell1 in info1.cells_as_set & cell2.neighbors:
-                    index1 = index[cell1]
-                    possibilities = [p for p in possibilities if p[index1] != p[index2]]
+                    i1 = index1[cell1]
+                    possibilities = [p for p in possibilities if p[i1] != p[i2]]
 
         length3 = len(possibilities)
         fraction = length3 * 100.0 / (length1 * length2)
-        print(f'Merge {info1} ({length1}) x {info2} ({length2}) = {length1 * length2} --> {length3} {fraction:.2f}%')
-
+        print(f'{length3} {fraction:.2f}%')
         cells = tuple(chain(info1.cells, info2.cells))
-        if deletions:
+
+        deleted_indices = {index2[cell] for cell in duplicates}
+        deleted_indices.update(index for index, cell in enumerate(cells) if len(cell.possible_values) == 1)
+        if deleted_indices:
             def trim(sequence: Sequence[Node]) -> tuple[Node, ...]:
-                return tuple(item for ix, item in enumerate(sequence) if ix not in deletions)
+                return tuple(item for ix, item in enumerate(sequence) if ix not in deleted_indices)
             cells = trim(cells)
             possibilities = [trim(p) for p in possibilities]
 

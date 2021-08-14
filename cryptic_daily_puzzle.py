@@ -11,9 +11,10 @@ from features.features import AdjacentNotConsecutiveFeature, AlternativeBoxesFea
     ArithmeticFeature, ArrowSumFeature, BoxOfNineFeature, ExtremeEndpointsFeature, \
     KillerCageFeature, \
     LimitedValuesFeature, MagicSquareFeature, RenbanFeature, ValuesAroundIntersectionFeature, \
-    XVFeature, PalindromeFeature
+    XVFeature, PalindromeFeature, KropkeDotFeature
 from features.possibilities_feature import HousePossibilitiesFeature, PossibilitiesFeature, AdjacentRelationshipFeature
 from features.same_value_as_mate_feature import SameValueAsMateFeature
+from features.same_value_feature import SameValueFeature
 from features.sandwich_feature import SandwichFeature, SandwichXboxFeature
 from features.skyscraper_feature import SkyscraperFeature
 from features.thermometer import SlowThermometerFeature, ThermometerAsLessThanFeature, ThermometerFeature
@@ -706,10 +707,22 @@ def puzzle_2021_08_04() -> tuple[str, Sequence[Feature]]:
     return BLANK_GRID, features
 
 
+def puzzle_2021_08_12() -> tuple[str, Sequence[Feature]]:
+    features = [
+        *[ThermometerAsLessThanFeature(x) for x in ("11,E", "13,W", "21,E", "23,W", "32,N",
+                                                    "46,N", "46,S", "46,W", "47,N", "47,S", "47,E",
+                                                    "53,S", "54,S", "62,E", "65,W", "73,N", "74,N",
+                                                    "88,N", "88,E", "88,W", "98,E", "98,W")],
+        *[SameValueFeature(x) for x in ("12,88", "22, 98", "46,63", "47,64")],
+        *[KropkeDotFeature(x, color='white') for x in ("33,E", "51,E", "95,E")],
+    ]
+    return BLANK_GRID, features
+
+
 def main():
     start = datetime.datetime.now()
-    grid, features = puzzle_2021_08_02()
-    Sudoku().solve(grid, features=features, initial_only=False, medusa=True, guides=1)
+    grid, features = puzzle_2021_08_12()
+    Sudoku().solve(grid, features=features, initial_only=False, medusa=False, guides=1)
     end = datetime.datetime.now()
     print(end - start)
 
