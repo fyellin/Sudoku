@@ -404,7 +404,7 @@ def act_10() -> tuple[str, Sequence[Feature]]:
 def finale() -> tuple[str, Sequence[Feature]]:
     features = [
         KnightsMoveFeature(),
-        *AdjacentNotConsecutiveFeature.create(),
+        AdjacentNotConsecutiveFeature(),
         AlternativeBoxesFeature(["11,S,S,S,SE,N,N,N,SE", "12,E,E,E,SE,W,W,W,SE", "16,E,E,E,SW,W,SW,E,E",
                                  "35,SW,E,SW,E,E,SW,E,SW", "29,S,S,S,NW,W,W,SE,S", "43,S,SE,W,W,NW,S,S,S",
                                  "91,E,E,E,NW,W,N,E,E", "76,SE,W,W,W,SE,E,E,E", "58,S,E,S,W,W,SE,E,S"]),

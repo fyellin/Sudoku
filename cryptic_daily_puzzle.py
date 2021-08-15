@@ -719,9 +719,18 @@ def puzzle_2021_08_12() -> tuple[str, Sequence[Feature]]:
     return BLANK_GRID, features
 
 
+def puzzle_2021_08_14() -> tuple[str, Sequence[Feature]]:
+    features = [
+        *[KillerCageFeature(13, x)
+          for x in ("12,E,S,W", "16,E,E,E", "27,S", "42,S", "56,E,E,E", "72,S,S", "83,E", "97,E,E")],
+        AdjacentNotConsecutiveFeature()
+    ]
+    return BLANK_GRID, features
+
+
 def main():
     start = datetime.datetime.now()
-    grid, features = puzzle_2021_08_12()
+    grid, features = puzzle_2021_08_14()
     Sudoku().solve(grid, features=features, initial_only=False, medusa=False, guides=1)
     end = datetime.datetime.now()
     print(end - start)

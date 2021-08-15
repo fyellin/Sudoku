@@ -4,7 +4,7 @@ from typing import Optional, cast
 
 from cell import House
 from draw_context import DrawContext
-from features.possibilities_feature import GroupedPossibilitiesFeature
+from features.grouped_possibilities_feature import GroupedPossibilitiesFeature
 
 
 class SkyscraperFeature(GroupedPossibilitiesFeature):

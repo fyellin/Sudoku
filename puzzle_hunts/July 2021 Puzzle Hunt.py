@@ -43,7 +43,7 @@ def puzzle_2() -> tuple[str, Sequence[Feature]]:
     puzzle = "9...2...1.1.....2...2...3.......5...2.......5...3.......6...7...7.....8.5...7...6"
     features = [
         DrawCircleFeature([(1, 3), (2, 4), (3, 9), (4, 8), (5, 5), (6, 2), (7, 1), (8, 6), (9, 7)]),
-        *AdjacentNotConsecutiveFeature.create()
+        AdjacentNotConsecutiveFeature()
     ]
     return puzzle, features
 
@@ -369,7 +369,8 @@ def puzzle_20() -> tuple[str, Sequence[Feature]]:
 
 def run() -> None:
     puzzles = [
-        # puzzle_1, puzzle_2, puzzle_3, puzzle_4, puzzle_5, puzzle_6, puzzle_7, puzzle_8,
+        puzzle_1, puzzle_2,
+        # puzzle_3, puzzle_4, puzzle_5, puzzle_6, puzzle_7, puzzle_8,
         # puzzle_9,
         # puzzle_10,
         # puzzle_11, puzzle_12,
@@ -377,8 +378,8 @@ def run() -> None:
         # puzzle_14, puzzle_15,
         # puzzle_16,
         # puzzle_17, puzzle_18,
-        puzzle_19,
-        puzzle_20,
+        # puzzle_19,
+        # puzzle_20,
         ]
     for puzzle in puzzles:
         grid, features = puzzle()

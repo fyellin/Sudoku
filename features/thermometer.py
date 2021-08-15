@@ -4,7 +4,8 @@ from typing import Iterable, Optional, Sequence, Union
 from draw_context import DrawContext
 from feature import Square, SquaresParseable
 from .chess_move import _draw_thermometer
-from .possibilities_feature import GroupedPossibilitiesFeature, PossibilitiesFeature
+from .grouped_possibilities_feature import GroupedPossibilitiesFeature
+from .possibilities_feature import PossibilitiesFeature
 
 
 class ThermometerFeature(PossibilitiesFeature):

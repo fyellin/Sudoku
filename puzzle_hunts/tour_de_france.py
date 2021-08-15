@@ -5,7 +5,8 @@ from typing import Iterable, Sequence, Set, Tuple, cast
 from cell import House
 from draw_context import DrawContext
 from feature import Feature, Square
-from features.possibilities_feature import GroupedPossibilitiesFeature, HousePossibilitiesFeature
+from features.grouped_possibilities_feature import GroupedPossibilitiesFeature
+from features.possibilities_feature import HousePossibilitiesFeature
 from human_sudoku import Sudoku
 
 

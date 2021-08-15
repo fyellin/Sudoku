@@ -12,7 +12,7 @@ from draw_context import DrawContext
 from feature import Feature, Square, SquaresParseable
 from grid import Grid
 from tools.itertool_recipes import pairwise
-from .possibilities_feature import PossibilitiesFeature, AdjacentRelationshipFeature
+from .possibilities_feature import PossibilitiesFeature, AdjacentRelationshipFeature, FullGridAdjacencyFeature
 
 
 class MagicSquareFeature(PossibilitiesFeature):
@@ -304,17 +304,15 @@ class KropkeDotFeature(AdjacentRelationshipFeature):
             context.draw_circle(((x1 + x2 + 1) / 2, (y1 + y2 + 1) / 2), radius=.2, fill=self.is_black, color='black')
 
 
-class AdjacentNotConsecutiveFeature:
-    class LineIsNonConsecutive(AdjacentRelationshipFeature):
-        def match(self, i, j):
-            return abs(i - j) != 1
+class AdjacentNotConsecutiveFeature(FullGridAdjacencyFeature):
+    def __init__(self):
+        super().__init__(name="Adjacent≠")
+    def match(self, i, j):
+        return abs(i - j) != 1
 
     @classmethod
     def create(cls) -> Sequence[Feature]:
-        return [cls.LineIsNonConsecutive(Feature.get_house_squares(house_type, house_index),
-                                         prefix=f'{house_type.name} #{house_index}')
-                for house_type in (House.Type.ROW, House.Type.COLUMN)
-                for house_index in range(1, 10)]
+        return [AdjacentNotConsecutiveFeature()]
 
 
 class KillerCageFeature(PossibilitiesFeature):

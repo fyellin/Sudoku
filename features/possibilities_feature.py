@@ -9,7 +9,6 @@ from itertools import chain, combinations, permutations, product
 from typing import Callable, Iterable, Mapping, Optional, Sequence
 
 from cell import Cell, CellValue, House, SmallIntSet
-from draw_context import DrawContext
 from feature import Feature, Square, SquaresParseable
 from grid import Grid
 from tools.itertool_recipes import all_equal, pairwise
@@ -101,6 +100,27 @@ class AdjacentRelationshipFeature(Feature, abc.ABC):
         raise NotImplementedError()
 
 
+class FullGridAdjacencyFeature(Feature, abc.ABC):
+    def __init__(self, name: Optional[str] = None) -> None:
+        super().__init__(name=name)
+
+    def start(self) -> None:
+        match = self.match
+        pairs = [(a, b) for a, b in permutations(range(1, 10), 2) if match(a, b)]
+        quads = [(a, b, c, d) for (a, b) in pairs for (c, d) in pairs
+                 if a != c and b != d and match(a, c) and match(b, d)]
+        features = [PossibilitiesFeature(((i, j), (i, j + 1), (i + 1, j), (i + 1, j + 1)), prefix=self.name,
+                                         neighbors=True, possibility_function=lambda: quads)
+                    for i, j in product(range(1, 9), repeat=2)]
+        for feature in features:
+            feature.initialize(self.grid)
+            feature.start()
+
+    @abc.abstractmethod
+    def match(self, i: int, j: int) -> bool:
+        raise NotImplementedError()
+
+
 @dataclass(eq=False)
 class PossibilityInfo:
     grid: Grid
@@ -117,6 +137,7 @@ class PossibilityInfo:
     # These cells have a known value, and we have verified that all possibilities use that value
     __verified_cells: set[Cell] = field(default_factory=set)
     # These cells are known to have identical values in all possibilities
+    __previous_possibility_value_pruning: dict[Cell, SmallIntSet] = field(init=False)
     __known_identical_cells: UnionFind[Cell] = field(default_factory=UnionFind)
 
     __cells_at_last_call_to_check: list[int] = field(default_factory=list)
@@ -130,29 +151,36 @@ class PossibilityInfo:
         for index, cell in enumerate(self.cells):
             for house in cell.houses:
                 self.__house_to_indexes[house].append(index)
-        self.__update_cells_for_possibilities(show=verbose)
+        self.__update_cells_for_shrunken_possibilities(show=verbose)
+        self.__previous_possibility_value_pruning = {cell : SmallIntSet.get_full_cell() for cell in self.cells}
 
     def check(self) -> bool:
         if not Feature.cells_changed_since_last_invocation(self.__cells_at_last_call_to_check, self.cells):
             return False
+
         old_length = len(self.possibilities)
         if old_length == 1:
             self.grid.possibilities_handler.remove_info(self)
             return False
-        # Only keep those possibilities that are still viable
-        possibilities = [values for values in self.possibilities
-                         if all(value in square.possible_values for value, square in zip(values, self.cells))]
+
+        possibilities = self.possibilities
+        for index, cell in enumerate(self.cells):
+            cpv = cell.possible_values
+            previous_prune = self.__previous_possibility_value_pruning[cell]
+            if cpv != previous_prune:
+                possibilities = [p for p in possibilities if p[index] in cpv]
+                self.__previous_possibility_value_pruning[cell] = cpv.copy()
+
+        change = False
         if len(possibilities) != old_length:
             print(f"Possibilities for {self} reduced from {old_length} to {len(possibilities)}")
             self.possibilities = possibilities
-            change = self.__update_cells_for_possibilities()
-            change |= self.__handle_all_possibilities_use_value_in_house()
-            return change
+            change = self.__update_cells_for_shrunken_possibilities()
 
-        return False
+        return change
 
     def check_special(self) -> bool:
-        return self.__handle_value_in_house_only_occurs_in_possibility() or \
+        return self.__handle_all_occurrences_of_value_in_house_are_within_possibility() or \
                self.__check_values_identical_in_all_possibilities() or \
                self.__check_identical_cells()
 
@@ -222,11 +250,14 @@ class PossibilityInfo:
 
         return [CellValue(self.cells[index2], value2) for index2, value2 in hopefuls.items()]
 
-    def __update_cells_for_possibilities(self, show: bool = True) -> bool:
+    def __update_cells_for_shrunken_possibilities(self, show: bool = True) -> bool:
+        # Check the possible values for the cells that are part of us.  Reduce them to be the list of possible
+        # values that are part of a possibility
         changed = False
         for index, cell in enumerate(self.cells):
             if cell.is_known:
                 if cell not in self.__verified_cells:
+                    print(f'... Verifying known cell {cell}')
                     assert all(values[index] == cell.known_value for values in self.possibilities)
                     self.__verified_cells.add(cell)
                 continue
@@ -238,16 +269,10 @@ class PossibilityInfo:
                     self.__verified_cells.add(cell)
                 else:
                     Cell.keep_values_for_cell([cell], legal_values, show=show)
-        return changed
 
-    def __handle_all_possibilities_use_value_in_house(self) -> bool:
-        """
-        If for a specific house and unknown value of that house, that value always occurs as part of this
-        info.  That value must be part of this info (though we don't know which cell) and all occurrences
-        of that value inside the house but outside this feature can be removed.
-        be removed.
-        """
-        change = False
+        # Check for possible values that are outside of us.  If every possibility contains a specific value within a
+        # house (though not necessarily with the same cell each time), then that value cannot occur anywhere else
+        # within the house.
         for house, indexes in self.__house_to_indexes.items():
             locked_values = house.unknown_values - self.__value_only_in_feature[house]
             for possibility in self.possibilities:
@@ -263,9 +288,38 @@ class PossibilityInfo:
                 if affected_cells:
                     plural = "s" if len(locked_values) != 1 else ""
                     print(f'Value{plural} {locked_values} locked into {self} in {house}')
-                    Cell.remove_values_from_cells(affected_cells, locked_values)
-                    change = True
-        return change
+                    Cell.remove_values_from_cells(affected_cells, locked_values, show=show)
+                    changed = True
+        return changed
+
+    def __handle_all_occurrences_of_value_in_house_are_within_possibility(self) -> bool:
+        """
+        If for a specific house, an unknown value only occurs inside this info, then that value must be
+        part of of this info.  We can prune the possibilities that don't include that value inside the house.
+        """
+        updated = False
+        length = len(self.possibilities)
+        for house, house_indexes in self.__house_to_indexes.items():
+            # get list of all values that can be found in house cells outside this feature
+            found_outside = {value for cell in house.unknown_cells if cell not in self.cells_as_set
+                             for value in cell.possible_values}
+            # These are the values that must be inside the feature
+            required_inside = house.unknown_values - found_outside
+            for value in required_inside:
+                if value in self.__value_only_in_feature[house]:
+                    # We've already ensured that this value occurs only inside this feature.  Ignore
+                    continue
+                self.__value_only_in_feature[house].add(value)
+                self.possibilities = [values for values in self.possibilities
+                                      if any(values[i] == value for i in house_indexes)]
+                if len(self.possibilities) != length:
+                    print(f'For {house}, value {value} only occurs inside {self}')
+                    print(f"Possibilities for {self} reduced from {length} to {len(self.possibilities)}")
+                    updated = True
+                    length = len(self.possibilities)
+        if updated:
+            return self.__update_cells_for_shrunken_possibilities()
+        return False
 
     def __check_values_identical_in_all_possibilities(self) -> bool:
         """If two cells are identical in all possibilities, then we can guarantee they have the same value"""
@@ -309,36 +363,7 @@ class PossibilityInfo:
                 length = len(self.possibilities)
                 updated = True
         if updated:
-            return self.__update_cells_for_possibilities()
-        return False
-
-    def __handle_value_in_house_only_occurs_in_possibility(self) -> bool:
-        """
-        If for a specific house, an unknown value only occurs inside this info, then that value must be
-        part of of this info.  We can prune the possibilities that don't include that value inside the house.
-        """
-        updated = False
-        length = len(self.possibilities)
-        for house, house_indexes in self.__house_to_indexes.items():
-            # get list of all values that can be found in house cells outside this feature
-            found_outside = {value for cell in house.unknown_cells if cell not in self.cells_as_set
-                             for value in cell.possible_values}
-            # These are the values that must be inside the feature
-            required_inside = house.unknown_values - found_outside
-            for value in required_inside:
-                if value in self.__value_only_in_feature[house]:
-                    # We've already ensured that this value occurs only inside this feature.  Ignore
-                    continue
-                self.__value_only_in_feature[house].add(value)
-                self.possibilities = [values for values in self.possibilities
-                                      if any(values[i] == value for i in house_indexes)]
-                if len(self.possibilities) != length:
-                    print(f'For {house}, value {value} only occurs inside {self}')
-                    print(f"Possibilities for {self} reduced from {length} to {len(self.possibilities)}")
-                    updated = True
-                    length = len(self.possibilities)
-        if updated:
-            return self.__update_cells_for_possibilities()
+            return self.__update_cells_for_shrunken_possibilities()
         return False
 
     def __str__(self) -> str:
@@ -425,14 +450,14 @@ class PossibilitiesHandler(Feature):
                 possibilities = [p for p in possibilities if p[i1] == p[i2]]
 
         for cell2, i2 in index2.items():
+            # We don't need to bother checking when either cell1 or cell2 is in duplicates.  We already know that
+            # it can't have the same value as the neighbors.
             if cell2 not in duplicates:
                 for cell1 in info1.cells_as_set & cell2.neighbors:
-                    i1 = index1[cell1]
-                    possibilities = [p for p in possibilities if p[i1] != p[i2]]
+                    if cell1 not in duplicates:
+                        i1 = index1[cell1]
+                        possibilities = [p for p in possibilities if p[i1] != p[i2]]
 
-        length3 = len(possibilities)
-        fraction = length3 * 100.0 / (length1 * length2)
-        print(f'{length3} {fraction:.2f}%')
         cells = tuple(chain(info1.cells, info2.cells))
 
         deleted_indices = {index2[cell] for cell in duplicates}
@@ -446,6 +471,11 @@ class PossibilitiesHandler(Feature):
         self.merge_count += 1
         result = PossibilityInfo(grid=self.grid, cells=cells, possibilities=possibilities,
                                  name=f'Merge #{self.merge_count}', verbose=True)
+
+        length3 = len(possibilities)
+        fraction = length3 * 100.0 / (length1 * length2)
+        print(f'{result} ({length3} {fraction:.2f}%)')
+
         result.check()
         result.check_special()
         return result
@@ -478,111 +508,3 @@ class HousePossibilitiesFeature(PossibilitiesFeature, abc.ABC):
 
     def generator(self) -> Iterable[Possibility]:
         return permutations(range(1, 10))
-
-
-class GroupedPossibilitiesFeature(Feature, abc.ABC):
-    """We are given a set of possible values for a set of cells"""
-    squares: Sequence[Square]
-    cells: Sequence[Cell]
-    possibilities: list[tuple[SmallIntSet, ...]]
-    handle_neighbors: bool
-    compressed: bool
-    __cells_at_last_call_to_check: list[int]
-
-    def __init__(self, squares: SquaresParseable, *,
-                 name: Optional[str] = None, neighbors: bool = False, compressed: bool = False) -> None:
-        super().__init__(name=name)
-        if isinstance(squares, str):
-            squares = self.parse_squares(squares)
-        self.squares = squares
-        self.handle_neighbors = neighbors
-        self.compressed = compressed
-        self.__cells_at_last_call_to_check = []
-
-    @abc.abstractmethod
-    def get_possibilities(self) -> list[tuple[SmallIntSet | Iterable[int] | int]]:
-        ...
-
-    def start(self) -> None:
-        self.cells = [self@square for square in self.squares]
-
-        def fixit_one(x: SmallIntSet | Iterable[int] | int) -> SmallIntSet:
-            if isinstance(x, int):
-                return SmallIntSet([x])
-            elif isinstance(x, SmallIntSet):
-                return x
-            else:
-                return SmallIntSet(x)
-
-        def fixit(items: tuple[SmallIntSet | Iterable[int] | int, ...]) -> tuple[SmallIntSet, ...]:
-            return tuple(fixit_one(item) for item in items)
-
-        possibilities = list(fixit(x) for x in self.get_possibilities())
-        if self.handle_neighbors:
-            possibilities = self.__remove_bad_neighbors(possibilities)
-        print(f'{self} has {len(possibilities)} possibilities')
-        self.possibilities = possibilities
-        self.__update_for_possibilities(False)
-
-    def check(self) -> bool:
-        if not self.cells_changed_since_last_invocation(self.__cells_at_last_call_to_check, self.cells):
-            return False
-
-        old_length = len(self.possibilities)
-        if old_length == 1:
-            return False
-
-        # Only keep those possibilities that are still available
-        def is_viable(possibility: tuple[SmallIntSet, ...]) -> bool:
-            choices = [value & square.possible_values for (value, square) in zip(possibility, self.cells)]
-            if not all(choices):
-                return False
-            if self.compressed:
-                open_choices = [choice for choice, cell in zip(choices, self.cells) if not cell.is_known]
-                for length in range(2, len(open_choices)):
-                    for subset in combinations(open_choices, length):
-                        if len(SmallIntSet.union(*subset)) < length:
-                            return False
-            return True
-
-        self.possibilities = list(filter(is_viable, self.possibilities))
-        if len(self.possibilities) < old_length:
-            print(f"Possibilities for {self} reduced from {old_length} to {len(self.possibilities)}")
-            return self.__update_for_possibilities()
-        return False
-
-    def __update_for_possibilities(self, show: bool = True) -> bool:
-        updated = False
-        for index, cell in enumerate(self.cells):
-            if cell.is_known:
-                continue
-            legal_values = SmallIntSet.union(*[possibility[index] for possibility in self.possibilities])
-            if not cell.possible_values <= legal_values:
-                updated = True
-                Cell.keep_values_for_cell([cell], legal_values, show=show)
-        return updated
-
-    def __remove_bad_neighbors(self, possibilities: Sequence[tuple[SmallIntSet, ...]]
-                               ) -> list[tuple[set[int], ...]]:
-        for (index1, cell1), (index2, cell2) in combinations(enumerate(self.cells), 2):
-            if cell1.is_neighbor(cell2):
-                possibilities = [p for p in possibilities if len(p[index1]) > 1 or p[index1] != p[index2]]
-            elif cell1.square == cell2.square:
-                possibilities = [p for p in possibilities if p[index1] == p[index2]]
-        return possibilities
-
-    def to_possibility_feature(self):
-        parent = self
-
-        class ChildPossibilityFeature(PossibilitiesFeature):
-            def __init__(self):
-                super().__init__(parent.squares, name=parent.name, neighbors=True, duplicates=True)
-
-            def draw(self, context: DrawContext):
-                parent.draw(context)
-
-            def get_possibilities(self) -> Iterable[Possibility]:
-                for element in parent.get_possibilities():
-                    yield from product(*element)
-
-        return ChildPossibilityFeature()

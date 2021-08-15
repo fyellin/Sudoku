@@ -193,7 +193,7 @@ class Sudoku:
         that digit can only occur in one of those n cells.
         Returns true if it makes any change.
         """
-        return any(self.__check_tuples(house, SmallIntSet(values))
+        return any(self.__check_tuples(house, count)
                    # Specifically find all tuples of 2 before trying all tuples of 3, . . . .
                    for count in range(2, 9)
                    # Look at each house
@@ -203,41 +203,36 @@ class Sudoku:
                    # Note that Feature.cells_changed records the state at the **start** of the call.  If the call
                    # to __check_tuples() makes any changes, then we are free to call it again.
                    if Feature.cells_changed_since_last_invocation(
-                        self.__cells_at_last_call_to_check_tuples[house, count], house.cells)
-                   # Look at each subset of size "count" of the unknown values of that house
-                   for values in combinations(house.unknown_values, count))
+                        self.__cells_at_last_call_to_check_tuples[house, count], house.cells))
 
     @staticmethod
-    def __check_tuples(house: House, values: SmallIntSet) -> bool:
-        """
-        Looks to see if "values" is a tuple in this house.  Returns true if it makes any changes.
-        """
-        # Find those cells in this house whose possible values are a subset of the tuple
-        tuple_cells = [cell for cell in house.unknown_cells if cell.possible_values <= values]
-        if len(tuple_cells) != len(values):
-            return False
-        # We have precisely the right number.  Delete these values if they occur in any other cells
-        fixers = [cell for cell in house.unknown_cells
-                  if cell not in tuple_cells and cell.possible_values & values]
-        if not fixers:
-            return False
-
-        # Let n = len(values) and k = len(house.unknown_values) - n
-        # We've discovered that n cells only contain a subset of n values.  But that means that the remaining
-        # k values only occur in the remaining k cells.  Both say
-        # the same thing.   We can look at what we're about
-        # to do as either
-        #     (1) The n values can only occur in those n cells, and must be deleted from all other cells or
-        #     (2) The remaining k values must occur in those k cells, and all other digits can be deleted.
-        # Both say the same thing.  How we word it depends on which is smaller, n or k.
-        if len(values) * 2 <= len(house.unknown_values):
-            print(f'{house} has tuple {sorted(values)} in squares {sorted(tuple_cells)}:')
-        else:
-            hidden_tuple = house.unknown_values - values
-            hidden_squares = house.unknown_cells.difference(tuple_cells)
-            print(f'{house} has hidden tuple {sorted(hidden_tuple)} in squares {sorted(hidden_squares)}:')
-        Cell.remove_values_from_cells(fixers, values)
-        return True
+    def __check_tuples(house: House, count: int) -> bool:
+        possible_cells = [cell for cell in house.unknown_cells if len(cell.possible_values) <= count]
+        for tuple_cells in combinations(possible_cells, count):
+            values = SmallIntSet.union(*(cell.possible_values for cell in tuple_cells))
+            assert len(values) >= count
+            if len(values) == count:
+                # We have precisely the right number.  Delete these values if they occur in any other cells
+                fixers = [cell for cell in house.unknown_cells
+                          if cell not in tuple_cells and cell.possible_values & values]
+                if not fixers:
+                    continue
+                # Let n = len(values) and k = len(house.unknown_values) - n
+                # We've discovered that n cells only contain a subset of n values.  But that means that the remaining
+                # k values only occur in the remaining k cells.  Both say
+                # the same thing.   We can look at what we're about
+                # to do as either
+                #     (1) The n values can only occur in those n cells, and must be deleted from all other cells or
+                #     (2) The remaining k values must occur in those k cells, and all other digits can be deleted.
+                # Both say the same thing.  How we word it depends on which is smaller, n or k.
+                if count * 2 <= len(house.unknown_values):
+                    print(f'{house} has tuple {values} in squares {sorted(tuple_cells)}:')
+                else:
+                    hidden_tuple = house.unknown_values - values
+                    hidden_squares = house.unknown_cells.difference(tuple_cells)
+                    print(f'{house} has hidden tuple {hidden_tuple} in squares {sorted(hidden_squares)}:')
+                Cell.remove_values_from_cells(fixers, values)
+                return True
 
     def check_intersection_removal_double(self) -> bool:
         boxes = [house for house in self.grid.houses if house.house_type == House.Type.BOX]
