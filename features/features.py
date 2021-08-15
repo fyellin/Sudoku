@@ -235,13 +235,17 @@ class CloneBoxFeature(Feature):
             same_value_handler.make_cells_same_value(cell1, cell2, name=f'{cell1}={cell2})')
 
 
-class XVFeature:
-    @classmethod
-    def create(cls, *,
+class XVFeature(Feature):
+    values: dict[tuple[Square, Square], int]
+    all_listed: bool
+    all_totals: frozenset[int]
+
+    def __init__(self, *,
                across: Mapping[int, SquaresParseable],
                down: Mapping[int, SquaresParseable],
                all_listed: bool = True,
-               all_values: Optional[set[int]] = None) -> Sequence[Feature]:
+               all_values: Optional[set[int]] = None):
+        super().__init__(name="XVFeature")
         across = {total: Feature.parse_squares(squares) for total, squares in across.items()}
         down = {total: Feature.parse_squares(squares) for total, squares in down.items()}
 
@@ -249,19 +253,32 @@ class XVFeature:
                   for total, squares in across.items() for row, column in squares}
         values |= {((row, column), (row + 1, column)): total
                    for total, squares in down.items() for row, column in squares}
+        self.values = values
+        self.all_listed = all_listed
+        self.all_totals = frozenset(all_values) if all_values else frozenset(across.keys()) | frozenset(down.keys())
 
-        features: list[Feature] = [cls._Helper(squares, total=total) for squares, total in values.items()]
-        if all_listed:
-            all_totals = frozenset(all_values) if all_values else frozenset(across.keys()) | frozenset(down.keys())
-            features.extend(cls._Helper(pair, not_total=all_totals)
+    def start(self):
+        features: list[Feature] = [self._Helper(squares, total=total) for squares, total in self.values.items()]
+        if self.all_listed:
+            features.extend(self._Helper(pair, not_total=self.all_totals)
                             for row, column in product(range(1, 10), range(1, 9))
                             for pair in [((row, column), (row, column + 1))]
-                            if pair not in values)
-            features.extend(cls._Helper(pair, not_total=all_totals)
+                            if pair not in self.values)
+            features.extend(self._Helper(pair, not_total=self.all_totals)
                             for row, column in product(range(1, 9), range(1, 10))
                             for pair in [((row, column), (row + 1, column))]
-                            if pair not in values)
-        return features
+                            if pair not in self.values)
+        for feature in features:
+            feature.initialize(self.grid)
+            feature.start()
+
+    CHARACTER_MAP = {5: 'V', 10: 'X', 15: 'XV'}
+
+    def draw(self, context: DrawContext) -> None:
+        for ((y1, x1), (y2, x2)), total in self.values.items():
+            character = self.CHARACTER_MAP.get(total) or str(total)
+            context.draw_text((x1 + x2 + 1) / 2, (y1 + y2 + 1) / 2, character, va='center', ha='center')
+
 
     class _Helper(AdjacentRelationshipFeature):
         total: Optional[int]
@@ -275,14 +292,6 @@ class XVFeature:
 
         def match(self, i: int, j: int) -> bool:
             return i + j == self.total if self.total is not None else i + j not in self.not_total
-
-        CHARACTER_MAP = {5: 'V', 10: 'X', 15: 'XV'}
-
-        def draw(self, context: DrawContext) -> None:
-            if self.total:
-                (y1, x1), (y2, x2) = self.squares
-                character = self.CHARACTER_MAP.get(self.total) or str(self.total)
-                context.draw_text((x1 + x2 + 1) / 2, (y1 + y2 + 1) / 2, character, va='center', ha='center')
 
 
 class KropkeDotFeature(AdjacentRelationshipFeature):
@@ -307,12 +316,9 @@ class KropkeDotFeature(AdjacentRelationshipFeature):
 class AdjacentNotConsecutiveFeature(FullGridAdjacencyFeature):
     def __init__(self):
         super().__init__(name="Adjacent≠")
+
     def match(self, i, j):
         return abs(i - j) != 1
-
-    @classmethod
-    def create(cls) -> Sequence[Feature]:
-        return [AdjacentNotConsecutiveFeature()]
 
 
 class KillerCageFeature(PossibilitiesFeature):
@@ -395,17 +401,29 @@ class ExtremeEndpointsFeature(PossibilitiesFeature):
         context.draw_line(self.squares)
 
 
-class LocalMinOrMaxFeature:
+class LocalMinOrMaxFeature(Feature):
     """Reds must be larger than all of its neighbors.  Greens must be smaller than all of its neighbors"""
-    @classmethod
-    def create(cls, *, reds: SquaresParseable = (), greens: SquaresParseable = ()) -> Sequence[Feature]:
-        reds = Feature.parse_squares(reds)
-        greens = Feature.parse_squares(greens)
+    reds: Sequence[Square]
+    greens: Sequence[Square]
 
-        return [
-            *[cls._LocalMinMaxFeature(square, high=True) for square in reds],
-            *[cls._LocalMinMaxFeature(square, high=False) for square in greens],
+    def __init__(self, *, reds: SquaresParseable = (), greens: SquaresParseable = ()) -> None:
+        super().__init__(name="LocalMinMax")
+        self.reds = Feature.parse_squares(reds)
+        self.greens = Feature.parse_squares(greens)
+
+    def start(self):
+        features = [
+            *[self._LocalMinMaxFeature(square, high=True) for square in self.reds],
+            *[self._LocalMinMaxFeature(square, high=False) for square in self.greens],
         ]
+        for feature in features:
+            feature.initialize(self.grid)
+            feature.start()
+
+    def draw(self, context: DrawContext) -> None:
+        for color, squares in (('#FCA0A0', self.reds), ('#B0FEB0', self.greens)):
+            for y, x in squares:
+                context.draw_rectangle((x, y), width=1, height=1, color=color, fill=True)
 
     class _LocalMinMaxFeature(PossibilitiesFeature):
         high: bool
@@ -423,12 +441,6 @@ class LocalMinOrMaxFeature:
                 outside_range = range(1, center) if self.high else range(center + 1, 10)
                 for outside in product(outside_range, repeat=count):
                     yield center, *outside
-
-        def draw(self, context: DrawContext) -> None:
-            color = '#FCA0A0' if self.high else '#B0FEB0'
-            y, x = self.squares[0]
-            context.draw_rectangle((x, y), width=1, height=1, color=color, fill=True)
-
         @staticmethod
         def __orthogonal_neighbors(square):
             row, column = square

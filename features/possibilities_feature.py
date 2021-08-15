@@ -270,16 +270,16 @@ class PossibilityInfo:
                 else:
                     Cell.keep_values_for_cell([cell], legal_values, show=show)
 
-        # Check for possible values that are outside of us.  If every possibility contains a specific value within a
-        # house (though not necessarily with the same cell each time), then that value cannot occur anywhere else
-        # within the house.
+        # Check for possible values that are outside of us. If for some house and value, that value occurs inside
+        # this possibilityInfo for every possibility (though not necessarily wth the same cell each time), then that
+        # value must be part of this PossibilityInfo and cannot occur anywhere else in the house.
         for house, indexes in self.__house_to_indexes.items():
+            # Ignore values that we already have dealt with.
             locked_values = house.unknown_values - self.__value_only_in_feature[house]
             for possibility in self.possibilities:
                 locked_values &= SmallIntSet({possibility[i] for i in indexes})
                 if not locked_values:
                     break
-
             else:
                 self.__value_only_in_feature[house] |= locked_values
                 affected_cells = {cell for cell in house.unknown_cells
@@ -294,8 +294,9 @@ class PossibilityInfo:
 
     def __handle_all_occurrences_of_value_in_house_are_within_possibility(self) -> bool:
         """
-        If for a specific house, an unknown value only occurs inside this info, then that value must be
-        part of of this info.  We can prune the possibilities that don't include that value inside the house.
+        If for a specific house and value, that value can only occur inside this PossibilityInfo, then that value
+        must be inside this PossibilityInfo, and we can prune any possibilities that don't include that value inside
+        the house.
         """
         updated = False
         length = len(self.possibilities)
@@ -313,7 +314,7 @@ class PossibilityInfo:
                 self.possibilities = [values for values in self.possibilities
                                       if any(values[i] == value for i in house_indexes)]
                 if len(self.possibilities) != length:
-                    print(f'For {house}, value {value} only occurs inside {self}')
+                    print(f'Inside {house}, value {value} only occurs as part of {self}.')
                     print(f"Possibilities for {self} reduced from {length} to {len(self.possibilities)}")
                     updated = True
                     length = len(self.possibilities)

@@ -249,7 +249,7 @@ def puzzle_15() -> tuple[str, Sequence[Feature]]:
 
     features = [
         DrawCircleFeature(circles),
-        *XVFeature.create(across=all_across, down=all_down, all_listed=False)
+        XVFeature(across=all_across, down=all_down, all_listed=False)
     ]
     return puzzle, features
 
@@ -333,7 +333,7 @@ def puzzle_19() -> tuple[str, Sequence[Feature]]:
     circles.sort()
 
     features = [
-        *LocalMinOrMaxFeature.create(reds=reds, greens=greens),
+        LocalMinOrMaxFeature(reds=reds, greens=greens),
         DrawCircleFeature(circles),
     ]
     return puzzle, features
@@ -369,13 +369,13 @@ def puzzle_20() -> tuple[str, Sequence[Feature]]:
 
 def run() -> None:
     puzzles = [
-        puzzle_1, puzzle_2,
+        # puzzle_1, puzzle_2,
         # puzzle_3, puzzle_4, puzzle_5, puzzle_6, puzzle_7, puzzle_8,
         # puzzle_9,
         # puzzle_10,
         # puzzle_11, puzzle_12,
         # puzzle_13,
-        # puzzle_14, puzzle_15,
+        puzzle_14, puzzle_15,
         # puzzle_16,
         # puzzle_17, puzzle_18,
         # puzzle_19,

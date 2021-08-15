@@ -210,9 +210,9 @@ def act_2() -> tuple[str, Sequence[Feature]]:
 def act_3() -> tuple[str, Sequence[Feature]]:
     # KillerCageFeature(18, [(5, 3), (6, 3), (7, 2), (7, 3), (7, 4)]
     features = [
-        *XVFeature.create(across={5: "15, 22, 24, 32, 52", 10: "14, 41, 54, 56, 62"},
-                          down={5: "39", 10: "25, 33, 48"},
-                          all_listed=True),
+        XVFeature(across={5: "15, 22, 24, 32, 52", 10: "14, 41, 54, 56, 62"},
+                  down={5: "39", 10: "25, 33, 48"},
+                  all_listed=True),
         KingsMoveFeature(),
         FakeKillerCageFeature("5,3,S,SW,E,E"),
         DumpResultFeature(),
@@ -428,12 +428,12 @@ def main():
         act_1,
         act_2,
         act_3,
-        act_4, act_5, act_6,
-        act_7,
-        act_8,
-        act_9,
-        act_10,
-        finale,
+        # act_4, act_5, act_6,
+        # act_7,
+        # act_8,
+        # act_9,
+        # act_10,
+        # finale,
     ]
     for puzzle in puzzles:
         print('*************', puzzle.__name__, "*****************")

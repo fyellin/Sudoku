@@ -490,10 +490,10 @@ def puzzle_09_10() -> tuple[str, Sequence[Feature]]:
 
 def puzzle_09_15() -> tuple[str, Sequence[Feature]]:
     puzzle = "-----.5.3.8.2.2.5.3.6.9.9.4.6.1.-".replace('-', '.........')
-    features = XVFeature.create(
+    features = [XVFeature(
         down={5: [(1, 3), (1, 5), (1, 7), (2, 2), (2, 4), (2, 6), (2, 8), (3, 3), (3, 5), (3, 7)]},
-        across={}
-    )
+        across={})
+    ]
     return puzzle, features
 
 
@@ -545,7 +545,7 @@ def puzzle_09_21() -> tuple[str, Sequence[Feature]]:
 def puzzle_10_17() -> tuple[str, Sequence[Feature]]:
     # noinspection SpellCheckingInspection
     puzzle = "XXXXX3.9.4.1.6.9.4.5.3.8.7.6.5.4X".replace("X", "---").replace("-", "...")
-    return puzzle, AdjacentNotConsecutiveFeature.create()
+    return puzzle, [AdjacentNotConsecutiveFeature()]
 
 
 def puzzle_2021_01_21() -> tuple[str, Sequence[Feature]]:
