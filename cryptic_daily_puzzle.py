@@ -11,7 +11,7 @@ from features.features import AdjacentNotConsecutiveFeature, AlternativeBoxesFea
     ArithmeticFeature, ArrowSumFeature, BoxOfNineFeature, ExtremeEndpointsFeature, \
     KillerCageFeature, \
     LimitedValuesFeature, MagicSquareFeature, RenbanFeature, ValuesAroundIntersectionFeature, \
-    XVFeature, PalindromeFeature, KropkeDotFeature
+    XVFeature, PalindromeFeature, KropkeDotFeature, LittleKillerFeature
 from features.possibilities_feature import HousePossibilitiesFeature, PossibilitiesFeature, AdjacentRelationshipFeature
 from features.same_value_as_mate_feature import SameValueAsMateFeature
 from features.same_value_feature import SameValueFeature
@@ -728,9 +728,24 @@ def puzzle_2021_08_14() -> tuple[str, Sequence[Feature]]:
     return BLANK_GRID, features
 
 
+def puzzle_2021_08_15() -> tuple[str, Sequence[Feature]]:
+    features = [
+        ValuesAroundIntersectionFeature(top_left="14", values=[1, 2, 3]),
+        ValuesAroundIntersectionFeature(top_left="33", values=[3, 4, 5]),
+        ValuesAroundIntersectionFeature(top_left="66", values=[5, 6, 7]),
+        ValuesAroundIntersectionFeature(top_left="85", values=[7, 8, 9]),
+        LittleKillerFeature(total=9, start="41", direction="NE"),
+        LittleKillerFeature(total=33, start="19", direction="SW"),
+        LittleKillerFeature(total=31, start="69", direction="SW"),
+        PalindromeFeature("24,N,E,S,SW,SW,SW,S,W,N"),
+        PalindromeFeature("59,N,W,S,SW,SW,SW,S,E,N"),
+    ]
+    return BLANK_GRID, features
+
+
 def main():
     start = datetime.datetime.now()
-    grid, features = puzzle_2021_08_14()
+    grid, features = puzzle_2021_08_15()
     Sudoku().solve(grid, features=features, initial_only=False, medusa=False, guides=1)
     end = datetime.datetime.now()
     print(end - start)

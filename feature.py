@@ -132,6 +132,13 @@ class Feature(abc.ABC):
         return temp[0]
 
     @staticmethod
+    def parse_direction(descriptor: Square | str) -> Square:
+        if isinstance(descriptor, str):
+            return Feature.__DESCRIPTORS[descriptor.upper()]
+        else:
+            return descriptor
+
+    @staticmethod
     def get_house_squares(htype, index) -> Sequence[Square]:
         if htype == House.Type.ROW:
             return [(index, i) for i in range(1, 10)]

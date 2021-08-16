@@ -257,7 +257,6 @@ class PossibilityInfo:
         for index, cell in enumerate(self.cells):
             if cell.is_known:
                 if cell not in self.__verified_cells:
-                    print(f'... Verifying known cell {cell}')
                     assert all(values[index] == cell.known_value for values in self.possibilities)
                     self.__verified_cells.add(cell)
                 continue

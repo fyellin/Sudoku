@@ -241,10 +241,10 @@ class XVFeature(Feature):
     all_totals: frozenset[int]
 
     def __init__(self, *,
-               across: Mapping[int, SquaresParseable],
-               down: Mapping[int, SquaresParseable],
-               all_listed: bool = True,
-               all_values: Optional[set[int]] = None):
+                 across: Mapping[int, SquaresParseable],
+                 down: Mapping[int, SquaresParseable],
+                 all_listed: bool = True,
+                 all_values: Optional[set[int]] = None):
         super().__init__(name="XVFeature")
         across = {total: Feature.parse_squares(squares) for total, squares in across.items()}
         down = {total: Feature.parse_squares(squares) for total, squares in down.items()}
@@ -278,7 +278,6 @@ class XVFeature(Feature):
         for ((y1, x1), (y2, x2)), total in self.values.items():
             character = self.CHARACTER_MAP.get(total) or str(total)
             context.draw_text((x1 + x2 + 1) / 2, (y1 + y2 + 1) / 2, character, va='center', ha='center')
-
 
     class _Helper(AdjacentRelationshipFeature):
         total: Optional[int]
@@ -441,6 +440,7 @@ class LocalMinOrMaxFeature(Feature):
                 outside_range = range(1, center) if self.high else range(center + 1, 10)
                 for outside in product(outside_range, repeat=count):
                     yield center, *outside
+
         @staticmethod
         def __orthogonal_neighbors(square):
             row, column = square
@@ -455,11 +455,10 @@ class LittleKillerFeature(PossibilitiesFeature):
     total: int
     direction: Square
 
-    def __init__(self, total: int, start: Square, direction: Square):
+    def __init__(self, total: int, start: Square | str, direction: Square | str):
         self.total = total
-        self.direction = direction
-        row, column = start
-        dr, dc = direction
+        self.direction = dr, dc = self.parse_direction(direction)
+        row, column = self.parse_square(start)
         squares = []
         while 1 <= row <= 9 and 1 <= column <= 9:
             squares.append((row, column))
@@ -503,7 +502,8 @@ class ValuesAroundIntersectionFeature(PossibilitiesFeature):
     """Up to four numbers are in an intersection.  The values must be surrounding the intersection"""
     values: Sequence[int]
 
-    def __init__(self, *, top_left: Square, values: Sequence[int]):
+    def __init__(self, *, top_left: Square | str, values: Sequence[int]):
+        top_left = self.parse_square(top_left)
         row, column = top_left
         squares = [(row, column), (row, column + 1), (row + 1, column + 1), (row + 1, column)]
         self.values = values
@@ -582,7 +582,7 @@ class ArithmeticFeature(PossibilitiesFeature):
 
     @classmethod
     def get(cls, square: Square | str, info: str) -> Feature:
-        square = (r, c) = Feature.parse_square(square)
+        square = Feature.parse_square(square)
         match = re.match(r'([?]|\d+)([-+x/]|)', info)
         digits, symbol = match.groups()
         if not symbol:
