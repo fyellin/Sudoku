@@ -15,7 +15,7 @@ from features.features import AdjacentNotConsecutiveFeature, AlternativeBoxesFea
 from features.possibilities_feature import HousePossibilitiesFeature, PossibilitiesFeature, AdjacentRelationshipFeature
 from features.same_value_as_mate_feature import SameValueAsMateFeature
 from features.same_value_feature import SameValueFeature
-from features.sandwich_feature import SandwichFeature, SandwichXboxFeature
+from features.sandwich_feature import SandwichFeature, SandwichXSumFeature, XSumFeature
 from features.skyscraper_feature import SkyscraperFeature
 from features.thermometer import SlowThermometerFeature, ThermometerAsLessThanFeature, ThermometerFeature
 from grid import Grid
@@ -254,11 +254,11 @@ def skyscraper_07_29() -> tuple[str, Sequence[Feature]]:
 
 def puzzle_07_30() -> tuple[str, Sequence[Feature]]:
     features = [
-        SandwichXboxFeature(House.Type.ROW, 3, 16),
-        SandwichXboxFeature(House.Type.ROW, 4, 10, right=True),
-        SandwichXboxFeature(House.Type.COLUMN, 3, 30),
-        SandwichXboxFeature(House.Type.COLUMN, 4, 3),
-        SandwichXboxFeature(House.Type.COLUMN, 7, 17),
+        SandwichXSumFeature(House.Type.ROW, 3, 16),
+        SandwichXSumFeature(House.Type.ROW, 4, 10, right=True),
+        SandwichXSumFeature(House.Type.COLUMN, 3, 30),
+        SandwichXSumFeature(House.Type.COLUMN, 4, 3),
+        SandwichXSumFeature(House.Type.COLUMN, 7, 17),
         KingsMoveFeature(),
         QueensMoveFeature(),
     ]
@@ -743,9 +743,27 @@ def puzzle_2021_08_15() -> tuple[str, Sequence[Feature]]:
     return BLANK_GRID, features
 
 
+def puzzle_2021_08_16() -> tuple[str, Sequence[Feature]]:
+    features = [
+        XSumFeature(House.Type.ROW, 4, 16),
+        XSumFeature(House.Type.ROW, 6, 33),
+        XSumFeature(House.Type.ROW, 8, 25),
+        XSumFeature(House.Type.ROW, 2, 31, True),
+        XSumFeature(House.Type.ROW, 4, 27, True),
+        XSumFeature(House.Type.ROW, 6, 11, True),
+        XSumFeature(House.Type.COLUMN, 2, 16),
+        XSumFeature(House.Type.COLUMN, 4, 12),
+        XSumFeature(House.Type.COLUMN, 6, 33),
+        XSumFeature(House.Type.COLUMN, 4, 31, True),
+        XSumFeature(House.Type.COLUMN, 6, 11, True),
+        XSumFeature(House.Type.COLUMN, 8, 27, True),
+    ]
+    return BLANK_GRID, features
+
+
 def main():
     start = datetime.datetime.now()
-    grid, features = puzzle_2021_08_15()
+    grid, features = puzzle_2021_07_10()
     Sudoku().solve(grid, features=features, initial_only=False, medusa=False, guides=1)
     end = datetime.datetime.now()
     print(end - start)

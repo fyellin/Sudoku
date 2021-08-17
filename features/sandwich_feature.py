@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import datetime
 import functools
 import itertools
 from collections import defaultdict
@@ -9,7 +8,7 @@ from typing import Iterable, Mapping, Optional, Sequence
 
 from cell import House, SmallIntSet
 from draw_context import DrawContext
-from .possibilities_feature import HousePossibilitiesFeature, PossibilitiesFeature
+from .possibilities_feature import HousePossibilitiesFeature, Possibility
 
 
 class SandwichFeature(HousePossibilitiesFeature):
@@ -27,10 +26,10 @@ class SandwichFeature(HousePossibilitiesFeature):
         super().__init__(htype, index, name="Sandwich")
         self.total = total
 
-    def generator(self) -> Iterable[tuple[int, ...]]:
+    def generator(self) -> Iterable[Possibility]:
         return self.get_all_generators()[self.total]
 
-    def match(self, permutation: tuple[int, ...]) -> bool:
+    def match(self, permutation: Possibility) -> bool:
         return True
 
     @classmethod
@@ -44,7 +43,7 @@ class SandwichFeature(HousePossibilitiesFeature):
 
     @classmethod
     @functools.cache
-    def get_all_generators(cls) -> dict[int, Sequence[tuple[int, ...]]]:
+    def get_all_generators(cls) -> dict[int, Sequence[Possibility]]:
         result = defaultdict(list)
         for permutation in itertools.permutations(range(1, 10)):
             result[cls.sandwich_sum(permutation)].append(permutation)
@@ -61,46 +60,73 @@ class SandwichFeature(HousePossibilitiesFeature):
             context.draw_rectangles(special, facecolor='lightgreen')
 
 
-class SandwichXboxFeature(PossibilitiesFeature):
-    htype: House.Type
-    row_column: int
+class XSumFeature(HousePossibilitiesFeature):
     value: int
     is_right: bool
 
-    def __init__(self, htype: House.Type, row_column: int, value: int, right: bool = False) -> None:
-        name = f'Skyscraper {htype.name.title()} #{row_column}'
-        squares = self.get_house_squares(htype, row_column)
-        self.htype = htype
-        self.row_column = row_column
+    def __init__(self, house_type: House.Type, house_index: int, value: int, right: bool = False) -> None:
+        super().__init__(house_type, house_index, prefix="XSum")
         self.value = value
         self.is_right = right
-        super().__init__(squares, name=name)
 
-    def get_possibilities(self) -> Iterable[tuple[int, ...]]:
-        result = self._get_all_possibilities()[self.value]
-        if not self.is_right:
-            return result
+    def match(self, permutation: Possibility) -> bool:
+        return True
+
+    def generator(self) -> Iterable[Possibility]:
+        results = self.get_all_generators()[self.value]
+        if self.is_right:
+            yield from (result[::-1] for result in results)
         else:
-            return (item[::-1] for item in result)
+            yield from results
+
+    @classmethod
+    @functools.cache
+    def get_all_generators(cls) -> dict[int, Sequence[Possibility]]:
+        result = defaultdict(list)
+        for permutation in itertools.permutations(range(1, 10)):
+            result[cls.xsum(permutation)].append(permutation)
+        return result
+
+    @classmethod
+    def xsum(cls, permutation: Possibility):
+        return sum(permutation[0:permutation[0]])
+
+    def draw(self, context: DrawContext) -> None:
+        args = dict(fontsize=20, weight='bold')
+        context.draw_outside(self.value, self.house_type, self.house_index, is_right=self.is_right, **args)
+
+
+class SandwichXSumFeature(HousePossibilitiesFeature):
+    value: int
+    is_right: bool
+
+    def __init__(self, house_type: House.Type, house_index: int, value: int, right: bool = False) -> None:
+        super().__init__(house_type, house_index, prefix="Sandwich")
+        self.value = value
+        self.is_right = right
+
+    def match(self, permutation: Possibility) -> bool:
+        return True
+
+    def generator(self) -> Iterable[Possibility]:
+        results = self.get_all_generators()[self.value]
+        if self.is_right:
+            yield from (result[::-1] for result in results)
+        else:
+            yield from results
 
     @staticmethod
     @functools.lru_cache(None)
-    def _get_all_possibilities() -> Mapping[int, Sequence[tuple[int, ...]]]:
-        result: dict[int, list[tuple[int, ...]]] = defaultdict(list)
-        start = datetime.datetime.now()
-        for values in permutations(range(1, 10)):
-            index1 = values.index(1)
-            index2 = values.index(9)
-            if index2 < index1:
-                index2, index1 = index1, index2
-            sandwich = sum([values[index] for index in range(index1 + 1, index2)])
-            xbox = sum([values[index] for index in range(values[0])])
-            if sandwich == xbox:
-                result[sandwich].append(values)
-        end = datetime.datetime.now()
-        print(f'Initialization = {end - start}.')
+    def get_all_generators() -> Mapping[int, Sequence[Possibility]]:
+        result: dict[int, list[Possibility]] = defaultdict(list)
+        for permutation in permutations(range(1, 10)):
+            sandwich = SandwichFeature.sandwich_sum(permutation)
+            xsum = XSumFeature.xsum(permutation)
+            if sandwich == xsum:
+                result[sandwich].append(permutation)
         return result
 
     def draw(self, context: DrawContext) -> None:
         args = dict(fontsize=20, weight='bold')
-        context.draw_outside(self.value, self.htype, self.row_column, is_right=self.is_right, **args)
+        context.draw_outside(self.value, self.house_type, self.house_index, is_right=self.is_right, **args)
+

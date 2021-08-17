@@ -141,8 +141,6 @@ class PossibilityInfo:
     __known_identical_cells: UnionFind[Cell] = field(default_factory=UnionFind)
 
     __cells_at_last_call_to_check: list[int] = field(default_factory=list)
-    __weak_pair_cache_check: int = -1
-    __strong_pair_cache_check: int = -1
 
     def __post_init__(self, verbose) -> None:
         self.cells_as_set = set(self.cells)
@@ -151,8 +149,8 @@ class PossibilityInfo:
         for index, cell in enumerate(self.cells):
             for house in cell.houses:
                 self.__house_to_indexes[house].append(index)
-        self.__update_cells_for_shrunken_possibilities(show=verbose)
-        self.__previous_possibility_value_pruning = {cell : SmallIntSet.get_full_cell() for cell in self.cells}
+        self.__handle_shrunken_possibilities(show=verbose)
+        self.__previous_possibility_value_pruning = {cell: SmallIntSet.get_full_cell() for cell in self.cells}
 
     def check(self) -> bool:
         if not Feature.cells_changed_since_last_invocation(self.__cells_at_last_call_to_check, self.cells):
@@ -175,7 +173,7 @@ class PossibilityInfo:
         if len(possibilities) != old_length:
             print(f"Possibilities for {self} reduced from {old_length} to {len(possibilities)}")
             self.possibilities = possibilities
-            change = self.__update_cells_for_shrunken_possibilities()
+            change = self.__handle_shrunken_possibilities()
 
         return change
 
@@ -184,29 +182,14 @@ class PossibilityInfo:
                self.__check_values_identical_in_all_possibilities() or \
                self.__check_identical_cells()
 
-    def get_weak_pairs(self, cell_value: CellValue) -> Iterable[CellValue]:
-        if cell_value.cell not in self.cells_as_set:
-            return ()
-        length = len(self.possibilities)
-        if self.__weak_pair_cache_check != length:
-            self.__get_weak_pairs.cache_clear()
-            self.__weak_pair_cache_check = length
-        return self.__get_weak_pairs(cell_value)
-
-    def get_strong_pairs(self, cell_value: CellValue) -> Iterable[CellValue]:
-        if cell_value.cell not in self.cells_as_set:
-            return ()
-        length = len(self.possibilities)
-        if self.__strong_pair_cache_check != length:
-            self.__get_strong_pairs.cache_clear()
-            self.__strong_pair_cache_check = length
-        return self.__get_strong_pairs(cell_value)
-
+    # Note that this cache is cleared whenever the number of possibilities changes
     @cache
-    def __get_weak_pairs(self, cell_value: CellValue) -> Iterable[CellValue]:
+    def get_weak_pairs(self, cell_value: CellValue) -> Iterable[CellValue]:
+        cell, value = cell_value
+        if cell not in self.cells_as_set:
+            return ()
         # A weak pair says both conditions can't simultaneously be true.  Assume the cell has the indicated value
         # and see which values in other cells are no longer possibilities that had been before.
-        cell, value = cell_value
         index = self.cells.index(cell)
         iterator = (possibility for possibility in self.possibilities if possibility[index] == value)
         hopefuls = {index2: cell2.possible_values.copy() for index2, cell2 in enumerate(self.cells)
@@ -227,8 +210,12 @@ class PossibilityInfo:
                 for index2, values2 in hopefuls.items()
                 for value2 in values2]
 
+    # Note that this cache is cleared whenever the number of possibilities changes
     @cache
-    def __get_strong_pairs(self, cell_value: CellValue) -> Iterable[CellValue]:
+    def get_strong_pairs(self, cell_value: CellValue) -> Iterable[CellValue]:
+        cell, value = cell_value
+        if cell not in self.cells_as_set:
+            return ()
         # A strong pair says both conditions can't simultaneously be false.  Assume the cell doesn't have the
         # indicated value and see which values in other cells are forced.
         cell, value = cell_value
@@ -250,9 +237,20 @@ class PossibilityInfo:
 
         return [CellValue(self.cells[index2], value2) for index2, value2 in hopefuls.items()]
 
-    def __update_cells_for_shrunken_possibilities(self, show: bool = True) -> bool:
-        # Check the possible values for the cells that are part of us.  Reduce them to be the list of possible
-        # values that are part of a possibility
+    def __handle_shrunken_possibilities(self, show: bool = True) -> bool:
+        self.get_weak_pairs.cache_clear()
+        self.get_strong_pairs.cache_clear()
+        # See if we can change any of our own cells
+        changed = self.__shrunken_possibilities_change_cells_inside_me(show)
+        # See if we can change any cells outside of us.
+        changed |= self.__shrunken_possibilities_change_cells_outside_me(show)
+        return changed
+
+    def __shrunken_possibilities_change_cells_inside_me(self, show):
+        """
+        Check for cells inside this PossibilityInfo whose possible values might have changed we the number
+        of our possibilities has shrunk
+        """
         changed = False
         for index, cell in enumerate(self.cells):
             if cell.is_known:
@@ -268,12 +266,20 @@ class PossibilityInfo:
                     self.__verified_cells.add(cell)
                 else:
                     Cell.keep_values_for_cell([cell], legal_values, show=show)
+        return changed
 
-        # Check for possible values that are outside of us. If for some house and value, that value occurs inside
-        # this possibilityInfo for every possibility (though not necessarily wth the same cell each time), then that
-        # value must be part of this PossibilityInfo and cannot occur anywhere else in the house.
+    def __shrunken_possibilities_change_cells_outside_me(self, show):
+        """
+        Check for cells outside of this PossibilityInfo whose possible values might have changed we the number
+        of our possibilities has shrunk
+        """
+
+        # If for some house and value, that value occurs inside this PossibilityInfo for every possibility (though not
+        # necessarily the same cell each time), then that value must be part of this PossibilityInfo, and cannot occur
+        # anywhee in the house.
+        changed = False
         for house, indexes in self.__house_to_indexes.items():
-            # Ignore values that we already have dealt with.
+            # Ignore values that we already determined to be locked into this PossibilityInfo.
             locked_values = house.unknown_values - self.__value_only_in_feature[house]
             for possibility in self.possibilities:
                 locked_values &= SmallIntSet({possibility[i] for i in indexes})
@@ -318,7 +324,7 @@ class PossibilityInfo:
                     updated = True
                     length = len(self.possibilities)
         if updated:
-            return self.__update_cells_for_shrunken_possibilities()
+            return self.__handle_shrunken_possibilities()
         return False
 
     def __check_values_identical_in_all_possibilities(self) -> bool:
@@ -363,7 +369,7 @@ class PossibilityInfo:
                 length = len(self.possibilities)
                 updated = True
         if updated:
-            return self.__update_cells_for_shrunken_possibilities()
+            return self.__handle_shrunken_possibilities()
         return False
 
     def __str__(self) -> str:
