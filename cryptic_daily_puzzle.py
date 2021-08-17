@@ -383,7 +383,7 @@ def puzzle_08_26() -> tuple[str, Sequence[Feature]]:
     rows = (13, 13, 6, 9, 0, 29, 2, 13, 2)
     features = [
         ThermometerFeature("37,S,S,S,S"),
-        PrimeRing("22,E,E,S,E,E,N,E,E,S,S,W,S,S,E,S,S,W,W,N,W,W,S,W,W,N,N,E,N,N,W,N"),
+        PrimeRing("22,E,E,S,E,E,N,E,E,S,S,W,S,S,E,S,S,W,W,N,W,W,S,W,W,N,N,E,N,N,W,N", cyclic=True),
         *[SandwichFeature(House.Type.ROW, row, total) for row, total in enumerate(rows, start=1)],
         *[SandwichFeature(House.Type.COLUMN, col, total) for col, total in enumerate(columns, start=1)],
     ]
@@ -763,7 +763,7 @@ def puzzle_2021_08_16() -> tuple[str, Sequence[Feature]]:
 
 def main():
     start = datetime.datetime.now()
-    grid, features = puzzle_2021_07_10()
+    grid, features = puzzle_08_26()
     Sudoku().solve(grid, features=features, initial_only=False, medusa=False, guides=1)
     end = datetime.datetime.now()
     print(end - start)

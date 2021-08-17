@@ -485,6 +485,8 @@ class Sudoku:
         return False
 
     def check_simple_coloring(self):
+        """Determine if two cells have to have the same value because they are both bi-value with the same two values,
+        and both have a common neighbor with the same bi-value"""
         changed = False
         binaries = defaultdict(set)
         for cell in self.grid.cells:

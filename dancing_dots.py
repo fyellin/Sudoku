@@ -192,16 +192,16 @@ class DancingDots:
 
 PUZZLE = \
     """
-OX..XOOXOX
-O.XOOXXO.X
-XOOXOXOXXO
-OXOXXOOXXO
-OXXOXOXOOX
-XOXOOXXOOX
-XOOXXOOXXO
-OXXOXXOOXO
-X...O.X.OX
-X..XO.X..O
+...X.O..X.
+.OXO.X.O..
+XXOOXXOXOO
+...X.O..X.
+........X.
+..X.....O.
+....OXOXO.
+.X.....OXX
+.O.....X.O
+XOOXOXXOOX
 """
 
 if __name__ == '__main__':
