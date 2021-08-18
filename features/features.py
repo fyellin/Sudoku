@@ -322,9 +322,9 @@ class AdjacentNotConsecutiveFeature(FullGridAdjacencyFeature):
 
 class KillerCageFeature(PossibilitiesFeature):
     """The values in the cage must all be different.  They must sum to the total"""
-    total: int
+    total: Optional[int]
 
-    def __init__(self, total: int, squares: SquaresParseable, *, name: Optional[str] = None):
+    def __init__(self, total: Optional[int], squares: SquaresParseable, *, name: Optional[str] = None):
         squares = self.parse_squares(squares)
         r, c = squares[0]
         name = name or f'KillerCage={total}@r{r}c{c}'
@@ -333,16 +333,49 @@ class KillerCageFeature(PossibilitiesFeature):
 
     def get_possibilities(self) -> Iterable[tuple[int, ...]]:
         count = len(self.squares)
-        for values in permutations(range(1, 10), count - 1):
-            last_value = self.total - sum(values)
-            if 1 <= last_value <= 9 and last_value not in values:
-                yield *values, last_value
+        if self.total is not None:
+            for values in permutations(range(1, 10), count - 1):
+                last_value = self.total - sum(values)
+                if 1 <= last_value <= 9 and last_value not in values:
+                    yield *values, last_value
+        else:
+            yield from permutations(range(1, 10), count)
 
     def draw(self, context: DrawContext) -> None:
         context.draw_outline(self.squares)
         row, column = min(self.squares)
         context.draw_text(column + .2, row + .2, str(self.total),
                           va='top', ha='left', fontsize=10, weight='bold')
+
+
+class FakeKillerCageFeature(Feature):
+    squares: Sequence[Square]
+    show_total: bool
+    color: Optional[str]
+
+    DEFAULT_FACE_COLOR = '#a89dbc'
+
+    def __init__(self, squares: SquaresParseable, show_total: bool = True,
+                 color: Optional[str] = None):
+        super().__init__()
+        self.squares = Feature.parse_squares(squares)
+        self.show_total = show_total
+        if color == "default":
+            color = self.DEFAULT_FACE_COLOR
+        self.color = color
+
+    def draw(self, context: DrawContext) -> None:
+        if self.color is not None:
+            context.draw_rectangles(self.squares, facecolor=self.color)
+        context.draw_outline(self.squares)
+        if self.show_total:
+            if all((self @ square).is_known for square in self.squares):
+                total = sum((self @ square).known_value for square in self.squares)
+                row, column = min(self.squares)
+                context.draw_text(column + .2, row + .2, str(total),
+                                  va='top', ha='left', color='blue', fontsize=10, weight='bold')
+                if context.done:
+                    print(f'KillerCageFeature({total}, {self.squares})')
 
 
 class ArrowSumFeature(PossibilitiesFeature):

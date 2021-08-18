@@ -11,7 +11,7 @@ from features.features import AdjacentNotConsecutiveFeature, AlternativeBoxesFea
     ArithmeticFeature, ArrowSumFeature, BoxOfNineFeature, ExtremeEndpointsFeature, \
     KillerCageFeature, \
     LimitedValuesFeature, MagicSquareFeature, RenbanFeature, ValuesAroundIntersectionFeature, \
-    XVFeature, PalindromeFeature, KropkeDotFeature, LittleKillerFeature
+    XVFeature, PalindromeFeature, KropkeDotFeature, LittleKillerFeature, SimonSaysFeature, FakeKillerCageFeature
 from features.possibilities_feature import HousePossibilitiesFeature, PossibilitiesFeature, AdjacentRelationshipFeature
 from features.same_value_as_mate_feature import SameValueAsMateFeature
 from features.same_value_feature import SameValueFeature
@@ -761,9 +761,35 @@ def puzzle_2021_08_16() -> tuple[str, Sequence[Feature]]:
     return BLANK_GRID, features
 
 
+def puzzle_2021_08_17() -> tuple[str, Sequence[Feature]]:
+    class Helper(SimonSaysFeature):
+        def round_1(self):
+            self.grid.same_value_handler.make_cells_same_value(self @ (6, 1), self@(4, 4), name="Helper")
+
+    features = [
+      KillerCageFeature(5, "13,S"),
+      KillerCageFeature(13, "14,E"),
+      KillerCageFeature(6, "21,E"),
+      KillerCageFeature(11, "27,E,S"),
+      KillerCageFeature(15, "51,E,S"),
+      KillerCageFeature(21, "54,E,S"),
+      KillerCageFeature(15, "59,S"),
+      KillerCageFeature(10, "63,S,E"),
+      KillerCageFeature(5, "78,E"),
+      KillerCageFeature(11, "84,E,S"),
+      KillerCageFeature(6, "88,S"),
+      KillerCageFeature(7, "92,E"),
+      FakeKillerCageFeature("71,S", show_total=False),
+      BoxOfNineFeature.minor_diagonal(),
+      BoxOfNineFeature.major_diagonal(),
+      Helper()
+    ]
+    return BLANK_GRID, features
+
+
 def main():
     start = datetime.datetime.now()
-    grid, features = puzzle_08_26()
+    grid, features = puzzle_2021_08_17()
     Sudoku().solve(grid, features=features, initial_only=False, medusa=False, guides=1)
     end = datetime.datetime.now()
     print(end - start)

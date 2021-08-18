@@ -8,30 +8,11 @@ from feature import Feature, Square, SquaresParseable
 from features.chess_move import KingsMoveFeature, KnightsMoveFeature, QueensMoveFeature, TaxicabFeature
 from features.features import AdjacentNotConsecutiveFeature, AlternativeBoxesFeature, \
     BoxOfNineFeature, CloneBoxFeature, \
-    KillerCageFeature, MessageFeature, XVFeature, PalindromeFeature
+    KillerCageFeature, MessageFeature, XVFeature, PalindromeFeature, FakeKillerCageFeature
 from features.possibilities_feature import PossibilitiesFeature
 from features.sandwich_feature import SandwichFeature
 from features.thermometer import ThermometerAsLessThanFeature, ThermometerFeature
 from human_sudoku import Sudoku
-
-
-class FakeKillerCageFeature(Feature):
-    squares: Sequence[Square]
-
-    def __init__(self, squares: SquaresParseable):
-        super().__init__()
-        self.squares = Feature.parse_squares(squares)
-
-    def draw(self, context: DrawContext) -> None:
-        context.draw_rectangles(self.squares, facecolor='#a89dbc')
-        context.draw_outline(self.squares)
-        if all((self @ square).is_known for square in self.squares):
-            total = sum((self @ square).known_value for square in self.squares)
-            row, column = min(self.squares)
-            context.draw_text(column + .2, row + .2, str(total),
-                              va='top', ha='left', color='blue', fontsize=10, weight='bold')
-            if context.done:
-                print(f'KillerCageFeature({total}, {self.squares})')
 
 
 class QKillerCageFeature(PossibilitiesFeature):
