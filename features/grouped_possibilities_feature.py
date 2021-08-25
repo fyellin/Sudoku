@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import abc
 from itertools import combinations, product
-from typing import Sequence, Optional, Iterable
+from typing import Iterable, Optional, Sequence
 
 from cell import Cell, SmallIntSet
 from draw_context import DrawContext
@@ -30,13 +30,13 @@ class GroupedPossibilitiesFeature(Feature, abc.ABC):
         self.__cells_at_last_call_to_check = []
 
     @abc.abstractmethod
-    def get_possibilities(self) -> list[tuple[SmallIntSet | Iterable[int] | int]]:
+    def get_possibilities(self) -> Iterable[tuple[SmallIntSet | set[int] | Iterable[int] | int], ...]:
         ...
 
     def start(self) -> None:
         self.cells = [self@square for square in self.squares]
 
-        def fixit_one(x: SmallIntSet | Iterable[int] | int) -> SmallIntSet:
+        def fixit_one(x: SmallIntSet | Iterable[int] | set[int] | int) -> SmallIntSet:
             if isinstance(x, int):
                 return SmallIntSet([x])
             elif isinstance(x, SmallIntSet):
@@ -101,14 +101,14 @@ class GroupedPossibilitiesFeature(Feature, abc.ABC):
                 possibilities = [p for p in possibilities if p[index1] == p[index2]]
         return possibilities
 
-    def to_possibility_feature(self):
+    def to_possibility_feature(self) -> PossibilitiesFeature:
         parent = self
 
         class ChildPossibilityFeature(PossibilitiesFeature):
-            def __init__(self):
+            def __init__(self) -> None:
                 super().__init__(parent.squares, name=parent.name, neighbors=True, duplicates=True)
 
-            def draw(self, context: DrawContext):
+            def draw(self, context: DrawContext) -> None:
                 parent.draw(context)
 
             def get_possibilities(self) -> Iterable[Possibility]:

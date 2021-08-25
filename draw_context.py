@@ -44,24 +44,42 @@ class DrawContext(UserDict):
         for row, column in points:
             self._axis.add_patch(Rectangle((column, row), width=1, height=1, **args))
 
-    def draw_line(self, points: Sequence[Square], *, closed: bool = False, **kwargs: Any) -> None:
-        ys = [row + .5 for row, _ in points]
-        xs = [column + .5 for _, column in points]
+    def draw_line(self, squares: Sequence[Square], *, closed: bool = False,
+                  start_offset: float = 0.0,
+                  end_offset: float = 0.0,
+                  offset: float = 0.0,
+                  **kwargs: Any) -> None:
+        ys = [row + .5 for row, _ in squares]
+        xs = [column + .5 for _, column in squares]
         if closed:
             ys.append(ys[0])
             xs.append(xs[0])
+        start_offset = start_offset or offset
+        end_offset = end_offset or offset
+        if start_offset:
+            point1, point2 = np.array((xs[0], ys[0])), np.array((xs[1], ys[1]))
+            delta = point2 - point1
+            distance = np.sqrt(np.sum(delta**2))
+            point1 += delta * (offset / distance)
+            xs[0], ys[0] = point1
+        if end_offset:
+            point1, point2 = np.array((xs[-1], ys[-1])), np.array((xs[-2], ys[-2]))
+            delta = point2 - point1
+            distance = np.sqrt(np.sum(delta**2))
+            point1 += delta * (offset / distance)
+            xs[-1], ys[-1] = point1
         self._axis.plot(xs, ys, **{'color': 'black', **kwargs})
 
     def plot(self, xs: Any, ys: Any, **args: Any) -> None:
         self._axis.plot(xs, ys, **args)
 
-    def draw_arrow(self, x: float, y: float, dx: float, dy: float, *, color: Optional[str] = None) -> None:
+    def draw_arrow(self, x: float, y: float, dx: float, dy: float, *, color: Optional[str] = None, **kwargs: Any) -> None:
         self._axis.annotate('', xytext=(x, y), xy=(x + dx, y + dy),
                             arrowprops=dict(arrowstyle=f"->, head_width=.3, head_length=.3",
-                                            color=color))
+                                            color=color, **kwargs))
         # self._axis.arrow(x, y, dx, dy, **args)
 
-    def add_fancy_bbox(self, center, width, height, **args: Any) -> None:
+    def add_fancy_bbox(self, center: tuple[float, float], width: float, height:float, **args: Any) -> None:
         self._axis.add_patch(FancyBboxPatch(center, width=width, height=height, **args))
 
     def draw_outside(self, value: Any, htype: House.Type, row_or_column: int, *,

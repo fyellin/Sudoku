@@ -195,7 +195,7 @@ def puzzle_10() -> tuple[str, Sequence[Feature]]:
                               fontsize=20, va='center', ha='center', color='blue')
 
     grid = "....B.....A.....C...6...............D...E...F...............8...G.....I.....H...."
-    locations = {letter: location for letter, location in zip(grid, itertools.product(range(1, 10), repeat=2))
+    locations = {letter: location for letter, location in zip(grid, itertools.product(range(1, 10), range(1, 10)))
                  if 'A' <= letter <= 'I'}
     grid = re.sub(r'[A-Z]', r'.', grid)
 

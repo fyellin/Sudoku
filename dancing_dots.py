@@ -111,7 +111,7 @@ class DancingDots:
         assert all(len(line) == 10 for line in lines)
         return lines
 
-    def is_possible_solution(self, row_or_column: RowOrColumn, index: int, solution: Sequence[str]):
+    def is_possible_solution(self, row_or_column: RowOrColumn, index: int, solution: Sequence[str]) -> bool:
         def fetch_row(col: int) -> str:
             return self.grid[index][col]
 

@@ -7,7 +7,7 @@ from draw_context import DrawContext
 from feature import Feature, Square, SquaresParseable
 from features.chess_move import KnightsMoveFeature
 from features.features import AllValuesPresentFeature, BoxOfNineFeature, LimitedValuesFeature
-from features.possibilities_feature import HousePossibilitiesFeature, AdjacentRelationshipFeature
+from features.possibilities_feature import AdjacentRelationshipFeature, HousePossibilitiesFeature
 from features.thermometer import ThermometerFeature
 from grid import Grid
 from human_sudoku import Sudoku
@@ -17,13 +17,13 @@ class MalvoloRingFeature(AdjacentRelationshipFeature):
     SQUARES = ((2, 4), (2, 5), (2, 6), (3, 7), (4, 8), (5, 8), (6, 8), (7, 7),
                (8, 6), (8, 5), (8, 4), (7, 3), (6, 2), (5, 2), (4, 2), (3, 3))
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(self.SQUARES)
 
     def match(self, i: int, j: int) -> bool:
         return i + j in (4, 8, 9, 16)
 
-    def draw(self, context: DrawContext):
+    def draw(self, context: DrawContext) -> None:
         radius = math.hypot(2.5, 1.5)
         context.draw_circle((5.5, 5.5), radius=radius, fill=False, facecolor='black')
 
@@ -282,7 +282,7 @@ def puzzle8() -> None:
     Sudoku().solve('.'*81, features=features)
 
 
-def main():
+def main() -> None:
     puzzle1()
     puzzle2()
     puzzle3()

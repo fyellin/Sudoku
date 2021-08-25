@@ -12,7 +12,7 @@ from cell import Cell, SmallIntSet
 from draw_context import DrawContext
 from feature import Feature, Square, SquaresParseable
 from grid import Grid
-from tools.itertool_recipes import pairwise, unique_everseen, all_equal
+from tools.itertool_recipes import all_equal, pairwise, unique_everseen
 from tools.union_find import UnionFind
 
 
@@ -32,7 +32,7 @@ class SameValueFeature(Feature):
         super().__init__(name=name, prefix=prefix)
         self.has_real_name = name is not None or prefix is not None
 
-    def start(self):
+    def start(self) -> None:
         cells = tuple(self @ square for square in self.squares)
         equivalence = _Equivalence(grid=self.grid, cells=cells, name=self.name)
         self.grid.same_value_handler.add_equivalence_internal(equivalence)
@@ -49,11 +49,11 @@ class _Equivalence:
     color: Optional[str] = None
     __cells_at_last_call_to_check: list[int] = field(default_factory=list)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         neighbors = frozenset.union(*(cell.neighbors for cell in self.cells))
         self.set_all_neighbors(neighbors)
 
-    def set_all_neighbors(self, neighbors: frozenset[Cell]):
+    def set_all_neighbors(self, neighbors: frozenset[Cell]) -> None:
         assert neighbors.isdisjoint(self.cells)
         # Add these neighbors to all my cells
         for cell in self.cells:
@@ -68,7 +68,7 @@ class _Equivalence:
             return False
         return self.__check()
 
-    def __check(self):
+    def __check(self) -> bool:
         # Our possible values are values that can fit into any of cour cells
         result = functools.reduce(operator.__and__, (cell.possible_values for cell in self.cells))
         # value is non-None only if we have one remaining value.
@@ -94,22 +94,8 @@ class _Equivalence:
         # return self.__check_all_values_legal_in_all_houses() | self.__check_try_to_expand_equivalence()
         return self.__check_try_to_expand_equivalence()
 
-    def __check_all_values_legal_in_all_houses_maybe_obsolete_but_not_deleting_yet(self):
-        neighbors = self.cells[0].neighbors  # All cells have the same neighbors and the same value
-        for value in self.cells[0].possible_values:
-            for house in self.grid.houses:
-                if value not in house.unknown_values:
-                    continue
-                value_in_house = {cell for cell in house.unknown_cells if value in cell.possible_values}
-                if value_in_house <= neighbors:
-                    # If we set ourselves to that value, then every occurrence of that value in the given house
-                    # would be eliminated as they are all our neighbors
-                    print(f'{self} ≠ {value} because it would eliminate all {value}s from {house}')
-                    Cell.remove_value_from_cells(self.cells, value, show=False)
-                    return True
-        return False
-
     def __check_try_to_expand_equivalence(self) -> bool:
+        possibilities_handler = self.grid.possibilities_handler
         equivalences = self.grid.same_value_handler.equivalences
         changed = False
         while self in equivalences:  # We can remove ourselves once we've got a value
@@ -119,9 +105,9 @@ class _Equivalence:
             for house in self.grid.houses:
                 if house in my_houses:
                     continue
-                viable_candidates = [cell for cell in set(house.cells)
+                viable_candidates = {cell for cell in set(house.cells)
                                      if cell not in my_neighbors
-                                     if not cell.possible_values.isdisjoint(my_values)]
+                                     if not cell.possible_values.isdisjoint(my_values)}
                 assert len(viable_candidates) > 0
                 if len(viable_candidates) == 1:
                     # There is only one possible candidate for me in this house
@@ -133,6 +119,8 @@ class _Equivalence:
                     self.__check()
                     changed = True
                     break
+                elif possibilities_handler.handle_one_of_values_in_cells(viable_candidates, my_values):
+                    return True
                 else:
                     all_possible_values = SmallIntSet.union(*(cell.possible_values for cell in viable_candidates))
                     # Can this happen?  Intersection removal may already take care of this!  All the occurrences
@@ -174,11 +162,11 @@ class SameValueHandler(Feature):
         self.__token_to_equivalence = {}
         self.__colors = deque(self.COLORS)
 
-    def check(self):
+    def check(self) -> bool:
         # Copy the list before iterating, as items may delete themselves.
         return any(equivalence.check() for equivalence in list(self.equivalences))
 
-    def check_special(self):
+    def check_special(self) -> bool:
         # Copy the list before iterating, as items may delete themselves.
         return any(equivalence.check_special() for equivalence in list(self.equivalences))
 
@@ -190,8 +178,9 @@ class SameValueHandler(Feature):
             return False
         equivalence = _Equivalence(grid=self.grid, cells=cells, name=name)
         self.add_equivalence_internal(equivalence)
+        return True
 
-    def get_all_same_value_cells(self, cell: Cell) -> tuple[Cell]:
+    def get_all_same_value_cells(self, cell: Cell) -> tuple[Cell, ...]:
         token = self.__union_find.find(cell)
         equivalence = self.__token_to_equivalence.get(token)
         if equivalence:

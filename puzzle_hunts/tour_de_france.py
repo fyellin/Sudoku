@@ -1,6 +1,7 @@
 import datetime
 import itertools
-from typing import Iterable, Sequence, Set, Tuple, cast
+from collections.abc import Iterable, Sequence
+from typing import cast
 
 from cell import House
 from draw_context import DrawContext
@@ -34,7 +35,7 @@ class PainInTheButtFeature(GroupedPossibilitiesFeature):
         squares = [(row, column) for row in range(6, 9) for column in range(1, 10)]
         super().__init__(squares, name=f"Pain{value}", neighbors=True)
 
-    def get_possibilities(self) -> Iterable[Tuple[Set[int], ...]]:
+    def get_possibilities(self) -> Iterable[tuple[set[int], ...]]:
         others = set(range(1, 10)) - {self.value}
         prototype = [others] * 27
         for column in range(1, 10):
@@ -61,7 +62,7 @@ class PainInTheButtFeatureX(GroupedPossibilitiesFeature):
         squares = [(row, column) for row in range(2, 6) for column in range(1, 10)]
         super().__init__(squares, name=f"PainX", neighbors=True)
 
-    def get_possibilities(self) -> Iterable[Tuple[Set[int], ...]]:
+    def get_possibilities(self) -> Iterable[tuple[set[int], ...]]:
         others = set(range(1, 10)) - {1}
         prototype = [others] * 27
         normal = [set(range(1, 10))] * 9

@@ -8,7 +8,7 @@ class UnionFind(Generic[Node]):
     parent: dict[Node, Node]
     rank: dict[Node, int]
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.parent = {}
         self.rank = {}
 
@@ -25,7 +25,7 @@ class UnionFind(Generic[Node]):
             x, parent[x] = next_node, root
         return root
 
-    def union(self, x: Node, y: Node):
+    def union(self, x: Node, y: Node) -> None:
         x = self.find(x)
         y = self.find(y)
         if x != y:

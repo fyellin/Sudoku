@@ -59,7 +59,7 @@ class PossibilitiesFeature(Feature):
         self.grid.possibilities_handler.add_info(possibility_info)
 
     @classmethod
-    def __remove_bad_neighbors(cls, cells, possibilities: list[Possibility]) -> list[Possibility]:
+    def __remove_bad_neighbors(cls, cells: Sequence[Cell], possibilities: list[Possibility]) -> list[Possibility]:
         for (index1, cell1), (index2, cell2) in combinations(enumerate(cells), 2):
             if cell1.square == cell2.square:
                 # For some reason, we have the same cell repeated twice
@@ -142,7 +142,7 @@ class PossibilityInfo:
 
     __cells_at_last_call_to_check: list[int] = field(default_factory=list)
 
-    def __post_init__(self, verbose) -> None:
+    def __post_init__(self, verbose: bool) -> None:
         self.cells_as_set = set(self.cells)
         self.__value_only_in_feature = defaultdict(SmallIntSet)
         self.__house_to_indexes = defaultdict(list)
@@ -194,7 +194,7 @@ class PossibilityInfo:
         iterator = (possibility for possibility in self.possibilities if possibility[index] == value)
         hopefuls = {index2: cell2.possible_values.copy() for index2, cell2 in enumerate(self.cells)
                     if cell2 != cell and not cell2.is_known}
-        deletions = set()
+        deletions: set[int] = set()
         for possibility in iterator:
             deletions.clear()
             for index2, possible_values2 in hopefuls.items():
@@ -224,7 +224,7 @@ class PossibilityInfo:
         first = next(iterator)
         hopefuls = {index2: first[index2] for index2, cell2 in enumerate(self.cells)
                     if cell2 != cell and not cell2.is_known}
-        deletions = set()
+        deletions: set[int] = set()
         for possibility in iterator:
             deletions.clear()
             for index2, value2 in hopefuls.items():
@@ -237,6 +237,23 @@ class PossibilityInfo:
 
         return [CellValue(self.cells[index2], value2) for index2, value2 in hopefuls.items()]
 
+    def handle_one_of_values_in_cells(self, cells: set[Cell], values: SmallIntSet) -> bool:
+        """
+        We have determined that at least one of the cells (all of which are part of our group) must
+        contain at least one of the indicated values.  See if we can use that information to decrease
+        the number of possibilities.
+        """
+        assert cells <= self.cells_as_set
+        indexes = [self.cells.index(cell) for cell in cells]
+        length = len(self.possibilities)
+        self.possibilities = [possibility for possibility in self.possibilities
+                              if any(possibility[i] in values for i in indexes)]
+        if length != len(self.possibilities):
+            print(f'In {self},  {values} must occur inside cells {sorted(cells)}')
+            print(f"Possibilities for {self} reduced from {length} to {len(self.possibilities)}")
+            return self.__handle_shrunken_possibilities()
+        return False
+
     def __handle_shrunken_possibilities(self, show: bool = True) -> bool:
         self.get_weak_pairs.cache_clear()
         self.get_strong_pairs.cache_clear()
@@ -246,7 +263,7 @@ class PossibilityInfo:
         changed |= self.__shrunken_possibilities_change_cells_outside_me(show)
         return changed
 
-    def __shrunken_possibilities_change_cells_inside_me(self, show):
+    def __shrunken_possibilities_change_cells_inside_me(self, show: bool) -> bool:
         """
         Check for cells inside this PossibilityInfo whose possible values might have changed we the number
         of our possibilities has shrunk
@@ -268,7 +285,7 @@ class PossibilityInfo:
                     Cell.keep_values_for_cell([cell], legal_values, show=show)
         return changed
 
-    def __shrunken_possibilities_change_cells_outside_me(self, show):
+    def __shrunken_possibilities_change_cells_outside_me(self, show: bool) -> bool:
         """
         Check for cells outside of this PossibilityInfo whose possible values might have changed we the number
         of our possibilities has shrunk
@@ -276,7 +293,7 @@ class PossibilityInfo:
 
         # If for some house and value, that value occurs inside this PossibilityInfo for every possibility (though not
         # necessarily the same cell each time), then that value must be part of this PossibilityInfo, and cannot occur
-        # anywhee in the house.
+        # anywhere in the house.
         changed = False
         for house, indexes in self.__house_to_indexes.items():
             # Ignore values that we already determined to be locked into this PossibilityInfo.
@@ -342,7 +359,7 @@ class PossibilityInfo:
                 return False
         for index1, index2 in hopefuls:
             cell1, cell2 = self.cells[index1], self.cells[index2]
-            print("In every possibility of {self}, {cell1} = {cell2}, so they must have identical values")
+            print(f"In every possibility of {self}, {cell1} = {cell2}, so they must have identical values")
             same_value_handler.make_cells_same_value(cell1, cell2, name=f'{cell1}={cell2} {self}')
             self.__known_identical_cells.union(cell1, cell2)
         return True
@@ -412,6 +429,14 @@ class PossibilitiesHandler(Feature):
         for info in self.infos:
             yield from info.get_strong_pairs(cell_value)
 
+    def handle_one_of_values_in_cells(self, cells: set[Cell], values: SmallIntSet) -> bool:
+        """
+        We have determined that at least one of the cells contains at least one of the
+        values.  See if we can do anything about that.
+        """
+        return any(info.handle_one_of_values_in_cells(cells, values)
+                   for info in self.infos if cells <= info.cells_as_set)
+
     def __try_to_merge(self) -> bool:
         p_log = {info: math.log(len(info.possibilities)) for info in self.infos}
 
@@ -440,6 +465,7 @@ class PossibilitiesHandler(Feature):
         return True
 
     def __perform_merge(self, info1: PossibilityInfo, info2: PossibilityInfo) -> PossibilityInfo:
+        self.merge_count += 1
         length1, length2 = len(info1.possibilities), len(info2.possibilities)
 
         index1 = {cell: index for index, cell in enumerate(info1.cells)}
@@ -474,14 +500,12 @@ class PossibilitiesHandler(Feature):
             cells = trim(cells)
             possibilities = [trim(p) for p in possibilities]
 
-        self.merge_count += 1
-        result = PossibilityInfo(grid=self.grid, cells=cells, possibilities=possibilities,
-                                 name=f'Merge #{self.merge_count}', verbose=True)
-
         length3 = len(possibilities)
         fraction = length3 * 100.0 / (length1 * length2)
-        print(f'{result} ({length3} {fraction:.2f}%)')
+        print(f'Merge #{self.merge_count} ({length3} {fraction:.2f}%)')
 
+        result = PossibilityInfo(grid=self.grid, cells=cells, possibilities=possibilities,
+                                 name=f'Merge #{self.merge_count}', verbose=True)
         result.check()
         result.check_special()
         return result

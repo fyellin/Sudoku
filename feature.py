@@ -13,6 +13,7 @@ from grid import Grid
 
 Square = tuple[int, int]
 SquaresParseable = Union[str, int, Sequence[Square]]
+OneSquareParseable = Union[str, int, Square]
 CheckFunction = Callable[['Feature'], bool]
 
 
@@ -29,7 +30,7 @@ class Feature(abc.ABC):
             name = f'{prefix} #{self.__prefix_count[prefix]}'
         self.name = name
 
-    def initialize(self, grid) -> None:
+    def initialize(self, grid: Grid) -> None:
         self.grid = grid
 
     def start(self) -> None:
@@ -126,10 +127,13 @@ class Feature(abc.ABC):
         return squares
 
     @staticmethod
-    def parse_square(descriptor: SquaresParseable) -> Square:
-        temp = Feature.parse_squares(descriptor)
-        assert len(temp) == 1
-        return temp[0]
+    def parse_square(descriptor: OneSquareParseable) -> Square:
+        if isinstance(descriptor, str) or isinstance(descriptor, int):
+            temp = Feature.parse_squares(descriptor)
+            assert len(temp) == 1
+            return temp[0]
+        else:
+            return descriptor
 
     @staticmethod
     def parse_direction(descriptor: Square | str) -> Square:
@@ -139,7 +143,7 @@ class Feature(abc.ABC):
             return descriptor
 
     @staticmethod
-    def get_house_squares(htype, index) -> Sequence[Square]:
+    def get_house_squares(htype: House.Type, index: int) -> Sequence[Square]:
         if htype == House.Type.ROW:
             return [(index, i) for i in range(1, 10)]
         if htype == House.Type.COLUMN:

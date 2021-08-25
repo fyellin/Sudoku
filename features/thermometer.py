@@ -12,18 +12,27 @@ class ThermometerFeature(PossibilitiesFeature):
     """
     A sequence of squares that must monotonically increase.
     This is implemented as a subclass of Possibilities Feature.  Not sure which implementation is better.
+    Thermometers typically have bulbs.  Ones that don't can increase in either direction.
     """
     color: str
+    bulb: bool
 
-    def __init__(self, thermometer: SquaresParseable, *, name: Optional[str] = None, color: str = 'lightgrey'):
+    def __init__(self, thermometer: SquaresParseable, *, name: Optional[str] = None, color: str = 'lightgrey',
+                 bulb: bool = True):
         super().__init__(thermometer, name=name)
         self.color = color
+        self.bulb = bulb
 
     def draw(self, context: DrawContext) -> None:
-        _draw_thermometer(self.squares, self.color, context)
+        if self.bulb:
+            _draw_thermometer(self.squares, self.color, context)
+        else:
+            context.draw_line(self.squares)
 
     def get_possibilities(self) -> Iterable[tuple[int, ...]]:
-        return combinations(range(1, 10), len(self.squares))
+        yield from combinations(range(1, 10), len(self.squares))
+        if not self.bulb:
+            yield from combinations(range(9, 0, -1), len(self.squares))
 
 
 class OldThermometerFeature(GroupedPossibilitiesFeature):

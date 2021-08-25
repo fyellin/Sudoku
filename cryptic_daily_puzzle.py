@@ -7,12 +7,12 @@ from cell import Cell, House, SmallIntSet
 from draw_context import DrawContext
 from feature import Feature, Square
 from features.chess_move import KingsMoveFeature, KnightsMoveFeature, LittlePrincessFeature, QueensMoveFeature
-from features.features import AdjacentNotConsecutiveFeature, AlternativeBoxesFeature, \
-    ArithmeticFeature, ArrowSumFeature, BoxOfNineFeature, ExtremeEndpointsFeature, \
-    KillerCageFeature, \
-    LimitedValuesFeature, MagicSquareFeature, RenbanFeature, ValuesAroundIntersectionFeature, \
-    XVFeature, PalindromeFeature, KropkeDotFeature, LittleKillerFeature, SimonSaysFeature, FakeKillerCageFeature
-from features.possibilities_feature import HousePossibilitiesFeature, PossibilitiesFeature, AdjacentRelationshipFeature
+from features.features import AdjacentNotConsecutiveFeature, AlternativeBoxesFeature, AntiDiagonalFeature, \
+    ArithmeticFeature, ArrowSumFeature, BoxOfNineFeature, ExtremeEndpointsFeature, FakeKillerCageFeature, \
+    KillerCageFeature, KropkeDotFeature, LimitedValuesFeature, LittleKillerFeature, LocalMinOrMaxFeature, \
+    MagicSquareFeature, PalindromeFeature, RenbanFeature, SimonSaysFeature, ValuesAroundIntersectionFeature, XVFeature
+from features.possibilities_feature import AdjacentRelationshipFeature, HousePossibilitiesFeature, PossibilitiesFeature, \
+    Possibility
 from features.same_value_as_mate_feature import SameValueAsMateFeature
 from features.same_value_feature import SameValueFeature
 from features.sandwich_feature import SandwichFeature, SandwichXSumFeature, XSumFeature
@@ -81,7 +81,7 @@ class DoubleSumFeature(HousePossibilitiesFeature):
         self.total = total
         self.ptotal = ptotal
 
-    def match(self, permutation: tuple[int, ...]) -> bool:
+    def match(self, permutation: Possibility) -> bool:
         a, b = permutation[0], permutation[1]
         return (self.total is None or a + b == self.total) and \
             permutation[a - 1] + permutation[b - 1] == self.ptotal
@@ -146,8 +146,8 @@ def slow_thermometer_puzzle1() -> tuple[str, Sequence[Feature]]:
         [(8, 4), (9, 3), (8, 2), (8, 3), (7, 4), (6, 3), (7, 3), (7, 2)],
         [(7, 6), (7, 7), (7, 8), (7, 9), (8, 8), (9, 8), (9, 7), (8, 6), (7, 5)]
     ]
-    thermometers = [SlowThermometerFeature(thermometer) for thermometer in thermometers]
-    return puzzle, thermometers
+    features = [SlowThermometerFeature(thermometer) for thermometer in thermometers]
+    return puzzle, features
 
 
 def slow_thermometer_puzzle2() -> tuple[str, Sequence[Feature]]:
@@ -213,7 +213,7 @@ def puzzle_hunt() -> tuple[str, Sequence[Feature]]:
 
 def sandwich_07_28() -> tuple[str, Sequence[Feature]]:
     class LiarsSandwichFeature(SandwichFeature):
-        def generator(self) -> Iterable[tuple[int, ...]]:
+        def generator(self) -> Iterable[Possibility]:
             yield from self.get_all_generators()[self.total - 1]
             yield from self.get_all_generators()[self.total + 1]
 
@@ -427,13 +427,13 @@ def puzzle_09_05() -> tuple[str, Sequence[Feature]]:
     class DeltaFeature(AdjacentRelationshipFeature):
         delta: int
 
-        def __init__(self, square: Square, delta: int, is_right: bool):
+        def __init__(self, square: Square, delta: int, is_right: bool) -> None:
             row, column = square
             square2 = (row, column + 1) if is_right else (row + 1, column)
             super().__init__([square, square2], prefix="Delta")
             self.delta = delta
 
-        def match(self, i: int, j: int):
+        def match(self, i: int, j: int) -> bool:
             return abs(i - j) == self.delta
 
         def draw(self, context: DrawContext) -> None:
@@ -521,11 +521,11 @@ def puzzle_09_20() -> tuple[str, Sequence[Feature]]:
 
 def puzzle_09_21() -> tuple[str, Sequence[Feature]]:
     class Multiplication(PossibilitiesFeature):
-        def __init__(self, row, column) -> None:
+        def __init__(self, row: int, column: int) -> None:
             squares = [(row, column), (row, column + 1), (row + 1, column), (row + 1, column + 1)]
             super().__init__(squares, name=f"Square{row}{column}", neighbors=True)
 
-        def get_possibilities(self) -> list[tuple[int, ...]]:
+        def get_possibilities(self) -> Iterable[Possibility]:
             for x, y in itertools.product(range(2, 10), repeat=2):  # we now x,y ≠ 1
                 q, r = divmod(x * y, 10)
                 if 1 <= q <= 9 and 1 <= r <= 9:
@@ -681,10 +681,10 @@ def puzzle_2021_08_03() -> tuple[str, Sequence[Feature]]:
 def puzzle_2021_08_04() -> tuple[str, Sequence[Feature]]:
     # This is not solved.
     class Cheater(PossibilitiesFeature):
-        def __init__(self):
+        def __init__(self) -> None:
             super().__init__("64,E,E,94,E,E", neighbors=True, name="Cheater")
 
-        def get_possibilities(self) -> Iterable[tuple[int, ...]]:
+        def get_possibilities(self) -> Iterable[Possibility]:
             for (a, b, c), (d, e, f) in itertools.product(itertools.permutations(range(1, 10), 3), repeat=2):
                 if a + b + c + 8 == d + e + f:
                     yield a, b, c, d, e, f
@@ -763,7 +763,7 @@ def puzzle_2021_08_16() -> tuple[str, Sequence[Feature]]:
 
 def puzzle_2021_08_17() -> tuple[str, Sequence[Feature]]:
     class Helper(SimonSaysFeature):
-        def round_1(self):
+        def round_1(self) -> None:
             self.grid.same_value_handler.make_cells_same_value(self @ (6, 1), self@(4, 4), name="Helper")
 
     features = [
@@ -782,14 +782,91 @@ def puzzle_2021_08_17() -> tuple[str, Sequence[Feature]]:
       FakeKillerCageFeature("71,S", show_total=False),
       BoxOfNineFeature.minor_diagonal(),
       BoxOfNineFeature.major_diagonal(),
-      Helper()
+      # Helper()
     ]
     return BLANK_GRID, features
 
 
-def main():
+def puzzle_2021_08_18() -> tuple[str, Sequence[Feature]]:
+    features = [
+        KropkeDotFeature("31,N,N,E,E", color="white"),
+        KropkeDotFeature("31,N,N,E,E,R", color="white"),
+        KropkeDotFeature("31,N,N,E,E,R,R", color="white"),
+        KropkeDotFeature("31,N,N,E,E,R,R,R", color="white"),
+        KillerCageFeature(26, "34,N,E,E"),
+        KillerCageFeature(27, "35,E,S,E,S"),
+        KillerCageFeature(7, "42,E"),
+        KillerCageFeature(8, "52,S"),
+        KillerCageFeature(20, "53,S,E,S,E"),
+        KillerCageFeature(20, "48,S,S,W"),
+        KillerCageFeature(9, "76,S"),
+        KillerCageFeature(7, "84,E"),
+        BoxOfNineFeature.minor_diagonal(),
+        BoxOfNineFeature.major_diagonal(),
+    ]
+    return BLANK_GRID, features
+
+
+def puzzle_2021_08_18b() -> tuple[str, Sequence[Feature]]:
+    features = [
+        ExtremeEndpointsFeature("23,W,N,W,S,S,E,E"),
+        ArrowSumFeature("24,E,S"),
+        ArrowSumFeature("36,N,NW"),
+        KillerCageFeature(24, "17,S,E,S"),
+        KillerCageFeature(9, "19,S,S"),
+        ValuesAroundIntersectionFeature(top_left="42", values=[2, 3, 5]),
+        ValuesAroundIntersectionFeature(top_left="52", values=[1, 8, 9]),
+        MagicSquareFeature(),
+        KropkeDotFeature("47,S", color='black'),
+        KropkeDotFeature("58,S", color='black'),
+        KropkeDotFeature("49,S", color='black'),
+        XVFeature(across={10: "71, 82", 5: "72"}, down={}, all_listed=False),
+        LocalMinOrMaxFeature(greens="85"),
+        LittleKillerFeature(21, "79", "SW"),
+        LittleKillerFeature(7, "89", "SW"),
+    ]
+    return BLANK_GRID, features
+
+
+def puzzle_2021_08_22() -> tuple[str, Sequence[Feature]]:
+    features = [
+        ThermometerFeature("19, SW"),
+        ThermometerFeature("23, SE,E,E,E,SW"),
+        ThermometerFeature("54, E"),
+        ThermometerFeature("71, N,N,N,N"),
+        ThermometerFeature("73, NE,E,E,SE"),
+        ThermometerFeature("79, N, N, NW, NE"),
+        ThermometerFeature("91, NE"),
+        AntiDiagonalFeature.major_diagonal(),
+        AntiDiagonalFeature.minor_diagonal()
+    ]
+    return BLANK_GRID, features
+
+
+def puzzle_2021_08_22a() -> tuple[str, Sequence[Feature]]:
+    # This didn't solve
+    features = [
+        AlternativeBoxesFeature(["11,E,E,E,E,E,E,21,E", "18,19,28,29,S,S,S,S,S",
+                                 "23,E,E,E,E,S,E,S,W", "31,S,S,S,S,S,S,NE,S", "32,E,E,E,E,S,S,E,E",
+                                 "42,E,E,E,S,S,E,E,E", "52,E,E,S,S,E,E,E,E", "62,E,SW,E,S,E,E,E,E",
+                                 "93,E,E,E,E,E,E,N,W"])
+    ]
+    grid = "XXXXX..4......XX.7.......".replace('X', '.........')
+    return grid, features
+
+
+def puzzle_2021_08_24() -> tuple[str, Sequence[Feature]]:
+    features = [
+        *[ExtremeEndpointsFeature(f'{x},E,E,E') for x in ["22", "25", "52", "55", "82", "85"]],
+        *[ExtremeEndpointsFeature(f'{x},S,S,S') for x in ["22", "25", "52", "55", "58",]],
+        ArrowSumFeature("28,S,S,S")
+    ]
+    return BLANK_GRID, features
+
+
+def main() -> None:
     start = datetime.datetime.now()
-    grid, features = puzzle_2021_08_17()
+    grid, features = puzzle_2021_08_24()
     Sudoku().solve(grid, features=features, initial_only=False, medusa=False, guides=1)
     end = datetime.datetime.now()
     print(end - start)

@@ -5,6 +5,7 @@ from collections.abc import Mapping, Sequence
 from itertools import combinations, permutations, product
 
 from matplotlib import pyplot as plt
+from matplotlib.axes import Axes
 
 from cell import Cell, CellValue, House, SmallIntSet
 from chain import Chains
@@ -109,18 +110,20 @@ class Sudoku:
         Finds those squares which are forced because they only have one possible remaining value.
         Returns true if any changes are made to the grid
         """
-        found_naked_single = False
+        changed = False
+        # Setting naked singles to their singleton value often creates new naked singles, so we repeat this
+        # for as long as we're getting more singles.
         while True:
             # Cells that only have one possible value
             naked_singles = {cell for cell in self.grid.cells
                              if not cell.is_known and len(cell.possible_values) == 1}
             if not naked_singles:
                 break
-            found_naked_single = True
+            changed = True
             # Officially set the cell to its one possible value
             output = [cell.set_value_to(cell.possible_values.unique()) for cell in sorted(naked_singles)]
             print("Naked Single: " + '; '.join(output))
-        return found_naked_single
+        return changed
 
     def check_hidden_singles(self) -> bool:
         """
@@ -165,6 +168,9 @@ class Sudoku:
         """Checks for intersection removing of the specific value in the specific house"""
 
         # Once we've checked a house, we don't need to check the house again until one of its cells has changed
+        # TODO: If we discover two cells are equivalent, that could increase a cells number of neighbors,
+        # and this feature could possibly need to be-run, even without one of its cells changing.  How do I
+        # deal with that?
         if not Feature.cells_changed_since_last_invocation(
                 self.__cells_at_last_call_to_intersection_removal[house], house.cells):
             return False
@@ -233,6 +239,7 @@ class Sudoku:
                     print(f'{house} has hidden tuple {hidden_tuple} in squares {sorted(hidden_squares)}:')
                 Cell.remove_values_from_cells(fixers, values)
                 return True
+        return False
 
     def check_intersection_removal_double(self) -> bool:
         boxes = [house for house in self.grid.houses if house.house_type == House.Type.BOX]
@@ -449,11 +456,11 @@ class Sudoku:
                     for cv4, house4 in cv3.get_strong_pairs_extended():
                         if house4 == house3 or cv4 == cv1 or cv4 == cv2:
                             continue
-                        fixers = []
+                        fixers: list[CellValue] = []
                         cell1, value1 = cv1
                         cell4, value4 = cv4
 
-                        def print_tower():
+                        def print_tower() -> None:
                             print(f'Extended Tower: {cv1.to_string(False)} → {cv2.to_string(True)} → '
                                   f'{cv3.to_string(False)} → {cv4.to_string(True)}. '
                                   f'So {cv1.to_string(True)} or {cv4.to_string(True)}.')
@@ -484,7 +491,7 @@ class Sudoku:
                             return True
         return False
 
-    def check_simple_coloring(self):
+    def check_simple_coloring(self) -> bool:
         """Determine if two cells have to have the same value because they are both bi-value with the same two values,
         and both have a common neighbor with the same bi-value"""
         changed = False
@@ -508,7 +515,7 @@ class Sudoku:
 
         return changed
 
-    def draw_grid(self, *, done: bool = False, result: bool = False):
+    def draw_grid(self, *, done: bool = False, result: bool = False) -> None:
         figure, axes = plt.subplots(1, 1, figsize=(6, 6), dpi=100)
 
         # set (1,1) as the top-left corner, and (max_column, max_row) as the bottom right.
@@ -544,7 +551,7 @@ class Sudoku:
 
         plt.show()
 
-    def __fill_in_grid_verbose(self, axes) -> None:
+    def __fill_in_grid_verbose(self, axes: Axes) -> None:
         digit_width = (7/8) / 3
         for row, column in product(range(1, 10), repeat=2):
             cell = self.grid.matrix[row, column]
@@ -554,15 +561,19 @@ class Sudoku:
                     axes.text(column + .5 + (x - 1) * digit_width, row + .5 + (y - 1) * digit_width, str(value),
                               va='center', ha='center', fontsize=8, color='blue', weight='light')
 
-    def __fill_in_grid_simple(self, axes) -> None:
+    def __fill_in_grid_simple(self, axes: Axes) -> None:
         corner_args = dict(fontsize=8, color='blue', weight='light')
 
         for row, column in product(range(1, 10), repeat=2):
             cell = self.grid.matrix[row, column]
             if not cell.known_value:
-                if len(cell.possible_values) <= 8:
+                if 0 < len(cell.possible_values) <= 8:
                     axes.text(column + .5, row + .5, ''.join(str(x) for x in sorted(cell.possible_values)),
                               va='center', ha='center', **corner_args)
+                # This is an error that we want to point out.  Should not happen!
+                if len(cell.possible_values) == 0:
+                    axes.text(column + .5, row + .5, 'X',
+                              va='center', ha='center', fontsize=12, color='red', weight='bold')
 
         for house in self.grid.houses:
             if house.house_type != House.Type.BOX:

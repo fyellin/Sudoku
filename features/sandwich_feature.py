@@ -33,7 +33,7 @@ class SandwichFeature(HousePossibilitiesFeature):
         return True
 
     @classmethod
-    def sandwich_sum(cls, permutation):
+    def sandwich_sum(cls, permutation) -> int:
         index1 = permutation.index(1)
         index2 = permutation.index(9)
         if index1 < index2:
@@ -44,7 +44,7 @@ class SandwichFeature(HousePossibilitiesFeature):
     @classmethod
     @functools.cache
     def get_all_generators(cls) -> dict[int, Sequence[Possibility]]:
-        result = defaultdict(list)
+        result: dict[int, list[Possibility]] = defaultdict(list)
         for permutation in itertools.permutations(range(1, 10)):
             result[cls.sandwich_sum(permutation)].append(permutation)
         return result
@@ -82,13 +82,13 @@ class XSumFeature(HousePossibilitiesFeature):
     @classmethod
     @functools.cache
     def get_all_generators(cls) -> dict[int, Sequence[Possibility]]:
-        result = defaultdict(list)
+        result: dict[int, list[Possibility]] = defaultdict(list)
         for permutation in itertools.permutations(range(1, 10)):
             result[cls.xsum(permutation)].append(permutation)
         return result
 
     @classmethod
-    def xsum(cls, permutation: Possibility):
+    def xsum(cls, permutation: Possibility) -> int:
         return sum(permutation[0:permutation[0]])
 
     def draw(self, context: DrawContext) -> None:

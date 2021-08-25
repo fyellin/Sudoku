@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections import UserDict
 from collections.abc import Iterable, Sequence
 from itertools import product
 from typing import TYPE_CHECKING
@@ -13,7 +12,7 @@ if TYPE_CHECKING:
     from features.possibilities_feature import PossibilitiesHandler
 
 
-class Grid(UserDict):
+class Grid:
     matrix: dict[tuple[int, int], Cell]
     houses: list[House]
     features: list[Feature]
@@ -37,7 +36,7 @@ class Grid(UserDict):
         self.neighborly_features = [feature for feature in features if feature.has_neighbor_method()]
         # Features that have strong/weak/chain pairs
         self.pair_features = [feature for feature in features if feature.has_any_pair_method()]
-        self.matrix = {square: Cell(square, self) for square in product(range(1, 10), repeat=2)}
+        self.matrix = {square: Cell(square, self) for square in product(range(1, 10), range(1, 10))}
         self.features = features
 
         def items_in_row(row: int) -> Sequence[Cell]:

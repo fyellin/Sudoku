@@ -41,7 +41,7 @@ def nth(iterable, n, default=None):
     return next(islice(iterable, n, None), default)
 
 
-def all_equal(iterable):
+def all_equal(iterable) -> bool:
     """Returns True if all the elements are equal to each other"""
     g = groupby(iterable)
     return next(g, True) and not next(g, False)
@@ -138,3 +138,15 @@ def first_true(iterable, default=False, pred=None):
     # first_true([a,b,c], x) --> a or b or c or x
     # first_true([a,b], x, f) --> a if f(a) else b if f(b) else x
     return next(filter(pred, iterable), default)
+
+
+# Added by FY.  This is my version of something in more_iterables
+def one(iterable):
+    it = iter(iterable)
+    on_error = None
+    try:
+        on_error = next(it)
+        next(it)
+        return None
+    except StopIteration:
+        return on_error

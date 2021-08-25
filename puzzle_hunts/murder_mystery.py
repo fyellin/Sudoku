@@ -6,9 +6,8 @@ from cell import Cell, House
 from draw_context import DrawContext
 from feature import Feature, Square, SquaresParseable
 from features.chess_move import KingsMoveFeature, KnightsMoveFeature, QueensMoveFeature, TaxicabFeature
-from features.features import AdjacentNotConsecutiveFeature, AlternativeBoxesFeature, \
-    BoxOfNineFeature, CloneBoxFeature, \
-    KillerCageFeature, MessageFeature, XVFeature, PalindromeFeature, FakeKillerCageFeature
+from features.features import AdjacentNotConsecutiveFeature, AlternativeBoxesFeature, BoxOfNineFeature, CloneBoxFeature, \
+    FakeKillerCageFeature, KillerCageFeature, MessageFeature, PalindromeFeature, XVFeature
 from features.possibilities_feature import PossibilitiesFeature
 from features.sandwich_feature import SandwichFeature
 from features.thermometer import ThermometerAsLessThanFeature, ThermometerFeature
@@ -65,7 +64,7 @@ class DrawCircleFeature(Feature):
 class MyQueenFeature(Feature):
     queens_move_feature: Optional[QueensMoveFeature]
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.queens_move_feature = None
 
@@ -80,6 +79,7 @@ class MyQueenFeature(Feature):
         if not center_cell.is_known or self.queens_move_feature is not None:
             return False
         center_cell_value = center_cell.known_value
+        assert center_cell_value is not None
         queens_move_feature = QueensMoveFeature(values={center_cell_value})
         queens_move_feature.initialize(self.grid)
         self.queens_move_feature = queens_move_feature
@@ -103,7 +103,7 @@ class DumpResultFeature(Feature):
             print(f'old_grid = "{"".join(result)}"')
 
 
-def from_grid(old_grid: str, squares: Sequence[int], default: str = '.' * 81):
+def from_grid(old_grid: str, squares: Sequence[int], default: str = '.' * 81) -> str:
     result = list(default)
     for value in squares:
         assert value >= 10
@@ -204,7 +204,7 @@ def act_3() -> tuple[str, Sequence[Feature]]:
     return grid, features
 
 
-def act_4_runner():
+def act_4_runner() -> None:
     boxes = [(1, 9), (3, 4), (5, 7)]
     for box1, box2 in boxes:
         grid, features = act_4(box1, box2)
@@ -403,7 +403,7 @@ def finale() -> tuple[str, Sequence[Feature]]:
 
 
 # noinspection SpellCheckingInspection
-def main():
+def main() -> None:
     start = datetime.datetime.now()
     puzzles = [
         act_1,

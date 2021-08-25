@@ -3,10 +3,11 @@ from __future__ import annotations
 import functools
 import itertools
 import operator
+from collections import Callable
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from typing import AbstractSet, ClassVar, Final, Iterable, NamedTuple, Optional, TYPE_CHECKING
+from typing import AbstractSet, Any, ClassVar, Final, Iterable, NamedTuple, Optional, TYPE_CHECKING
 
 from color import Color
 
@@ -18,11 +19,12 @@ if TYPE_CHECKING:
 class SmallIntSet:
     bits: int
 
-    BITS_TO_TUPLE = {bits: items
-                     for count in range(10)
-                     for items in itertools.combinations(range(1, 10), count)
-                     for bits in [functools.reduce(operator.__or__, (1 << i for i in items), 0)]
-                     }
+    BITS_TO_TUPLE: dict[int, tuple[int, ...]] = {
+        bits: items
+        for count in range(10)
+        for items in itertools.combinations(range(1, 10), count)
+        for bits in [functools.reduce(operator.__or__, (1 << i for i in items), 0)]
+    }
 
     @staticmethod
     def get_full_cell() -> SmallIntSet:
@@ -73,14 +75,14 @@ class SmallIntSet:
     def __contains__(self, item: int) -> bool:
         return bool(self.bits & (1 << item))
 
-    def __iter__(self) -> Iterable[int]:
+    def __iter__(self) -> Iterator[int]:
         items = self.BITS_TO_TUPLE[self.bits]
         return iter(items)
 
     def __len__(self) -> int:
         return len(self.BITS_TO_TUPLE[self.bits])
 
-    def as_sorted_tuple(self) -> tuple[int]:
+    def as_sorted_tuple(self) -> tuple[int, ...]:
         return self.BITS_TO_TUPLE[self.bits]
 
     def __sub__(self, other: SmallIntSet | Iterable[int]) -> SmallIntSet:
@@ -139,7 +141,7 @@ class House:
     unknown_cells: set[Cell] = field(init=False)
     unknown_values: SmallIntSet = field(default_factory=SmallIntSet.get_full_cell)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         self.unknown_cells = set(self.cells)
         for cell in self.cells:
             cell.houses.append(self)
@@ -155,13 +157,13 @@ class House:
     def __repr__(self) -> str:
         return self.house_type.name.title()[:3] + " " + str(self.house_index)
 
-    def __eq__(self, other) -> bool:
+    def __eq__(self, other: House) -> bool:
         return self is other
 
     def __hash__(self) -> int:
         return id(self)
 
-    def __lt__(self, other: 'House') -> bool:
+    def __lt__(self, other: House) -> bool:
         return (self.house_type, self.house_index) < (other.house_type, other.house_index)
 
 
@@ -181,7 +183,7 @@ class Cell:
             house.set_value_to(self, value)
         for neighbor in self.neighbors:
             neighbor.possible_values.discard(value)
-            assert neighbor.possible_values
+            assert neighbor.possible_values, f'Deleted last value for {neighbor}'
         for neighbor in {cell
                          for feature in self.grid.neighborly_features
                          for cell in feature.get_neighbors_for_value(self, value)}:
@@ -219,7 +221,7 @@ class Cell:
     def house_of_type(self, house_type: House.Type) -> House:
         return next(house for house in self.houses if house.house_type == house_type)
 
-    def get_equivalent_cells(self) -> tuple[Cell]:
+    def get_equivalent_cells(self) -> tuple[Cell, ...]:
         return self.grid.same_value_handler.get_all_same_value_cells(self)
 
     def get_xor_pairs(self, value: int) -> Iterable[tuple[Cell, House]]:
@@ -241,7 +243,7 @@ class Cell:
     def is_neighbor(self, other: Cell) -> bool:
         return other in self.neighbors
 
-    def is_neighbor_for_value(self, other: Cell, value: int):
+    def is_neighbor_for_value(self, other: Cell, value: int) -> bool:
         return other in self.neighbors or \
                any(other in feature.get_neighbors_for_value(self, value) for feature in self.grid.neighborly_features)
 
@@ -332,7 +334,8 @@ class CellValue(NamedTuple):
         """Which cells have which values if and only if this cell doesn't have the given value?"""
         return self.__get_all_pairs_extended(lambda a, b: a.get_xor_pairs(b), False)
 
-    def __get_all_pairs_extended(self, func, is_weak) -> Iterable[tuple[CellValue, House | Feature | bool]]:
+    def __get_all_pairs_extended(self, func: Callable[Any, Any], is_weak: bool) -> \
+            Iterable[tuple[CellValue, House | Feature | bool]]:
         original_cell, value = self
         for cell in original_cell.get_equivalent_cells():
             yield from ((CellValue(cell2, value), house2) for cell2, house2 in func(cell, value))
