@@ -115,7 +115,9 @@ class SmallIntSet:
         elements = [str(x) for x in self]
         return "/" + "".join(elements) + "/"
 
-    def __eq__(self, other: SmallIntSet) -> bool:
+    def __eq__(self, other: Any) -> bool:
+        if not isinstance(other, SmallIntSet):
+            return NotImplemented
         return self.bits == other.bits
 
     def __hash__(self) -> int:
@@ -157,7 +159,7 @@ class House:
     def __repr__(self) -> str:
         return self.house_type.name.title()[:3] + " " + str(self.house_index)
 
-    def __eq__(self, other: House) -> bool:
+    def __eq__(self, other: Any) -> bool:
         return self is other
 
     def __hash__(self) -> int:
@@ -334,7 +336,7 @@ class CellValue(NamedTuple):
         """Which cells have which values if and only if this cell doesn't have the given value?"""
         return self.__get_all_pairs_extended(lambda a, b: a.get_xor_pairs(b), False)
 
-    def __get_all_pairs_extended(self, func: Callable[Any, Any], is_weak: bool) -> \
+    def __get_all_pairs_extended(self, func: Callable[..., Any], is_weak: bool) -> \
             Iterable[tuple[CellValue, House | Feature | bool]]:
         original_cell, value = self
         for cell in original_cell.get_equivalent_cells():

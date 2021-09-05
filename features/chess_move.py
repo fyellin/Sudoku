@@ -1,5 +1,6 @@
 import functools
-from typing import Iterable, Sequence
+from collections.abc import Iterable, Sequence
+from typing import AbstractSet
 
 from cell import Cell
 from draw_context import DrawContext
@@ -24,9 +25,9 @@ class KingsMoveFeature(Feature):
 
 class QueensMoveFeature(Feature):
     OFFSETS = [(dr, dc) for delta in range(1, 9) for dr in (-delta, delta) for dc in (-delta, delta)]
-    values: set[int]
+    values: AbstractSet[int]
 
-    def __init__(self, values: set[int] = frozenset({9})):
+    def __init__(self, values: AbstractSet[int] = frozenset({9})):
         super().__init__()
         self.values = values
 

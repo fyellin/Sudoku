@@ -16,24 +16,21 @@ class SandwichFeature(HousePossibilitiesFeature):
     total: int
 
     @staticmethod
-    def create_all(htype: House.Type, totals: Sequence[Optional[int]]) -> Sequence[SandwichFeature]:
+    def create_all(house_type: House.Type, totals: Sequence[Optional[int]]) -> Sequence[SandwichFeature]:
         """Used to set sandwiches for an entire row or column.   A none indicates missing"""
-        return [SandwichFeature(htype, rc, total)
+        return [SandwichFeature(house_type, rc, total)
                 for rc, total in enumerate(totals, start=1)
                 if total is not None]
 
-    def __init__(self, htype: House.Type, index: int, total: int):
-        super().__init__(htype, index, name="Sandwich")
+    def __init__(self, house_type: House.Type, index: int, total: int):
+        super().__init__(house_type, index, prefix="Sandwich")
         self.total = total
 
-    def generator(self) -> Iterable[Possibility]:
+    def get_possibilities(self) -> Iterable[Possibility]:
         return self.get_all_generators()[self.total]
 
-    def match(self, permutation: Possibility) -> bool:
-        return True
-
     @classmethod
-    def sandwich_sum(cls, permutation) -> int:
+    def sandwich_sum(cls, permutation: Possibility) -> int:
         index1 = permutation.index(1)
         index2 = permutation.index(9)
         if index1 < index2:
@@ -43,7 +40,7 @@ class SandwichFeature(HousePossibilitiesFeature):
 
     @classmethod
     @functools.cache
-    def get_all_generators(cls) -> dict[int, Sequence[Possibility]]:
+    def get_all_generators(cls) -> Mapping[int, Sequence[Possibility]]:
         result: dict[int, list[Possibility]] = defaultdict(list)
         for permutation in itertools.permutations(range(1, 10)):
             result[cls.sandwich_sum(permutation)].append(permutation)
@@ -81,7 +78,7 @@ class XSumFeature(HousePossibilitiesFeature):
 
     @classmethod
     @functools.cache
-    def get_all_generators(cls) -> dict[int, Sequence[Possibility]]:
+    def get_all_generators(cls) -> Mapping[int, Sequence[Possibility]]:
         result: dict[int, list[Possibility]] = defaultdict(list)
         for permutation in itertools.permutations(range(1, 10)):
             result[cls.xsum(permutation)].append(permutation)

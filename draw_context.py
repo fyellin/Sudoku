@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from feature import Square
 
 
-class DrawContext(UserDict):
+class DrawContext(UserDict[Any, Any]):
     _axis: Axes
     done: bool
     result: bool
@@ -73,13 +73,13 @@ class DrawContext(UserDict):
     def plot(self, xs: Any, ys: Any, **args: Any) -> None:
         self._axis.plot(xs, ys, **args)
 
-    def draw_arrow(self, x: float, y: float, dx: float, dy: float, *, color: Optional[str] = None, **kwargs: Any) -> None:
+    def draw_arrow(self, x: float, y: float, dx: float, dy: float, *, color: Optional[str] = None, **kwargs: Any
+                   ) -> None:
         self._axis.annotate('', xytext=(x, y), xy=(x + dx, y + dy),
-                            arrowprops=dict(arrowstyle=f"->, head_width=.3, head_length=.3",
-                                            color=color, **kwargs))
+                            arrowprops=dict(arrowstyle=f"->, head_width=.3, head_length=.3", color=color, **kwargs))
         # self._axis.arrow(x, y, dx, dy, **args)
 
-    def add_fancy_bbox(self, center: tuple[float, float], width: float, height:float, **args: Any) -> None:
+    def add_fancy_bbox(self, center: tuple[float, float], width: float, height: float, **args: Any) -> None:
         self._axis.add_patch(FancyBboxPatch(center, width=width, height=height, **args))
 
     def draw_outside(self, value: Any, htype: House.Type, row_or_column: int, *,

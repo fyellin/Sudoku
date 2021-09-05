@@ -289,21 +289,21 @@ class Segment:
         self.check_debug()
         return [tuple(path[1:-1]) for path in paths]
 
-    def require_square(self, square: Square):
+    def require_square(self, square: Square) -> None:
         self.check_debug()
         old_length = len(self)
         self.paths = [path for path in self.paths if square in path]
         if old_length != len(self):
             print(f'  {self} reduced {old_length} -> {len(self)} because path must include {square}')
 
-    def prohibit_square(self, square: Square):
+    def prohibit_square(self, square: Square) -> None:
         self.check_debug()
         old_length = len(self)
         self.paths = [path for path in self.paths if square not in path]
         if old_length != len(self):
             print(f'  {self} reduced {old_length} -> {len(self)} because path cannot include {square}')
 
-    def prohibit_squares(self, squares: Sequence[Square]):
+    def prohibit_squares(self, squares: Sequence[Square]) -> None:
         self.check_debug()
         old_length = len(self)
         self.paths = [path for path in self.paths if not all(square in path for square in squares)]

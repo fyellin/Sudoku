@@ -1,18 +1,20 @@
 from __future__ import annotations
 
 import functools
+import itertools
 import re
-from collections import defaultdict
+from collections import Iterator, defaultdict
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from itertools import combinations_with_replacement, groupby, permutations, product
-from typing import Any, ClassVar, Optional
+from typing import Any, ClassVar, Optional, cast
 
 from cell import Cell, House, SmallIntSet
 from draw_context import DrawContext
 from feature import Feature, Square, SquaresParseable
 from grid import Grid
 from tools.itertool_recipes import pairwise
-from .possibilities_feature import AdjacentRelationshipFeature, FullGridAdjacencyFeature, PossibilitiesFeature, \
+from .possibilities_feature import AdjacentRelationshipFeature, FullGridAdjacencyFeature, HousePossibilitiesFeature, \
+    PossibilitiesFeature, \
     Possibility
 
 
@@ -126,7 +128,7 @@ class LimitedValuesFeature(Feature):
     values: SmallIntSet
     color: Optional[str]
 
-    def __init__(self, squares: SquaresParseable, values: Sequence[int], *,
+    def __init__(self, squares: SquaresParseable, values: Iterable[int], *,
                  name: Optional[str] = None, prefix: Optional[str] = None,
                  color: Optional[str] = None):
         super().__init__(name=name, prefix=prefix)
@@ -140,9 +142,9 @@ class LimitedValuesFeature(Feature):
         evens = cls.parse_squares(evens)
 
         def draw_function(context: DrawContext) -> None:
-            for row, column in evens:
+            for row, column in cast(tuple[Square], evens):
                 context.draw_rectangle((column + .1, row + .1), width=.8, height=.8, color='lightgray', fill=True)
-            for row, column in odds:
+            for row, column in cast(tuple[Square], odds):
                 context.draw_circle((column + .5, row + .5), radius=.4, color='lightgray', fill=True)
 
         return [
@@ -252,9 +254,9 @@ class XVFeature(Feature):
         down = {total: Feature.parse_squares(squares) for total, squares in down.items()}
 
         values = {((row, column), (row, column + 1)): total
-                  for total, squares in across.items() for row, column in squares}
+                  for total, squares in across.items() for row, column in cast(tuple[Square], squares)}
         values |= {((row, column), (row + 1, column)): total
-                   for total, squares in down.items() for row, column in squares}
+                   for total, squares in down.items() for row, column in cast(tuple[Square], squares)}
         self.values = values
         self.all_listed = all_listed
         self.all_totals = frozenset(all_values) if all_values else frozenset(across.keys()) | frozenset(down.keys())
@@ -318,7 +320,7 @@ class KropkeDotFeature(AdjacentRelationshipFeature):
 
 class AdjacentNotConsecutiveFeature(FullGridAdjacencyFeature):
     def __init__(self) -> None:
-        super().__init__(name="Adjacent≠")
+        super().__init__(prefix="Adjacent≠")
 
     def match(self, i, j) -> bool:
         return abs(i - j) != 1
@@ -392,7 +394,7 @@ class ArrowSumFeature(PossibilitiesFeature):
 
     @staticmethod
     @functools.cache
-    def _get_possibilities(count) -> Mapping[int, list[Possibility]]:
+    def _get_possibilities(count) -> list[Possibility]:
         return [(total, *values) for values in product(range(1, 10), repeat=count)
                 for total in [sum(values)]
                 if total < 10]
@@ -441,16 +443,18 @@ class LocalMinOrMaxFeature(Feature):
     """Reds must be larger than all of its neighbors.  Greens must be smaller than all of its neighbors"""
     reds: Sequence[Square]
     greens: Sequence[Square]
+    diagonals: bool
 
-    def __init__(self, *, reds: SquaresParseable = (), greens: SquaresParseable = ()) -> None:
+    def __init__(self, *, reds: SquaresParseable = (), greens: SquaresParseable = (), diagonals: bool = False) -> None:
         super().__init__(name="LocalMinMax")
         self.reds = Feature.parse_squares(reds)
         self.greens = Feature.parse_squares(greens)
+        self.diagonals = diagonals
 
     def start(self) -> None:
         features = [
-            *[self._LocalMinMaxFeature(square, high=True) for square in self.reds],
-            *[self._LocalMinMaxFeature(square, high=False) for square in self.greens],
+            *[self._LocalMinMaxFeature(square, high=True, diagonals=self.diagonals) for square in self.reds],
+            *[self._LocalMinMaxFeature(square, high=False, diagonals=self.diagonals) for square in self.greens],
         ]
         for feature in features:
             feature.initialize(self.grid)
@@ -468,25 +472,37 @@ class LocalMinOrMaxFeature(Feature):
     class _LocalMinMaxFeature(PossibilitiesFeature):
         high: bool
 
-        def __init__(self, square: Square, high: bool) -> None:
+        def __init__(self, square: Square, high: bool, diagonals: bool = False) -> None:
             squares = [square, *self.__orthogonal_neighbors(square)]
+            if diagonals:
+                squares.extend(self.__diagonal_neighbors(square))
             self.high = high
             r, c = square
             name = f'{"High" if high else "Low"}@r{r}c{c}'
             super().__init__(squares, name=name, neighbors=True)
 
         def get_possibilities(self) -> Iterable[Possibility]:
-            count = len(self.squares) - 1
-            for center in range(1, 10):
-                outside_range = range(1, center) if self.high else range(center + 1, 10)
-                for outside in product(outside_range, repeat=count):
-                    yield center, *outside
+            return self.__get_possibilities(len(self.squares) - 1, self.high)
+
+        @staticmethod
+        @functools.cache
+        def __get_possibilities(count: int, high: bool) -> list[Possibility]:
+            return [(center, *outside)
+                    for center in range(1, 10)
+                    for outside_range in [range(1, center) if high else range(center + 1, 10)]
+                    for outside in product(outside_range, repeat=count)]
 
         @staticmethod
         def __orthogonal_neighbors(square: Square) -> list[Square]:
             row, column = square
             return [(r, c) for r, c in ((row + 1, column), (row - 1, column), (row, column + 1), (row, column - 1))
                     if 1 <= r <= 9 and 1 <= c <= 9]
+
+        @staticmethod
+        def __diagonal_neighbors(square: Square) -> list[Square]:
+            row, column = square
+            return [(row + dr, column + dc) for dr in (-1, 1) for dc in (-1, 1)
+                    if 1 <= row + dr <= 9 and 1 <= column + dc <= 9]
 
 
 class LittleKillerFeature(PossibilitiesFeature):
@@ -551,7 +567,7 @@ class ValuesAroundIntersectionFeature(PossibilitiesFeature):
         name = f'Quad {"".join(str(value) for value in sorted(self.values))}@r{row}c{column}'
         super().__init__(squares, name=name, neighbors=True, duplicates=True)
 
-    def get_possibilities(self) -> list[Possibility]:
+    def get_possibilities(self) -> Iterator[Possibility]:
         for extra in combinations_with_replacement(range(1, 10), 4 - len(self.values)):
             sequence = (*self.values, *extra)
             yield from permutations(sequence)
@@ -595,11 +611,11 @@ class MessageFeature(Feature):
         self.mapping = mapping
         self.box_of_nine_feature = BoxOfNineFeature(squares=[squares[0] for squares in mapping.values()], show=False)
 
-    def initialize(self, grid) -> None:
+    def initialize(self, grid: Grid) -> None:
         super().initialize(grid)
         self.box_of_nine_feature.initialize(grid)
 
-    def start(self):
+    def start(self) -> None:
         self.box_of_nine_feature.start()
         for letter, squares in self.mapping.items():
             cells = [self @ square for square in squares]
@@ -617,6 +633,7 @@ class MessageFeature(Feature):
 
 
 class AntiDiagonalFeature(PossibilitiesFeature):
+    """The diagonal only features three numbers"""
     def __init__(self, squares: SquaresParseable, *, name: Optional[str] = None):
         super().__init__(squares, name=name)
 
@@ -665,12 +682,12 @@ class ArithmeticFeature(PossibilitiesFeature):
 
     def get_possibilities(self) -> Iterable[Possibility]:
         total, operation = self.total, self.operation
-        op: Callable[[int, int], Optional[int]]
-        op = {'+': lambda x, y: x + y,
-              'x': lambda x, y: x * y,
-              '-': lambda x, y: abs(x - y),
-              '/': lambda x, y: max(x, y) // min(x, y) if max(x, y) % min(x, y) == 0 else None,
-              }[operation]
+        op: Callable[[int, int], Optional[int]] = {
+            '+': lambda x, y: x + y,
+            'x': lambda x, y: x * y,
+            '-': lambda x, y: abs(x - y),
+            '/': lambda x, y: max(x, y) // min(x, y) if max(x, y) % min(x, y) == 0 else None,
+        }[operation]
 
         for a, b, c, d in product(range(1, 10), repeat=4):
             if a != b and c != d and a != c and b != d:
@@ -682,6 +699,50 @@ class ArithmeticFeature(PossibilitiesFeature):
         y, x = self.squares[0]
         context.draw_circle((x + 1, y + 1), radius=.3, fill=False)
         context.draw_text(x + 1, y + 1, self.info, fontsize=12, color='black', weight='bold', va='center', ha='center')
+
+
+class QuadSumFeature(PossibilitiesFeature):
+    """Three of the numbers around a point sum up to the fourth"""
+    def __init__(self, top_left: Square | str, *, name: Optional[str] = None):
+        r, c = Feature.parse_square(top_left)
+        squares = [(r, c), (r + 1, c), (r, c + 1), (r + 1, c + 1)]
+        super().__init__(squares, name=name or f'QuadSum@r{r}c{c}', duplicates=True, neighbors=True)
+
+    def get_possibilities(self) -> Iterable[Possibility]:
+        for a, b, c in itertools.combinations_with_replacement(range(1, 8), 3):
+            d = a + b + c
+            if d <= 9:
+                yield from itertools.permutations((a, b, c, d))
+
+    def draw(self, context: DrawContext) -> None:
+        y, x = self.squares[0]
+        context.draw_circle((x + 1, y + 1), radius=.25, fill=True, color='black', fc='white')
+        context.draw_circle((x + 1, y + 1), radius=.25, fill=True, color='black', fc='white')
+
+
+class OneFiveNineFeature(Feature):
+    def start(self) -> None:
+        for row in range(1, 10):
+            feature = self.OneFiveNineRow(row)
+            feature.initialize(self.grid)
+            feature.start()
+
+    def draw(self, context: DrawContext) -> None:
+        squares = [(row, column) for row in range(1, 10) for column in (1, 5, 9)]
+        context.draw_rectangles(squares, color="#FBC6A2")
+
+    class OneFiveNineRow(HousePossibilitiesFeature):
+        def __init__(self, row: int) -> None:
+            super().__init__(House.Type.ROW, row)
+
+        def get_possibilities(self) -> Iterable[Possibility]:
+            return self.__get_possibilities()
+
+        @staticmethod
+        @functools.cache
+        def __get_possibilities() -> list[Possibility]:
+            return [x for x in itertools.permutations(range(1, 10))
+                    if x[x[0] - 1] == 1 and x[x[4] - 1] == 5 and x[x[8] - 1] == 9]
 
 
 class DrawOnlyFeature(Feature):

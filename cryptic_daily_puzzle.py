@@ -10,8 +10,10 @@ from features.chess_move import KingsMoveFeature, KnightsMoveFeature, LittlePrin
 from features.features import AdjacentNotConsecutiveFeature, AlternativeBoxesFeature, AntiDiagonalFeature, \
     ArithmeticFeature, ArrowSumFeature, BoxOfNineFeature, ExtremeEndpointsFeature, FakeKillerCageFeature, \
     KillerCageFeature, KropkeDotFeature, LimitedValuesFeature, LittleKillerFeature, LocalMinOrMaxFeature, \
-    MagicSquareFeature, PalindromeFeature, RenbanFeature, SimonSaysFeature, ValuesAroundIntersectionFeature, XVFeature
-from features.possibilities_feature import AdjacentRelationshipFeature, HousePossibilitiesFeature, PossibilitiesFeature, \
+    MagicSquareFeature, OneFiveNineFeature, PalindromeFeature, QuadSumFeature, RenbanFeature, SimonSaysFeature, \
+    ValuesAroundIntersectionFeature, XVFeature
+from features.possibilities_feature import AdjacentRelationshipFeature, FullGridAdjacencyFeature, \
+    HousePossibilitiesFeature, PossibilitiesFeature, \
     Possibility
 from features.same_value_as_mate_feature import SameValueAsMateFeature
 from features.same_value_feature import SameValueFeature
@@ -87,11 +89,10 @@ class DoubleSumFeature(HousePossibilitiesFeature):
             permutation[a - 1] + permutation[b - 1] == self.ptotal
 
     def draw(self, context: DrawContext) -> None:
-        args = {'fontsize': '10'}
         if self.total:
             context.draw_outside(f'{self.total}', self.house_type, self.house_index, padding=.2,
-                                 color='red', **args)
-        context.draw_outside(f'{self.ptotal}', self.house_type, self.house_index, **args)
+                                 color='red', fontsize='10')
+        context.draw_outside(f'{self.ptotal}', self.house_type, self.house_index, fontsize=10)
 
 
 def thermometer_magic() -> tuple[str, Sequence[Feature]]:
@@ -782,8 +783,9 @@ def puzzle_2021_08_17() -> tuple[str, Sequence[Feature]]:
       FakeKillerCageFeature("71,S", show_total=False),
       BoxOfNineFeature.minor_diagonal(),
       BoxOfNineFeature.major_diagonal(),
-      # Helper()
     ]
+    if Helper and not Helper:
+        features.append(Helper())
     return BLANK_GRID, features
 
 
@@ -844,12 +846,15 @@ def puzzle_2021_08_22() -> tuple[str, Sequence[Feature]]:
 
 
 def puzzle_2021_08_22a() -> tuple[str, Sequence[Feature]]:
-    # This didn't solve
+    class NotKropkeDotAnywhere(FullGridAdjacencyFeature):
+        def match(self, i: int, j: int) -> bool:
+            return i != 2 * j and j != 2 * i and abs(i - j) > 1
     features = [
         AlternativeBoxesFeature(["11,E,E,E,E,E,E,21,E", "18,19,28,29,S,S,S,S,S",
                                  "23,E,E,E,E,S,E,S,W", "31,S,S,S,S,S,S,NE,S", "32,E,E,E,E,S,S,E,E",
                                  "42,E,E,E,S,S,E,E,E", "52,E,E,S,S,E,E,E,E", "62,E,SW,E,S,E,E,E,E",
-                                 "93,E,E,E,E,E,E,N,W"])
+                                 "93,E,E,E,E,E,E,N,W"]),
+        NotKropkeDotAnywhere(prefix="Kropke"),
     ]
     grid = "XXXXX..4......XX.7.......".replace('X', '.........')
     return grid, features
@@ -858,15 +863,29 @@ def puzzle_2021_08_22a() -> tuple[str, Sequence[Feature]]:
 def puzzle_2021_08_24() -> tuple[str, Sequence[Feature]]:
     features = [
         *[ExtremeEndpointsFeature(f'{x},E,E,E') for x in ["22", "25", "52", "55", "82", "85"]],
-        *[ExtremeEndpointsFeature(f'{x},S,S,S') for x in ["22", "25", "52", "55", "58",]],
-        ArrowSumFeature("28,S,S,S")
+        *[ExtremeEndpointsFeature(f'{x},S,S,S') for x in ["22", "25", "52", "55", "58", ]],
+        ArrowSumFeature("28,S,S,S"),
+        *BoxOfNineFeature.disjoint_groups(),
     ]
     return BLANK_GRID, features
 
 
+def puzzle_2021_08_25() -> tuple[str, Sequence[Feature]]:
+    dots = "16", "18", "22", "26", "44", "45", "47", "48", "51", "54", "63", "77", "78", "83", "84"
+    features = [QuadSumFeature(dot) for dot in dots]
+    grid = 'XXX--..6XXXX-6..-'.replace('X', '---').replace('-', '...')
+    return grid, features
+
+
+def puzzle_2021_08_28() -> tuple[str, Sequence[Feature]]:
+    grid = "..........24...8....6...2....8...3.............1...76..43...6........4..........."
+    features = [OneFiveNineFeature()]
+    return grid, features
+
+
 def main() -> None:
     start = datetime.datetime.now()
-    grid, features = puzzle_2021_08_24()
+    grid, features = puzzle_2021_08_28()
     Sudoku().solve(grid, features=features, initial_only=False, medusa=False, guides=1)
     end = datetime.datetime.now()
     print(end - start)

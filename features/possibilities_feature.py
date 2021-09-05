@@ -24,22 +24,12 @@ class PossibilitiesFeature(Feature):
     handle_duplicates: bool
     possibility_function: Callable[[], Iterable[Possibility]]
 
-    @classmethod
-    def create(cls, squares: SquaresParseable, *,
-               possibility_function: Callable[[], Iterable[Possibility]],
-               name: Optional[str] = None, prefix: Optional[str] = None,
-               neighbors: bool = False, duplicates: bool = False) -> Sequence[PossibilitiesFeature]:
-        return [
-            PossibilitiesFeature(squares, possibility_function=possibility_function,
-                                 name=name, prefix=prefix, neighbors=neighbors, duplicates=duplicates)
-        ]
-
     def __init__(self, squares: SquaresParseable, *,
                  possibility_function: Optional[Callable[[], Iterable[Possibility]]] = None,
                  name: Optional[str] = None, prefix: Optional[str] = None,
                  neighbors: bool = False, duplicates: bool = False) -> None:
         super().__init__(name=name, prefix=prefix)
-        self.squares = self.parse_squares(squares) if isinstance(squares, str) else squares
+        self.squares = self.parse_squares(squares)
         self.handle_neighbors = neighbors
         self.handle_duplicates = duplicates
         self.possibility_function = possibility_function or self.get_possibilities
@@ -101,15 +91,16 @@ class AdjacentRelationshipFeature(Feature, abc.ABC):
 
 
 class FullGridAdjacencyFeature(Feature, abc.ABC):
-    def __init__(self, name: Optional[str] = None) -> None:
-        super().__init__(name=name)
+    def __init__(self, *, prefix: str) -> None:
+        super().__init__(name=prefix)
 
     def start(self) -> None:
         match = self.match
         pairs = [(a, b) for a, b in permutations(range(1, 10), 2) if match(a, b)]
         quads = [(a, b, c, d) for (a, b) in pairs for (c, d) in pairs
                  if a != c and b != d and match(a, c) and match(b, d)]
-        features = [PossibilitiesFeature(((i, j), (i, j + 1), (i + 1, j), (i + 1, j + 1)), prefix=self.name,
+        features = [PossibilitiesFeature(((i, j), (i, j + 1), (i + 1, j), (i + 1, j + 1)),
+                                         name=f'{self.name}@r{i}c{j}',
                                          neighbors=True, possibility_function=lambda: quads)
                     for i, j in product(range(1, 9), repeat=2)]
         for feature in features:
@@ -149,7 +140,7 @@ class PossibilityInfo:
         for index, cell in enumerate(self.cells):
             for house in cell.houses:
                 self.__house_to_indexes[house].append(index)
-        self.__handle_shrunken_possibilities(show=verbose)
+        # self.__handle_shrunken_possibilities(show=verbose)
         self.__previous_possibility_value_pruning = {cell: SmallIntSet.get_full_cell() for cell in self.cells}
 
     def check(self) -> bool:
@@ -521,20 +512,19 @@ class HousePossibilitiesFeature(PossibilitiesFeature, abc.ABC):
     house_type: House.Type
     house_index: int
 
-    def __init__(self, htype: House.Type, index: int, *,
+    def __init__(self, house_type: House.Type, index: int, *,
                  name: Optional[str] = None, prefix: Optional[str] = None):
         if not name and prefix:
-            name = f'{prefix} {htype.name} #{index}'
-        super().__init__(self.get_house_squares(htype, index), name=name)
-        self.house_type = htype
+            name = f'{prefix} {house_type.name} #{index}'
+        super().__init__(self.get_house_squares(house_type, index), name=name)
+        self.house_type = house_type
         self.house_index = index
 
     def get_possibilities(self) -> Iterable[Possibility]:
         return filter(self.match, self.generator())
 
-    @abc.abstractmethod
     def match(self, permutation: Possibility) -> bool:
-        ...
+        return True
 
     def generator(self) -> Iterable[Possibility]:
         return permutations(range(1, 10))

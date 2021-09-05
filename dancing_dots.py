@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import itertools
 from collections import deque
-from collections.abc import Sequence
+from collections.abc import Sequence, Mapping
 from enum import Enum
 
 from matplotlib import pyplot as plt
@@ -29,7 +29,7 @@ class DancingDots:
 
         self.grid = self.get_initial_grid(puzzle)
         constraints = {}
-        optional_constraints = set()
+        optional_constraints: set[str] = set()
 
         all_possible_solutions = self.get_possible_solutions()
 
@@ -165,7 +165,7 @@ class DancingDots:
                 axes.text(column + .5, index + .5, solution[column], va='center', ha='center', **args)
         plt.show()
 
-    def draw_grid2(self, initial_grid) -> None:
+    def draw_grid2(self, initial_grid: Mapping[tuple[int, int], str]) -> None:
         figure, axes = plt.subplots(1, 1, figsize=(4, 4), dpi=100)
 
         # Set (1,1) as the top-left corner, and (max_column, max_row) as the bottom right.
@@ -192,16 +192,16 @@ class DancingDots:
 
 PUZZLE = \
     """
-...X.O..X.
-.OXO.X.O..
-XXOOXXOXOO
-...X.O..X.
-........X.
-..X.....O.
-....OXOXO.
-.X.....OXX
-.O.....X.O
-XOOXOXXOOX
+.XO...XOX.
+XOX....O..
+O.X..O.XO.
+X.O....O..
+O.X...X..O
+OXOXO.....
+XOXOX...O.
+.OXXO.....
+.XOOX....O
+..O.X...X.
 """
 
 if __name__ == '__main__':

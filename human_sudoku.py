@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections import defaultdict, deque
+from collections import Collection, defaultdict, deque
 from collections.abc import Mapping, Sequence
 from itertools import combinations, permutations, product
 
@@ -475,8 +475,8 @@ class Sudoku:
                                 return True
                         elif value1 == value4:
                             # Either cell1 or cell4 has the value.  We can remove it from joint neighbors
-                            fixers = {CellValue(cell, value1) for cell in cell1.joint_neighbors(cell4)
-                                      if value1 in cell.possible_values}
+                            fixers = [CellValue(cell, value1) for cell in cell1.joint_neighbors(cell4)
+                                      if value1 in cell.possible_values]
                         else:
                             # If they are appropriately neighborly, value1 can't be in cell4 and value4 can't be in
                             # cell1, since then both statements would be false.
