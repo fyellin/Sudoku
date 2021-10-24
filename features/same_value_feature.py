@@ -6,7 +6,7 @@ from collections import defaultdict, deque
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from itertools import chain
-from typing import Optional
+from typing import Mapping, Optional
 
 from cell import Cell, SmallIntSet
 from draw_context import DrawContext
@@ -69,7 +69,7 @@ class _Equivalence:
         return self.__check()
 
     def __check(self) -> bool:
-        # Our possible values are values that can fit into any of cour cells
+        # Our possible values are values that can fit into any of our cells
         result = functools.reduce(operator.__and__, (cell.possible_values for cell in self.cells))
         # value is non-None only if we have one remaining value.
         value = result.unique() if len(result) == 1 else None
@@ -93,6 +93,12 @@ class _Equivalence:
     def check_special(self) -> bool:
         # return self.__check_all_values_legal_in_all_houses() | self.__check_try_to_expand_equivalence()
         return self.__check_try_to_expand_equivalence()
+
+    def verify(self, grid: Mapping[Square, int]):
+        values = [grid[cell.square] for cell in self.cells]
+        assert len(set(values)) == 1
+        value = values[0]
+        assert all(value in cell.possible_values for cell in self.cells)
 
     def __check_try_to_expand_equivalence(self) -> bool:
         possibilities_handler = self.grid.possibilities_handler
@@ -169,6 +175,10 @@ class SameValueHandler(Feature):
     def check_special(self) -> bool:
         # Copy the list before iterating, as items may delete themselves.
         return any(equivalence.check_special() for equivalence in list(self.equivalences))
+
+    def verify(self, grid: Mapping[Square, int]) -> None:
+        for equivalence in self.equivalences:
+            equivalence.verify(grid)
 
     def are_cells_same_value(self, *cells: Cell) -> bool:
         return all_equal(self.__union_find.find(cell) for cell in cells)

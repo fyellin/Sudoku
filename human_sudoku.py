@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from collections import Collection, defaultdict, deque
+from collections import defaultdict, deque
 from collections.abc import Mapping, Sequence
 from itertools import combinations, permutations, product
+from typing import Optional
 
 from matplotlib import pyplot as plt
 from matplotlib.axes import Axes
@@ -19,6 +20,7 @@ class Sudoku:
     grid: Grid
     features: list[Feature]
     initial_grid: Mapping[tuple[int, int], int]
+    final_grid: Optional[Mapping[tuple[int, int], int]]
     guides: int
     __cells_at_last_call_to_hidden_singles: dict[House, list[int]]
     __cells_at_last_call_to_intersection_removal: dict[House, list[int]]
@@ -28,6 +30,7 @@ class Sudoku:
     def solve(self, puzzle: str, *, features: Sequence[Feature] = (),
               initial_only: bool = False,
               medusa: bool = False,
+              verify: Optional[str] = None,
               guides: int = 1) -> bool:
 
         features = list(features)
@@ -38,6 +41,11 @@ class Sudoku:
         self.initial_grid = {(row, column): int(letter)
                              for (row, column), letter in zip(product(range(1, 10), repeat=2), puzzle)
                              if '1' <= letter <= '9'}
+        if verify:
+            self.final_grid = {(row, column): int(letter)
+                                for (row, column), letter in zip(product(range(1, 10), repeat=2), verify)}
+        else:
+            self.final_grid = None
 
         for square, value in self.initial_grid.items():
             grid.matrix[square].set_value_to(value)
@@ -59,6 +67,10 @@ class Sudoku:
         self.checking_features = [f for f in self.features if f.has_check_method()]
 
         while True:
+            if self.final_grid:
+                self.grid.verify(self.final_grid)
+                for feature in self.features:
+                    feature.verify(self.final_grid)
             if self.is_solved():
                 self.draw_grid(done=True, result=True)
                 return True

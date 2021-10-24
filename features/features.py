@@ -414,14 +414,7 @@ class ExtremeEndpointsFeature(PossibilitiesFeature):
 
     @staticmethod
     def between(square1: Square, square2: Square) -> ExtremeEndpointsFeature:
-        (r1, c1), (r2, c2) = square1, square2
-        dr, dc = r2 - r1, c2 - c1
-        distance = max(abs(dr), abs(dc))
-        dr, dc = dr // distance, dc // distance
-        squares = [square1]
-        while squares[-1] != square2:
-            r1, c1 = r1 + dr, c1 + dc
-            squares.append((r1, c1))
+        squares = Feature.between(square1, square2)
         return ExtremeEndpointsFeature(squares)
 
     def get_possibilities(self) -> Iterable[Possibility]:
@@ -430,6 +423,39 @@ class ExtremeEndpointsFeature(PossibilitiesFeature):
                 for middle in product(range(low + 1, high), repeat=len(self.squares) - 2):
                     yield low, *middle, high
                     yield high, *middle, low
+
+    def draw(self, context: DrawContext) -> None:
+        y0, x0 = self.squares[0]
+        y1, x1 = self.squares[-1]
+        context.draw_line(self.squares, color='darkgray', lw=2, offset=.4)
+        context.draw_circle((x0 + .5, y0+.5), radius=.4, fill=True, ec='darkgray', fc='white', lw=2)
+        context.draw_circle((x1 + .5, y1+.5), radius=.4, fill=True, ec='darkgray', fc='white', lw=2)
+
+
+class LockoutLineFeature(PossibilitiesFeature):
+    """The values in the middle of the arrow must be strictly in between the values of the two endpoints"""
+    def __init__(self, squares: SquaresParseable):
+        super().__init__(squares, neighbors=True)
+
+    @staticmethod
+    def between(square1: Square, square2: Square) -> LockoutLineFeature:
+        squares = Feature.between(square1, square2)
+        return LockoutLineFeature(squares)
+
+    def get_possibilities(self) -> list[Possibility]:
+        return self.__get_possibilities(len(self.squares))
+
+    @staticmethod
+    @functools.cache
+    def __get_possibilities(length: int) -> list[Possibility]:
+        result = []
+        for low in range(1, 8):
+            for high in range(low + 4, 10):
+                temp = [x for x in range(1, 10) if x < low or x > high]
+                for middle in tuple[int], product(temp, repeat=length - 2):
+                    result.append((low, *middle, high))
+                    result.append((high, *middle, low))
+        return result
 
     def draw(self, context: DrawContext) -> None:
         y0, x0 = self.squares[0]
@@ -637,7 +663,7 @@ class AntiDiagonalFeature(PossibilitiesFeature):
     def __init__(self, squares: SquaresParseable, *, name: Optional[str] = None):
         super().__init__(squares, name=name)
 
-    def get_possibilities(self) -> list[tuple[set[int], ...]]:
+    def get_possibilities(self) -> Iterator[tuple[set[int], ...]]:
         yield from ((*x, *y, *z)
                     for x in permutations(range(1, 10), 3)
                     for y in permutations(x)
@@ -743,6 +769,20 @@ class OneFiveNineFeature(Feature):
         def __get_possibilities() -> list[Possibility]:
             return [x for x in itertools.permutations(range(1, 10))
                     if x[x[0] - 1] == 1 and x[x[4] - 1] == 5 and x[x[8] - 1] == 9]
+
+
+class GermanWhispersFeature(AdjacentRelationshipFeature):
+    delta: int
+
+    def __init__(self, squares: SquaresParseable, prefix: str = "X", *, delta: int = 5) -> None:
+        super().__init__(squares, prefix=prefix)
+        self.delta = delta
+
+    def match(self, i: int, j: int) -> bool:
+        return abs(i - j) >= self.delta
+
+    def draw(self, context: DrawContext) -> None:
+        context.draw_line(self.squares, color='lightgrey', linewidth=5)
 
 
 class DrawOnlyFeature(Feature):

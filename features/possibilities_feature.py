@@ -127,13 +127,14 @@ class PossibilityInfo:
     __house_to_indexes: Mapping[House, list[int]] = field(init=False)
     # These cells have a known value, and we have verified that all possibilities use that value
     __verified_cells: set[Cell] = field(default_factory=set)
-    # These cells are known to have identical values in all possibilities
     __previous_possibility_value_pruning: dict[Cell, SmallIntSet] = field(init=False)
+    # These cells are known to have identical values in all possibilities
     __known_identical_cells: UnionFind[Cell] = field(default_factory=UnionFind)
 
     __cells_at_last_call_to_check: list[int] = field(default_factory=list)
 
     def __post_init__(self, verbose: bool) -> None:
+        _verbose = verbose  # Just to get rid of warning
         self.cells_as_set = set(self.cells)
         self.__value_only_in_feature = defaultdict(SmallIntSet)
         self.__house_to_indexes = defaultdict(list)
@@ -173,36 +174,11 @@ class PossibilityInfo:
                self.__check_values_identical_in_all_possibilities() or \
                self.__check_identical_cells()
 
-    # Note that this cache is cleared whenever the number of possibilities changes
-    @cache
-    def get_weak_pairs(self, cell_value: CellValue) -> Iterable[CellValue]:
-        cell, value = cell_value
-        if cell not in self.cells_as_set:
-            return ()
-        # A weak pair says both conditions can't simultaneously be true.  Assume the cell has the indicated value
-        # and see which values in other cells are no longer possibilities that had been before.
-        index = self.cells.index(cell)
-        iterator = (possibility for possibility in self.possibilities if possibility[index] == value)
-        hopefuls = {index2: cell2.possible_values.copy() for index2, cell2 in enumerate(self.cells)
-                    if cell2 != cell and not cell2.is_known}
-        deletions: set[int] = set()
-        for possibility in iterator:
-            deletions.clear()
-            for index2, possible_values2 in hopefuls.items():
-                possible_values2.discard(possibility[index2])
-                if not possible_values2:
-                    deletions.add(index2)
-            for index2 in deletions:
-                hopefuls.pop(index2)
-            if not hopefuls:
-                return ()
+    def verify(self, grid: Mapping[Square, int]) -> None:
+        expected_result = tuple(grid[cell.square] for cell in self.cells)
+        assert expected_result in self.possibilities
 
-        return [CellValue(self.cells[index2], value2)
-                for index2, values2 in hopefuls.items()
-                for value2 in values2]
-
-    # Note that this cache is cleared whenever the number of possibilities changes
-    @cache
+    @cache   # This cache is cleared whenever the possibilities list changes
     def get_strong_pairs(self, cell_value: CellValue) -> Iterable[CellValue]:
         cell, value = cell_value
         if cell not in self.cells_as_set:
@@ -228,6 +204,33 @@ class PossibilityInfo:
 
         return [CellValue(self.cells[index2], value2) for index2, value2 in hopefuls.items()]
 
+    @cache  # This cache is cleared whenever the number of possibilities changes.
+    def get_weak_pairs_augmented(self, cell_value: CellValue) -> Iterable[CellValue]:
+        cell, value = cell_value
+        if cell not in self.cells_as_set:
+            return ()
+        # A weak pair says both conditions can't simultaneously be true.  Assume the cell has the indicated value
+        # and see which values in other cells are no longer possibilities that had been before.
+        index = self.cells.index(cell)
+        iterator = (possibility for possibility in self.possibilities if possibility[index] == value)
+        hopefuls = {index2: cell2.possible_values.copy() for index2, cell2 in enumerate(self.cells)
+                    if cell2 != cell and not cell2.is_known}
+        deletions: set[int] = set()
+        for possibility in iterator:
+            deletions.clear()
+            for index2, possible_values2 in hopefuls.items():
+                possible_values2.discard(possibility[index2])
+                if not possible_values2:
+                    deletions.add(index2)
+            for index2 in deletions:
+                hopefuls.pop(index2)
+            if not hopefuls:
+                return ()
+
+        return [CellValue(self.cells[index2], value2)
+                for index2, values2 in hopefuls.items()
+                for value2 in values2]
+
     def handle_one_of_values_in_cells(self, cells: set[Cell], values: SmallIntSet) -> bool:
         """
         We have determined that at least one of the cells (all of which are part of our group) must
@@ -246,7 +249,7 @@ class PossibilityInfo:
         return False
 
     def __handle_shrunken_possibilities(self, show: bool = True) -> bool:
-        self.get_weak_pairs.cache_clear()
+        self.get_weak_pairs_augmented.cache_clear()
         self.get_strong_pairs.cache_clear()
         # See if we can change any of our own cells
         changed = self.__shrunken_possibilities_change_cells_inside_me(show)
@@ -413,12 +416,19 @@ class PossibilitiesHandler(Feature):
         return self.__try_to_merge()
 
     def get_weak_pairs(self, cell_value: CellValue) -> Iterable[CellValue]:
+        def is_still_good(cv: CellValue) -> bool:
+            return cv.value in cv.cell.possible_values
+
         for info in self.infos:
-            yield from info.get_weak_pairs(cell_value)
+            yield from filter(is_still_good, info.get_weak_pairs_augmented(cell_value))
 
     def get_strong_pairs(self, cell_value: CellValue) -> Iterable[CellValue]:
         for info in self.infos:
             yield from info.get_strong_pairs(cell_value)
+
+    def verify(self, grid: Mapping[Square, int]) -> None:
+        for info in self.infos:
+            info.verify(grid)
 
     def handle_one_of_values_in_cells(self, cells: set[Cell], values: SmallIntSet) -> bool:
         """

@@ -5,7 +5,7 @@ import atexit
 from collections import defaultdict, deque
 from collections.abc import Callable, Iterable, Sequence
 from itertools import product, zip_longest
-from typing import ClassVar, Optional, Union, cast
+from typing import ClassVar, Mapping, Optional, Union, cast
 
 from cell import Cell, CellValue, House
 from draw_context import DrawContext
@@ -74,6 +74,10 @@ class Feature(abc.ABC):
         if strong_pairs:
             yield from (w for w in self.get_weak_pairs(cell_value) if w in strong_pairs)
 
+    def verify(self, grid: Mapping[Square, int]) -> None:
+        pass
+
+
     def draw(self, context: DrawContext) -> None:
         pass
 
@@ -141,6 +145,18 @@ class Feature(abc.ABC):
             return Feature.__DESCRIPTORS[descriptor.upper()]
         else:
             return descriptor
+
+    @staticmethod
+    def between(square1: Square, square2: Square) -> list[Square]:
+        (r1, c1), (r2, c2) = square1, square2
+        dr, dc = r2 - r1, c2 - c1
+        distance = max(abs(dr), abs(dc))
+        dr, dc = dr // distance, dc // distance
+        squares = [square1]
+        while squares[-1] != square2:
+            r1, c1 = r1 + dr, c1 + dc
+            squares.append((r1, c1))
+        return squares
 
     @staticmethod
     def get_house_squares(htype: House.Type, index: int) -> Sequence[Square]:

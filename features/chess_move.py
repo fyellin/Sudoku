@@ -1,5 +1,6 @@
 import functools
 from collections.abc import Iterable, Sequence
+from itertools import product
 from typing import AbstractSet
 
 from cell import Cell
@@ -78,3 +79,18 @@ class LittlePrincessFeature(Feature):
     def __get_offsets_for_value(value: int) -> Sequence[Square]:
         return [(dr, dc) for delta in range(1, value)
                 for dr in (-delta, delta) for dc in (-delta, delta)]
+
+
+class EuclideanFeature(Feature):
+    """The Euclidean distance between two like values must be greater than that value
+    x**2 + y**2 >= n
+    """
+    def get_neighbors_for_value(self, cell: Cell, value: int) -> Iterable[Cell]:
+        offsets = self.__get_offsets_for_value(value)
+        return self.neighbors_from_offsets(cell, offsets)
+
+    @staticmethod
+    @functools.cache
+    def __get_offsets_for_value(value: int) -> Sequence[Square]:
+        return [(dr, dc) for dr, dc in product(range(-8, 9), repeat=2)
+                if 0 <  dr**2 + dc**2 < value]

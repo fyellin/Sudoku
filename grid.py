@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
 from itertools import product
-from typing import TYPE_CHECKING
+from typing import Mapping, TYPE_CHECKING
 
 from cell import Cell, House
 
@@ -70,6 +70,10 @@ class Grid:
     def is_solved(self) -> bool:
         return all(cell.is_known for cell in self.cells)
 
+    def verify(self, final_grid: Mapping[tuple[int, int], int]) -> None:
+        for cell in self.cells:
+            assert final_grid[cell.square] in cell.possible_values
+
     def delete_normal_boxes(self) -> None:
         boxes = [house for house in self.houses if house.house_type == House.Type.BOX]
         for box in boxes:
@@ -114,3 +118,4 @@ class Grid:
                 out.write('-+-')
                 out.write('-' * (3 * max_length + 2))
                 out.write('\n')
+

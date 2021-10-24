@@ -324,20 +324,19 @@ class CellValue(NamedTuple):
         char = '=' if truth else '≠'
         return f'{self.cell}{char}{self.value}'
 
-    def get_strong_pairs_extended(self) -> Iterable[tuple[CellValue, House | Feature | bool]]:
+    def get_strong_pairs_extended(self) -> Iterable[tuple[CellValue, Any]]:
         """if cell ≠ value, then what cells are forced to have a value"""
         return self.__get_all_pairs_extended(lambda a, b: a.get_strong_pairs(b), False)
 
-    def get_weak_pairs_extended(self) -> Iterable[tuple[CellValue, House | Feature | bool]]:
+    def get_weak_pairs_extended(self) -> Iterable[tuple[CellValue, Any]]:
         """if cell == value, then what cells can't have which values?"""
         return self.__get_all_pairs_extended(lambda a, b: a.get_weak_pairs(b), True)
 
-    def get_xor_pairs_extended(self) -> Iterable[tuple[CellValue, House | Feature | bool]]:
+    def get_xor_pairs_extended(self) -> Iterable[tuple[CellValue, Any]]:
         """Which cells have which values if and only if this cell doesn't have the given value?"""
         return self.__get_all_pairs_extended(lambda a, b: a.get_xor_pairs(b), False)
 
-    def __get_all_pairs_extended(self, func: Callable[..., Any], is_weak: bool) -> \
-            Iterable[tuple[CellValue, House | Feature | bool]]:
+    def __get_all_pairs_extended(self, func: Callable[..., Any], is_weak: bool) -> Iterable[tuple[CellValue, Any]]:
         original_cell, value = self
         for cell in original_cell.get_equivalent_cells():
             yield from ((CellValue(cell2, value), house2) for cell2, house2 in func(cell, value))

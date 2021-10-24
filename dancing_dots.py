@@ -189,20 +189,20 @@ class DancingDots:
                 axes.text(column + .5, row + .5, value, va='center', ha='center', **args)
         plt.show()
 
+        x= dict()
+        x.items
+
 
 PUZZLE = \
     """
-.XO...XOX.
-XOX....O..
-O.X..O.XO.
-X.O....O..
-O.X...X..O
-OXOXO.....
-XOXOX...O.
-.OXXO.....
-.XOOX....O
-..O.X...X.
+...OXOXOX.
+....XOXOOX
+O.X.OXOXXO
+..O.X...O.
+.XOOX...O.
+OOXXO.XOX.
+XOOXOXOXXO
+OXXOXOOXOX
+XXOXOOXOOX
+XOXOOXOXXO
 """
-
-if __name__ == '__main__':
-    DancingDots().solve2(PUZZLE)

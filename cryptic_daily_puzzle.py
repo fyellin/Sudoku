@@ -6,10 +6,12 @@ from typing import Optional, cast
 from cell import Cell, House, SmallIntSet
 from draw_context import DrawContext
 from feature import Feature, Square
-from features.chess_move import KingsMoveFeature, KnightsMoveFeature, LittlePrincessFeature, QueensMoveFeature
+from features.chess_move import EuclideanFeature, KingsMoveFeature, KnightsMoveFeature, LittlePrincessFeature, \
+    QueensMoveFeature
 from features.features import AdjacentNotConsecutiveFeature, AlternativeBoxesFeature, AntiDiagonalFeature, \
     ArithmeticFeature, ArrowSumFeature, BoxOfNineFeature, ExtremeEndpointsFeature, FakeKillerCageFeature, \
-    KillerCageFeature, KropkeDotFeature, LimitedValuesFeature, LittleKillerFeature, LocalMinOrMaxFeature, \
+    GermanWhispersFeature, KillerCageFeature, KropkeDotFeature, LimitedValuesFeature, LittleKillerFeature, \
+    LocalMinOrMaxFeature, \
     MagicSquareFeature, OneFiveNineFeature, PalindromeFeature, QuadSumFeature, RenbanFeature, SimonSaysFeature, \
     ValuesAroundIntersectionFeature, XVFeature
 from features.possibilities_feature import AdjacentRelationshipFeature, FullGridAdjacencyFeature, \
@@ -882,14 +884,33 @@ def puzzle_2021_08_28() -> tuple[str, Sequence[Feature]]:
     features = [OneFiveNineFeature()]
     return grid, features
 
+def puzzle_2021_10_06() -> tuple[str, Sequence[Feature]]:
+    features = [
+        KingsMoveFeature(),
+        BoxOfNineFeature.major_diagonal(),
+        BoxOfNineFeature.minor_diagonal(),
+        GermanWhispersFeature("91,NE,NE,NE,NE,NE,NE,NE,NE,W,W,W,W,W,W,W,W,SE,SE,SE,SE,SE,SE,SE,SE", delta=4),
+        ]
+    grid = "XXXXXX519--XX".replace('X', '---').replace('-', '...')
+    return grid, features
+
+def puzzle_2021_10_16() -> tuple[str, Sequence[Feature]]:
+    class Helper(SimonSaysFeature):
+        def round_1(self) -> None:
+            (self @ (5, 5)).set_value_to(9)
+
+    features = [EuclideanFeature(), Helper()]
+    grid = '....6......2.........4........7...............8.2....5.............3...........4.'
+    print(len(grid))
+    return grid, features
+
 
 def main() -> None:
     start = datetime.datetime.now()
-    grid, features = puzzle_2021_08_28()
+    grid, features = puzzle_2021_10_16()
     Sudoku().solve(grid, features=features, initial_only=False, medusa=False, guides=1)
     end = datetime.datetime.now()
     print(end - start)
-
 
 if __name__ == '__main__':
     main()
