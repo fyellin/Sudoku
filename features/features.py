@@ -452,7 +452,7 @@ class LockoutLineFeature(PossibilitiesFeature):
         for low in range(1, 8):
             for high in range(low + 4, 10):
                 temp = [x for x in range(1, 10) if x < low or x > high]
-                for middle in tuple[int], product(temp, repeat=length - 2):
+                for middle in product(temp, repeat=length - 2):
                     result.append((low, *middle, high))
                     result.append((high, *middle, low))
         return result

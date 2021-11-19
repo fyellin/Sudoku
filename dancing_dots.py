@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import itertools
 from collections import deque
 from collections.abc import Sequence, Mapping
@@ -189,20 +190,20 @@ class DancingDots:
                 axes.text(column + .5, row + .5, value, va='center', ha='center', **args)
         plt.show()
 
-        x= dict()
-        x.items
-
 
 PUZZLE = \
     """
-...OXOXOX.
-....XOXOOX
-O.X.OXOXXO
-..O.X...O.
-.XOOX...O.
-OOXXO.XOX.
-XOOXOXOXXO
-OXXOXOOXOX
-XXOXOOXOOX
-XOXOOXOXXO
+XOX.O.X.O.
+OX....X...
+.O....OX..
+....OXXO..
+X.....X..X
+O.....O...
+O......O..
+XXO.....X.
+X.....OXO.
+OOXXOXOOXX
 """
+
+if __name__ == '__main__':
+    DancingDots().solve2(PUZZLE)

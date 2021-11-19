@@ -17,6 +17,7 @@ if TYPE_CHECKING:
 
 
 class SmallIntSet:
+    __slots__ = "bits"
     bits: int
 
     BITS_TO_TUPLE: dict[int, tuple[int, ...]] = {
