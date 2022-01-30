@@ -3,8 +3,8 @@ from __future__ import annotations
 import functools
 import itertools
 import re
-from collections import Iterator, defaultdict
-from collections.abc import Callable, Iterable, Mapping, Sequence
+from collections import defaultdict
+from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from itertools import combinations_with_replacement, groupby, permutations, product
 from typing import Any, ClassVar, Optional, cast
 
@@ -769,6 +769,45 @@ class OneFiveNineFeature(Feature):
         def __get_possibilities() -> list[Possibility]:
             return [x for x in itertools.permutations(range(1, 10))
                     if x[x[0] - 1] == 1 and x[x[4] - 1] == 5 and x[x[8] - 1] == 9]
+
+
+class BattleshipFeature(HousePossibilitiesFeature):
+    """Specify the total sum of the squares between the 1 and the 9."""
+    total: int
+
+    @staticmethod
+    def create_all(house_type: House.Type, totals: Sequence[Optional[int]]) -> Sequence[BattleshipFeature]:
+        """Used to set sandwiches for an entire row or column.   A none indicates missing"""
+        return [BattleshipFeature(house_type, rc, total)
+                for rc, total in enumerate(totals, start=1)
+                if total is not None]
+
+    def __init__(self, house_type: House.Type, index: int, total: int):
+        super().__init__(house_type, index, prefix="Battleship")
+        self.total = total
+
+    def get_possibilities(self) -> Iterable[Possibility]:
+        possibilities = self.get_all_generators()
+        return possibilities[self.total]
+
+    @classmethod
+    def battleship_sum(cls, permutation: Possibility) -> int:
+        index1 = permutation[0]
+        index2 = 9 - permutation[-1]
+        if index2 < index1:
+            index1, index2 = index2, index1
+        return sum(permutation[i] for i in range(index1, index2))
+
+    @classmethod
+    @functools.cache
+    def get_all_generators(cls) -> Mapping[int, Sequence[Possibility]]:
+        result: dict[int, list[Possibility]] = defaultdict(list)
+        for permutation in itertools.permutations(range(1, 10)):
+            result[cls.battleship_sum(permutation)].append(permutation)
+        return result
+
+    def draw(self, context: DrawContext) -> None:
+        context.draw_outside(self.total, self.house_type, self.house_index, fontsize=20, weight='bold')
 
 
 class GermanWhispersFeature(AdjacentRelationshipFeature):

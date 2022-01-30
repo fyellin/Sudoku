@@ -5,6 +5,7 @@ import itertools
 from collections import deque
 from collections.abc import Sequence, Mapping
 from enum import Enum
+from functools import cache
 
 from matplotlib import pyplot as plt
 
@@ -193,18 +194,18 @@ class DancingDots:
 
 PUZZLE = \
     """
-OOXOXOXOXX
-XXO..OXOXO
-XOOXOXOXOX
-OXX..OXXOO
-O..OXXOOXX
-XO..OXXOXO
-OX..XOOXOX
-X....OXOXO
-XOX..XOXOO
-OXO..XOXOX
-
+X....XOOX.
+XOOXOXXOOX
+OX..XOXXOO
+.OXO.XOOXX
+.XO...OXXO
+..X..OXXOO
+O..O..XOXX
+XOOX..OXXO
+OXXO..OXO.
+......XOOX
 """
 
 if __name__ == '__main__':
-    DancingDots().solve2(PUZZLE)
+    # DancingDots().solve(PUZZLE)
+    pass

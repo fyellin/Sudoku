@@ -19,7 +19,7 @@ from features.possibilities_feature import AdjacentRelationshipFeature, FullGrid
     Possibility
 from features.same_value_as_mate_feature import SameValueAsMateFeature
 from features.same_value_feature import SameValueFeature
-from features.sandwich_feature import SandwichFeature, SandwichXSumFeature, XSumFeature
+from features.sandwich_feature import BattleshipFeature, SandwichFeature, SandwichXSumFeature, XSumFeature
 from features.skyscraper_feature import SkyscraperFeature
 from features.thermometer import SlowThermometerFeature, ThermometerAsLessThanFeature, ThermometerFeature
 from grid import Grid
@@ -904,10 +904,17 @@ def puzzle_2021_10_16() -> tuple[str, Sequence[Feature]]:
     print(len(grid))
     return grid, features
 
+def puzzle_2022_01_17() -> tuple[str, Sequence[Feature]]:
+    features = [
+        *BattleshipFeature.create_all(House.Type.ROW, [13, 34, 2, 39, 5, 37, 17, 0, 31]),
+        *BattleshipFeature.create_all(House.Type.COLUMN, [21, None, None, 15, 7, 9, None, None, 18]),
+    ]
+    return BLANK_GRID, features
+
 
 def main() -> None:
     start = datetime.datetime.now()
-    grid, features = puzzle_2021_10_16()
+    grid, features = puzzle_2022_01_17()
     Sudoku().solve(grid, features=features, initial_only=False, medusa=False, guides=1)
     end = datetime.datetime.now()
     print(end - start)

@@ -3,8 +3,7 @@ from __future__ import annotations
 import functools
 import itertools
 import operator
-from collections import Callable
-from collections.abc import Iterator, Sequence
+from collections.abc import Iterator, Sequence, Callable
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from typing import AbstractSet, Any, ClassVar, Final, Iterable, NamedTuple, Optional, TYPE_CHECKING
